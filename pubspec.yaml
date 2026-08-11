@@ -1,0 +1,79 @@
+name: watchhive_mobile
+description: WatchHive — Track Movies, Anime, K-Drama & Series
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Navigation
+  go_router: ^14.2.0
+
+  # HTTP & API
+  dio: ^5.4.3
+
+  # Secure Storage (JWT tokens)
+  flutter_secure_storage: ^9.2.2
+
+  # Image Caching
+  cached_network_image: ^3.3.1
+
+  # Environment Variables
+  flutter_dotenv: ^5.1.0
+
+  # Google Sign-In
+  google_sign_in: ^6.2.1
+
+  # Firebase (Push Notifications)
+  firebase_core: ^3.3.0
+  firebase_messaging: ^15.0.4
+  flutter_local_notifications: ^17.2.1
+
+  # Date & Time
+  intl: ^0.19.0
+
+  # Rating Widget
+  flutter_rating_bar: ^4.0.1
+
+  # Shimmer skeleton loading
+  shimmer: ^3.0.0
+
+  # Lottie animations
+  lottie: ^3.1.2
+
+  # Utilities
+  url_launcher: ^6.3.0
+  share_plus: ^10.0.0
+  image_picker: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.11
+  riverpod_generator: ^2.4.3
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
+
+  # fonts:
+  #   - family: Inter
+  #     fonts:
+  #       - asset: assets/fonts/Inter-Regular.ttf
+  #       - asset: assets/fonts/Inter-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Inter-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Inter-Bold.ttf
+  #         weight: 700
