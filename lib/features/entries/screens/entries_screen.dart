@@ -193,11 +193,19 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
           tabs: _tabs.map((t) => Tab(text: t.label)).toList(),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddEntry,
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.black,
-        child: const Icon(Icons.add_rounded),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text(
+          'Log a Entry',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
+        ),
       ),
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
