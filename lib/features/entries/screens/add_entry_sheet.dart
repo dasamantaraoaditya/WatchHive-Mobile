@@ -21,6 +21,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   final _titleController = TextEditingController();
   final _reviewController = TextEditingController();
   final _searchController = TextEditingController();
+  final _suggestedByController = TextEditingController();
 
   String _type = 'MOVIE';
   double _rating = 0;
@@ -40,6 +41,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       final e = widget.editEntry!;
       _titleController.text = e.title;
       _reviewController.text = e.review ?? '';
+      _suggestedByController.text = e.suggestedByUser?.username ?? e.suggestedByUserId ?? '';
       _type = e.type;
       _rating = e.rating ?? 0;
       _isRewatch = e.isRewatch;
@@ -52,6 +54,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     _titleController.dispose();
     _reviewController.dispose();
     _searchController.dispose();
+    _suggestedByController.dispose();
     super.dispose();
   }
 
@@ -90,6 +93,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         'isRewatch': _isRewatch,
         'isWatching': _isWatching,
         'watchedAt': DateTime.now().toIso8601String(),
+        if (_suggestedByController.text.trim().isNotEmpty)
+          'suggestedByUserId': _suggestedByController.text.trim(),
       };
 
       if (isEditing) {
@@ -299,6 +304,18 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                     style: const TextStyle(fontFamily: 'Inter', fontSize: 15, color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       hintText: 'What did you think?',
+                      counterText: '',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  const _SectionLabel('💡 Suggested By (Optional Username)'),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _suggestedByController,
+                    style: const TextStyle(fontFamily: 'Inter', fontSize: 15, color: AppColors.textPrimary),
+                    decoration: const InputDecoration(
+                      hintText: 'Suggested user ID or username',
                       counterText: '',
                     ),
                   ),

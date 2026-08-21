@@ -3,6 +3,8 @@ import 'user.dart';
 class Entry {
   final String id;
   final String userId;
+  final String? suggestedByUserId;
+  final User? suggestedByUser;
   final int tmdbId;
   final String title;
   final String type; // MOVIE | TV_SHOW | EPISODE
@@ -23,6 +25,8 @@ class Entry {
   const Entry({
     required this.id,
     required this.userId,
+    this.suggestedByUserId,
+    this.suggestedByUser,
     required this.tmdbId,
     required this.title,
     required this.type,
@@ -53,6 +57,10 @@ class Entry {
     return Entry(
       id: json['id']?.toString() ?? '',
       userId: json['userId']?.toString() ?? '',
+      suggestedByUserId: json['suggestedByUserId']?.toString(),
+      suggestedByUser: json['suggestedByUser'] != null
+          ? User.fromJson(json['suggestedByUser'] as Map<String, dynamic>)
+          : null,
       tmdbId: json['tmdbId'] is int ? json['tmdbId'] as int : int.tryParse(json['tmdbId']?.toString() ?? '0') ?? 0,
       title: json['title'] as String? ?? 'Untitled',
       type: json['type'] as String? ?? 'MOVIE',
@@ -97,5 +105,6 @@ class Entry {
         if (startedAt != null) 'startedAt': startedAt!.toIso8601String(),
         if (completedAt != null) 'completedAt': completedAt!.toIso8601String(),
         if (watchLocation != null) 'watchLocation': watchLocation,
+        if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
       };
 }
