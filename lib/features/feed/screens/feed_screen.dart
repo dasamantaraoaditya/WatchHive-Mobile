@@ -386,6 +386,7 @@ class _FeedCard extends StatelessWidget {
                             backgroundImage: entry.suggestedByUser!.profilePictureUrl != null
                                 ? NetworkImage(entry.suggestedByUser!.profilePictureUrl!)
                                 : null,
+                            onBackgroundImageError: (exception, stackTrace) {},
                             child: entry.suggestedByUser!.profilePictureUrl == null
                                 ? Text(
                                     (entry.suggestedByUser!.displayName ?? entry.suggestedByUser!.username)[0].toUpperCase(),
