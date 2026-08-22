@@ -165,6 +165,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             title: const Text('WatchHive', style: TextStyle(color: AppColors.primary)),
             actions: [
               IconButton(
+                icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),
+                tooltip: 'MindLens AI',
+                onPressed: () => context.push('/mindlens'),
+              ),
+              IconButton(
                 icon: const Icon(Icons.notifications_outlined),
                 onPressed: () => context.push('/notifications'),
               ),

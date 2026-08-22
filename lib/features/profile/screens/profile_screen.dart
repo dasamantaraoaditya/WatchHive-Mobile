@@ -9,6 +9,8 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../entries/repositories/entries_repository.dart';
+import 'edit_profile_dialog.dart';
+import '../widgets/user_rankings_tab.dart';
 
 // ─── Profile Repository ───────────────────────────────────────────────────────
 
@@ -112,7 +114,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   actions: [
                     IconButton(
                       icon: const Icon(Icons.settings_outlined),
-                      onPressed: () {},
+                      onPressed: () {
+                        if (user != null) {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => EditProfileDialog(
+                              user: user,
+                              onSaved: _loadData,
+                            ),
+                          );
+                        }
+                      },
                     ),
                     IconButton(
                       icon: const Icon(Icons.logout_rounded),
@@ -249,6 +261,16 @@ class _UserProfileScreenBodyState extends ConsumerState<UserProfileScreenBody> {
                         onFollow: _toggleFollow,
                       ),
                       const SizedBox(height: 24),
+                      const Text(
+                        'Cinematic Stacks & Rankings',
+                        style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 320,
+                        child: UserRankingsTab(userId: widget.userId),
+                      ),
+                      const SizedBox(height: 24),
                       if (_entries.isNotEmpty) ...[
                         const Text(
                           'Watch History',
@@ -327,11 +349,26 @@ class _ProfileHeader extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: isFollowing ? AppColors.surfaceHighest : AppColors.primary,
                           foregroundColor: isFollowing ? AppColors.textPrimary : Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                         ),
                         child: isFollowLoading
                             ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                             : Text(isFollowing ? 'Following' : 'Follow', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      height: 34,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () => context.push('/compare/${user.id}'),
+                        icon: const Icon(Icons.compare_arrows, size: 16),
+                        label: const Text('Compare', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(width: 10),

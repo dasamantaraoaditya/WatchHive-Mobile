@@ -10,6 +10,10 @@ class User {
   final String privacyLevel;
   final int xp;
   final int level;
+  final bool showWatchEntries;
+  final bool showCurrentlyWatching;
+  final bool showWatchlist;
+  final bool showRankings;
   final List<dynamic> badges;
   final DateTime createdAt;
 
@@ -22,6 +26,10 @@ class User {
     this.location,
     this.isPrivate = false,
     this.privacyLevel = 'PUBLIC',
+    this.showWatchEntries = true,
+    this.showCurrentlyWatching = true,
+    this.showWatchlist = true,
+    this.showRankings = true,
     this.xp = 0,
     this.level = 1,
     this.badges = const [],
@@ -39,6 +47,10 @@ class User {
         location: json['location'] as String?,
         isPrivate: json['isPrivate'] as bool? ?? false,
         privacyLevel: json['privacyLevel'] as String? ?? 'PUBLIC',
+        showWatchEntries: json['showWatchEntries'] as bool? ?? true,
+        showCurrentlyWatching: json['showCurrentlyWatching'] as bool? ?? true,
+        showWatchlist: json['showWatchlist'] as bool? ?? true,
+        showRankings: json['showRankings'] as bool? ?? true,
         xp: json['xp'] as int? ?? 0,
         level: json['level'] as int? ?? 1,
         badges: json['badges'] as List<dynamic>? ?? [],
@@ -56,6 +68,10 @@ class User {
         'location': location,
         'isPrivate': isPrivate,
         'privacyLevel': privacyLevel,
+        'showWatchEntries': showWatchEntries,
+        'showCurrentlyWatching': showCurrentlyWatching,
+        'showWatchlist': showWatchlist,
+        'showRankings': showRankings,
         'xp': xp,
         'level': level,
         'badges': badges,

@@ -7,6 +7,7 @@ import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
 import 'add_entry_sheet.dart';
+import '../widgets/suggestions_tab.dart';
 
 // ─── Providers ───────────────────────────────────────────────────────────────
 
@@ -133,16 +134,27 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
   late final TabController _tabController;
 
   final _tabs = [
-    (label: 'All', type: null, isWatching: null),
-    (label: '🎬 Movies', type: 'MOVIE', isWatching: null),
-    (label: '📺 TV Shows', type: 'TV_SHOW', isWatching: null),
-    (label: '▶ Watching', type: null, isWatching: true),
+    (label: '▶ Watching', type: null, isWatching: true, isSuggestions: false),
+    (label: '📜 History', type: null, isWatching: false, isSuggestions: false),
+    (label: '💡 Suggestions', type: null, isWatching: null, isSuggestions: true),
   ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+        final tab = _tabs[_tabController.index];
+        if (!tab.isSuggestions) {
+          ref.read(entriesProvider.notifier).loadEntries(
+                type: tab.type,
+                isWatching: tab.isWatching,
+              );
+        }
+      }
+    });
     _scrollController.addListener(_onScroll);
   }
 
@@ -171,22 +183,22 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(entriesProvider);
+    final isSuggestionsTab = _tabs[_tabController.index].isSuggestions;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('My Watch Log'),
+        title: const Text('My Watch Hub'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),
+            tooltip: 'MindLens AI',
+            onPressed: () => context.push('/mindlens'),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          onTap: (i) {
-            final tab = _tabs[i];
-            ref.read(entriesProvider.notifier).loadEntries(
-                  type: tab.type,
-                  isWatching: tab.isWatching,
-                );
-          },
+          isScrollable: false,
           indicatorColor: AppColors.primary,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textMuted,
@@ -199,7 +211,7 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
         foregroundColor: Colors.black,
         icon: const Icon(Icons.add_rounded),
         label: const Text(
-          'Log a Entry',
+          'Log Entry',
           style: TextStyle(
             fontFamily: 'Inter',
             fontWeight: FontWeight.w700,
@@ -207,40 +219,44 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
           ),
         ),
       ),
-      body: state.isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : state.entries.isEmpty
-              ? const _EmptyEntries()
-              : ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                  itemCount: state.entries.length + (state.isLoadingMore ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index == state.entries.length) {
-                      return const Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
-                      );
-                    }
-                    final entry = state.entries[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _EntryListItem(
-                        entry: entry,
-                        onTap: () => context.push('/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}'),
-                        onDelete: () => ref.read(entriesProvider.notifier).deleteEntry(entry.id),
-                        onEdit: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => AddEntrySheet(editEntry: entry),
+      body: isSuggestionsTab
+          ? SuggestionsTab(
+              onTapMedia: (tmdbId, type) => context.push('/details/$type/$tmdbId'),
+            )
+          : state.isLoading
+              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              : state.entries.isEmpty
+                  ? const _EmptyEntries()
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                      itemCount: state.entries.length + (state.isLoadingMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == state.entries.length) {
+                          return const Padding(
+                            padding: EdgeInsets.all(20),
+                            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
                           );
-                        },
-                      ),
-                    );
-                  },
-                ),
+                        }
+                        final entry = state.entries[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _EntryListItem(
+                            entry: entry,
+                            onTap: () => context.push('/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}'),
+                            onDelete: () => ref.read(entriesProvider.notifier).deleteEntry(entry.id),
+                            onEdit: () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => AddEntrySheet(editEntry: entry),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
     );
   }
 }

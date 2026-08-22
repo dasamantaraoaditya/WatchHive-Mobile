@@ -4,14 +4,26 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/models/models.dart';
+import '../../../shared/models/user.dart';
 import '../repositories/entries_repository.dart';
 import 'entries_screen.dart';
 import '../../search/repositories/search_repository.dart';
 
 class AddEntrySheet extends ConsumerStatefulWidget {
   final Entry? editEntry;
+  final int? prefillTmdbId;
+  final String? prefillType;
+  final User? prefillSuggestor;
+  final VoidCallback? onSuccess;
 
-  const AddEntrySheet({super.key, this.editEntry});
+  const AddEntrySheet({
+    super.key,
+    this.editEntry,
+    this.prefillTmdbId,
+    this.prefillType,
+    this.prefillSuggestor,
+    this.onSuccess,
+  });
 
   @override
   ConsumerState<AddEntrySheet> createState() => _AddEntrySheetState();
@@ -46,6 +58,13 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       _rating = e.rating ?? 0;
       _isRewatch = e.isRewatch;
       _isWatching = e.isWatching;
+    } else {
+      if (widget.prefillSuggestor != null) {
+        _suggestedByController.text = widget.prefillSuggestor!.id;
+      }
+      if (widget.prefillType != null) {
+        _type = widget.prefillType!;
+      }
     }
   }
 
@@ -105,7 +124,10 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         ref.read(entriesProvider.notifier).addEntry(entry);
       }
 
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        widget.onSuccess?.call();
+        Navigator.of(context).pop();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

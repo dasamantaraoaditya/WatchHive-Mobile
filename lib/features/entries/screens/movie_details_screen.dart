@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../entries/screens/add_entry_sheet.dart';
+import '../widgets/suggest_movie_modal.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -214,14 +215,42 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                   ),
                 const SizedBox(height: 20),
 
-                // Log Entry Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _logEntry,
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('Log This'),
-                  ),
+                // Log Entry & Suggest Buttons Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _logEntry,
+                        icon: const Icon(Icons.add_rounded),
+                        label: const Text('Log This'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (ctx) => SuggestMovieModal(
+                              tmdbId: widget.tmdbId,
+                              title: title,
+                              mediaType: widget.mediaType,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.auto_awesome, size: 18),
+                        label: const Text('Suggest'),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
 

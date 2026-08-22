@@ -14,6 +14,8 @@ import '../../features/profile/screens/profile_screen.dart';
 import '../../features/profile/screens/user_profile_screen.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/entries/screens/movie_details_screen.dart';
+import '../../features/mindlens/screens/mindlens_screen.dart';
+import '../../features/profile/screens/compare_history_screen.dart';
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -93,10 +95,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const NotificationsScreen(),
       ),
       GoRoute(
+        path: '/compare/:id',
+        builder: (context, state) => CompareHistoryScreen(
+          userId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
         path: '/profile/:id',
         builder: (context, state) => UserProfileScreen(
           userId: state.pathParameters['id']!,
         ),
+      ),
+      GoRoute(
+        path: '/mindlens',
+        builder: (context, state) => const MindLensScreen(),
       ),
       GoRoute(
         path: '/details/:mediaType/:tmdbId',
