@@ -39,8 +39,16 @@ jobs:
       - name: Decode Android Keystore
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            python3 -c "import os, base64; open('android/upload-keystore.jks', 'wb').write(base64.b64decode(os.environ['ANDROID_KEYSTORE_BASE64'].strip()))"
-            echo "Android Keystore decoded successfully."
+            python3 -c "
+import os, base64
+try:
+    raw = os.environ['ANDROID_KEYSTORE_BASE64'].strip()
+    raw += '=' * (-len(raw) % 4)
+    open('android/upload-keystore.jks', 'wb').write(base64.b64decode(raw))
+    print('Android Keystore decoded successfully.')
+except Exception as e:
+    print(f'Error decoding keystore secret: {e}.')
+"
           else
             echo "No ANDROID_KEYSTORE_BASE64 secret provided. Skipping release keystore decoding."
           fi
@@ -48,8 +56,16 @@ jobs:
       - name: Decode Google Play Service Account Key
         run: |
           if [ -n "$PLAY_STORE_JSON_KEY_BASE64" ]; then
-            python3 -c "import os, base64; open('android/pc-api-key.json', 'wb').write(base64.b64decode(os.environ['PLAY_STORE_JSON_KEY_BASE64'].strip()))"
-            echo "Google Play JSON key decoded successfully."
+            python3 -c "
+import os, base64
+try:
+    raw = os.environ['PLAY_STORE_JSON_KEY_BASE64'].strip()
+    raw += '=' * (-len(raw) % 4)
+    open('android/pc-api-key.json', 'wb').write(base64.b64decode(raw))
+    print('Google Play JSON key decoded successfully.')
+except Exception as e:
+    print(f'Error decoding JSON key secret: {e}.')
+"
           else
             echo "No PLAY_STORE_JSON_KEY_BASE64 secret provided. Skipping Play Store JSON key decoding."
           fi
@@ -78,10 +94,10 @@ jobs:
 
       - name: Deploy to Google Play Store (Internal Track)
         run: |
-          if [ -n "$PLAY_STORE_JSON_KEY_BASE64" ]; then
+          if [ -f "android/pc-api-key.json" ]; then
             cd android
             gem install fastlane
             fastlane internal
           else
-            echo "No PLAY_STORE_JSON_KEY_BASE64 secret provided. Skipping Fastlane Play Store deployment."
+            echo "No valid pc-api-key.json configured. Skipping Fastlane Play Store deployment."
           fi
