@@ -49,3 +49,8 @@ app.*.map.json
 *.keystore
 key.properties
 .env
+.env.*
+.env.local
+pc-api-key.json
+google-services.json
+
