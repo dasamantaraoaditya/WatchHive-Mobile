@@ -194,11 +194,13 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                             secondary: CircleAvatar(
                               radius: 16,
                               backgroundColor: AppColors.primary,
-                              backgroundImage: friend.profilePictureUrl != null
+                              backgroundImage: friend.profilePictureUrl != null && friend.profilePictureUrl!.isNotEmpty
                                   ? NetworkImage(friend.profilePictureUrl!)
                                   : null,
-                              onBackgroundImageError: (_, __) {},
-                              child: friend.profilePictureUrl == null
+                              onBackgroundImageError: friend.profilePictureUrl != null && friend.profilePictureUrl!.isNotEmpty
+                                  ? (_, __) {}
+                                  : null,
+                              child: friend.profilePictureUrl == null || friend.profilePictureUrl!.isEmpty
                                   ? Text(
                                       (friend.displayName ?? friend.username)[0].toUpperCase(),
                                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),

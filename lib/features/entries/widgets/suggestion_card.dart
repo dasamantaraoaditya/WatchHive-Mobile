@@ -190,11 +190,13 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
                   CircleAvatar(
                     radius: 8,
                     backgroundColor: AppColors.primary,
-                    backgroundImage: firstSuggestor.profilePictureUrl != null
+                    backgroundImage: firstSuggestor.profilePictureUrl != null && firstSuggestor.profilePictureUrl!.isNotEmpty
                         ? NetworkImage(firstSuggestor.profilePictureUrl!)
                         : null,
-                    onBackgroundImageError: (_, __) {},
-                    child: firstSuggestor.profilePictureUrl == null
+                    onBackgroundImageError: firstSuggestor.profilePictureUrl != null && firstSuggestor.profilePictureUrl!.isNotEmpty
+                        ? (_, __) {}
+                        : null,
+                    child: firstSuggestor.profilePictureUrl == null || firstSuggestor.profilePictureUrl!.isEmpty
                         ? Text(
                             (firstSuggestor.displayName ?? firstSuggestor.username)[0].toUpperCase(),
                             style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),

@@ -388,11 +388,13 @@ class _FeedCard extends StatelessWidget {
                           CircleAvatar(
                             radius: 8,
                             backgroundColor: AppColors.primary,
-                            backgroundImage: entry.suggestedByUser!.profilePictureUrl != null
+                            backgroundImage: entry.suggestedByUser!.profilePictureUrl != null && entry.suggestedByUser!.profilePictureUrl!.isNotEmpty
                                 ? NetworkImage(entry.suggestedByUser!.profilePictureUrl!)
                                 : null,
-                            onBackgroundImageError: (exception, stackTrace) {},
-                            child: entry.suggestedByUser!.profilePictureUrl == null
+                            onBackgroundImageError: entry.suggestedByUser!.profilePictureUrl != null && entry.suggestedByUser!.profilePictureUrl!.isNotEmpty
+                                ? (exception, stackTrace) {}
+                                : null,
+                            child: entry.suggestedByUser!.profilePictureUrl == null || entry.suggestedByUser!.profilePictureUrl!.isEmpty
                                 ? Text(
                                     (entry.suggestedByUser!.displayName ?? entry.suggestedByUser!.username)[0].toUpperCase(),
                                     style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
