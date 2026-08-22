@@ -37,14 +37,9 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Decode Android Keystore
-        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
-
-      - name: Decode Google Play Service Account Key
-        if: env.PLAY_STORE_JSON_KEY_BASE64 != ''
-        run: |
-          echo "$PLAY_STORE_JSON_KEY_BASE64" | base64 --decode > android/pc-api-key.json
 
       - name: Build Android App Bundle (.aab)
         env:
@@ -52,30 +47,35 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: flutter build appbundle --release
+        run: |
+          if [ -f "android/upload-keystore.jks" ]; then
+            flutter build appbundle --release
+          else
+            flutter build appbundle --debug
+          fi
 
       - name: Upload Build Artifact (.aab)
         uses: actions/upload-artifact@v4
         with:
-          name: watchhive-release-aab
-          path: build/app/outputs/bundle/release/app-release.aab
+          name: watchhive-appbundle
+          path: build/app/outputs/bundle/*/*.aab
           retention-days: 14
 
       - name: Setup Ruby for Fastlane
-        if: env.PLAY_STORE_JSON_KEY_BASE64 != ''
+        if: ${{ env.PLAY_STORE_JSON_KEY_BASE64 != '' }}
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
           working-directory: android
 
       - name: Install Fastlane
-        if: env.PLAY_STORE_JSON_KEY_BASE64 != ''
+        if: ${{ env.PLAY_STORE_JSON_KEY_BASE64 != '' }}
         run: |
           cd android
           gem install fastlane
 
       - name: Deploy to Google Play Store (Internal Track)
-        if: env.PLAY_STORE_JSON_KEY_BASE64 != ''
+        if: ${{ env.PLAY_STORE_JSON_KEY_BASE64 != '' }}
         run: |
           cd android
           fastlane internal
