@@ -239,11 +239,15 @@ class _FeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSuggestion = entry.user == null;
+    final displayName = isSuggestion ? 'WatchHive Suggestion' : (entry.user?.displayName ?? entry.user?.username ?? 'User');
+    final subtitleText = isSuggestion ? '✨ Recommended for You' : '@${entry.user?.username ?? ""}';
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: isSuggestion ? AppColors.primary.withValues(alpha: 0.3) : AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,22 +258,32 @@ class _FeedCard extends StatelessWidget {
             child: Row(
               children: [
                 GestureDetector(
-                  onTap: onUserTap,
-                  child: WHAvatar(
-                    imageUrl: entry.user?.profilePictureUrl,
-                    name: entry.user?.name,
-                    radius: 18,
-                  ),
+                  onTap: isSuggestion ? null : onUserTap,
+                  child: isSuggestion
+                      ? Container(
+                          width: 36,
+                          height: 36,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.auto_awesome, color: Colors.black, size: 20),
+                        )
+                      : WHAvatar(
+                          imageUrl: entry.user?.profilePictureUrl,
+                          name: entry.user?.displayName ?? entry.user?.username,
+                          radius: 18,
+                        ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: GestureDetector(
-                    onTap: onUserTap,
+                    onTap: isSuggestion ? null : onUserTap,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          entry.user?.displayName ?? entry.user?.username ?? 'User',
+                          displayName,
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14,
@@ -278,11 +292,12 @@ class _FeedCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '@${entry.user?.username ?? ""}',
-                          style: const TextStyle(
+                          subtitleText,
+                          style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,
-                            color: AppColors.textMuted,
+                            fontWeight: isSuggestion ? FontWeight.bold : FontWeight.normal,
+                            color: isSuggestion ? AppColors.primary : AppColors.textMuted,
                           ),
                         ),
                       ],
@@ -311,7 +326,7 @@ class _FeedCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.15),
+                      color: AppColors.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -328,7 +343,7 @@ class _FeedCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.info.withOpacity(0.15),
+                        color: AppColors.info.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Text(
@@ -366,13 +381,7 @@ class _FeedCard extends StatelessWidget {
                   if (entry.suggestedByUser != null) ...[
                     const SizedBox(height: 4),
                     GestureDetector(
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          '/profile',
-                          arguments: entry.suggestedByUser!.id,
-                        );
-                      },
+                      onTap: () => context.push('/profile/${entry.suggestedByUser!.id}'),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
