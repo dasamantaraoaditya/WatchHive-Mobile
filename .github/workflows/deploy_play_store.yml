@@ -42,11 +42,18 @@ jobs:
       - name: Run Static Code Analysis
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
-      - name: Decode Android Keystore
+      - name: Decode & Verify Android Keystore
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            python3 -c "import os, base64; raw=os.environ['ANDROID_KEYSTORE_BASE64'].strip(); open('android/upload-keystore.jks', 'wb').write(base64.b64decode(raw + '='*(-len(raw)%4)))"
-            echo "Android Keystore decoded successfully."
+            python3 -c "import os, base64; raw=os.environ['ANDROID_KEYSTORE_BASE64'].replace('\n','').replace('\r','').replace(' ','').strip(); raw+='='*(-len(raw)%4); open('android/upload-keystore.jks', 'wb').write(base64.b64decode(raw))"
+            if keytool -list -keystore android/upload-keystore.jks -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1; then
+              echo "Android Keystore verified successfully."
+            else
+              echo "Keystore validation failed. Removing invalid keystore file to fallback to debug bundle."
+              rm -f android/upload-keystore.jks
+            fi
           else
             echo "No ANDROID_KEYSTORE_BASE64 secret provided. Skipping release keystore decoding."
           fi
@@ -54,7 +61,7 @@ jobs:
       - name: Decode Google Play Service Account Key
         run: |
           if [ -n "$PLAY_STORE_JSON_KEY_BASE64" ]; then
-            python3 -c "import os, base64; raw=os.environ['PLAY_STORE_JSON_KEY_BASE64'].strip(); open('android/pc-api-key.json', 'wb').write(base64.b64decode(raw + '='*(-len(raw)%4)))"
+            python3 -c "import os, base64; raw=os.environ['PLAY_STORE_JSON_KEY_BASE64'].replace('\n','').replace('\r','').replace(' ','').strip(); raw+='='*(-len(raw)%4); open('android/pc-api-key.json', 'wb').write(base64.b64decode(raw))"
             echo "Google Play JSON key decoded successfully."
           else
             echo "No PLAY_STORE_JSON_KEY_BASE64 secret provided. Skipping Play Store JSON key decoding."
