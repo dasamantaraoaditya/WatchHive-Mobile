@@ -156,7 +156,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
             ),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
-              value: _privacyLevel,
+              initialValue: _privacyLevel,
               dropdownColor: AppColors.cardBg,
               style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
               decoration: InputDecoration(
@@ -182,25 +182,25 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.textMuted, letterSpacing: 1.0),
             ),
             SwitchListTile(
-              activeColor: AppColors.primary,
+              activeThumbColor: AppColors.primary,
               title: const Text('Show Watch Log Entries', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
               value: _showWatchEntries,
               onChanged: (v) => setState(() => _showWatchEntries = v),
             ),
             SwitchListTile(
-              activeColor: AppColors.primary,
+              activeThumbColor: AppColors.primary,
               title: const Text('Show Currently Watching', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
               value: _showCurrentlyWatching,
               onChanged: (v) => setState(() => _showCurrentlyWatching = v),
             ),
             SwitchListTile(
-              activeColor: AppColors.primary,
+              activeThumbColor: AppColors.primary,
               title: const Text('Show Watchlist', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
               value: _showWatchlist,
               onChanged: (v) => setState(() => _showWatchlist = v),
             ),
             SwitchListTile(
-              activeColor: AppColors.primary,
+              activeThumbColor: AppColors.primary,
               title: const Text('Show Ranking Stacks', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
               value: _showRankings,
               onChanged: (v) => setState(() => _showRankings = v),

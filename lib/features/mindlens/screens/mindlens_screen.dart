@@ -12,7 +12,6 @@ class MindLensScreen extends ConsumerStatefulWidget {
 
 class _MindLensScreenState extends ConsumerState<MindLensScreen> {
   Map<String, dynamic>? _insights;
-  Map<String, dynamic>? _influence;
   bool _isLoading = true;
   String? _error;
 
