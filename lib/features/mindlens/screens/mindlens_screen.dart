@@ -110,8 +110,15 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
   }
 
   Widget _buildMoodBanner() {
-    final moodData = _insights?['moodPrediction'] as Map<String, dynamic>?;
-    final prediction = moodData?['mood'] as String? ?? 'Explorative & Cinematic';
+    final moodRaw = _insights?['moodPrediction'];
+    String prediction = 'Explorative & Cinematic';
+    if (moodRaw is Map<String, dynamic>) {
+      prediction = moodRaw['mood'] as String? ?? prediction;
+    } else if (moodRaw is String) {
+      prediction = moodRaw;
+    } else if (_insights?['prediction'] is String) {
+      prediction = _insights!['prediction'] as String;
+    }
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -161,7 +168,12 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
   }
 
   Widget _buildSoulPersonaCard() {
-    final persona = (_insights?['persona'] as Map<String, dynamic>?) ?? (_insights?['soulPersona'] as Map<String, dynamic>?);
+    Map<String, dynamic>? persona;
+    if (_insights?['persona'] is Map<String, dynamic>) {
+      persona = _insights!['persona'] as Map<String, dynamic>;
+    } else if (_insights?['soulPersona'] is Map<String, dynamic>) {
+      persona = _insights!['soulPersona'] as Map<String, dynamic>;
+    }
     final name = persona?['name'] as String? ?? 'Cinematic Voyager';
     final desc = persona?['description'] as String? ?? 'Passionate cinema enthusiast exploring deep narratives and visual storytelling.';
 
@@ -217,7 +229,10 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
   }
 
   Widget _buildRecommendersLeaderboard() {
-    final suggestionAnalytics = _insights?['suggestionAnalytics'] as Map<String, dynamic>?;
+    Map<String, dynamic>? suggestionAnalytics;
+    if (_insights?['suggestionAnalytics'] is Map<String, dynamic>) {
+      suggestionAnalytics = _insights!['suggestionAnalytics'] as Map<String, dynamic>;
+    }
     final leaderboard = (suggestionAnalytics?['recommenders'] as List<dynamic>?) ?? [];
 
     return Container(
@@ -324,10 +339,26 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
   }
 
   Widget _buildBehavioralTrails() {
-    final trails = _insights?['behavioralTrails'] as Map<String, dynamic>?;
-    final watchVelocity = trails?['watchVelocity']?.toString() ?? '1.2 / wk';
-    final rewatchRatio = trails?['rewatchRatio']?.toString() ?? '15%';
-    final versatility = trails?['genreVersatility']?.toString() ?? '84 / 100';
+    final rawTrails = _insights?['behavioralTrails'];
+    String watchVelocity = '1.2 / wk';
+    String rewatchRatio = '15%';
+    String versatility = '84 / 100';
+
+    if (rawTrails is List<dynamic>) {
+      for (final item in rawTrails) {
+        if (item is Map<String, dynamic>) {
+          final title = (item['title'] as String? ?? '').toUpperCase();
+          final val = item['value']?.toString() ?? '';
+          if (title.contains('VELOCITY') || title.contains('PACE') || title.contains('FREQUENCY')) watchVelocity = val;
+          if (title.contains('REWATCH')) rewatchRatio = val;
+          if (title.contains('VERSATILITY') || title.contains('DIVERSITY')) versatility = val;
+        }
+      }
+    } else if (rawTrails is Map<String, dynamic>) {
+      watchVelocity = rawTrails['watchVelocity']?.toString() ?? watchVelocity;
+      rewatchRatio = rawTrails['rewatchRatio']?.toString() ?? rewatchRatio;
+      versatility = rawTrails['genreVersatility']?.toString() ?? versatility;
+    }
 
     return GridView.count(
       shrinkWrap: true,
@@ -335,7 +366,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
       crossAxisCount: 2,
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
-      childAspectRatio: 1.4,
+      childAspectRatio: 1.2,
       children: [
         _buildStatTile('WATCH VELOCITY', watchVelocity, Icons.speed_rounded, Colors.cyanAccent),
         _buildStatTile('REWATCH RATIO', rewatchRatio, Icons.repeat_rounded, Colors.purpleAccent),
