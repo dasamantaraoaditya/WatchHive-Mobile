@@ -319,27 +319,6 @@ class _FeedCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (entry.suggestedByUser != null) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.amber.withOpacity(0.4)),
-                      ),
-                      child: Text(
-                        '💡 Suggested by @${entry.suggestedByUser!.username}',
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.amber,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(width: 8),
                   if (entry.isRewatch)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -367,13 +346,39 @@ class _FeedCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: GestureDetector(
               onTap: onMediaTap,
-              child: Text(
-                entry.title,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: entry.title,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (entry.suggestedByUser != null) ...[
+                      const TextSpan(
+                        text: '  suggested by ',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      TextSpan(
+                        text: '@${entry.suggestedByUser!.username}',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.amber,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
