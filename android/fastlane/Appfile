@@ -1,0 +1,3 @@
+# Fastlane Appfile for Android Google Play Deployment
+json_key_file("pc-api-key.json") # Path to Google Play Console Service Account JSON key
+package_name("com.watchhive.watchhive_mobile")

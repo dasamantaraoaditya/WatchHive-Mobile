@@ -7,6 +7,12 @@ if (keyPropertiesFile.exists()) {
     keyProperties.load(FileInputStream(keyPropertiesFile))
 }
 
+val storeFilePath = System.getenv("KEYSTORE_FILE") ?: keyProperties.getProperty("storeFile")
+val storePass = System.getenv("KEYSTORE_PASSWORD") ?: keyProperties.getProperty("storePassword")
+val alias = System.getenv("KEY_ALIAS") ?: keyProperties.getProperty("keyAlias")
+val aliasPass = System.getenv("KEY_PASSWORD") ?: keyProperties.getProperty("keyPassword")
+val hasSigningConfig = storeFilePath != null && storePass != null && alias != null && aliasPass != null
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -26,11 +32,11 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keyPropertiesFile.exists()) {
-                keyAlias = keyProperties.getProperty("keyAlias")
-                keyPassword = keyProperties.getProperty("keyPassword")
-                storeFile = keyProperties.getProperty("storeFile")?.let { file(it) }
-                storePassword = keyProperties.getProperty("storePassword")
+            if (hasSigningConfig) {
+                keyAlias = alias
+                keyPassword = aliasPass
+                storeFile = file(storeFilePath!!)
+                storePassword = storePass
             }
         }
     }
@@ -48,7 +54,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keyPropertiesFile.exists()) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+            signingConfig = if (hasSigningConfig) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
 }

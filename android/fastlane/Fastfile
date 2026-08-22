@@ -1,0 +1,34 @@
+default_platform(:android)
+
+platform :android do
+  desc "Upload Android App Bundle to Google Play Internal Testing Track"
+  lane :internal do
+    upload_to_play_store(
+      track: 'internal',
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Upload Android App Bundle to Beta Track"
+  lane :beta do
+    upload_to_play_store(
+      track: 'beta',
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
+      skip_upload_apk: true
+    )
+  end
+
+  desc "Promote latest internal build to Production track"
+  lane :promote_to_production do
+    upload_to_play_store(
+      track: 'internal',
+      to_track: 'production',
+      skip_upload_apk: true,
+      skip_upload_aab: true
+    )
+  end
+end

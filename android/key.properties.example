@@ -1,0 +1,7 @@
+# Android Release Signing Configuration Example
+# Copy this file to android/key.properties for local release builds (DO NOT COMMIT key.properties TO GIT)
+
+storeFile=../upload-keystore.jks
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyAlias=watchhive-key
+keyPassword=YOUR_KEY_PASSWORD
