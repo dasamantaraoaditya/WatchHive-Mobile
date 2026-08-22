@@ -31,10 +31,18 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
     });
     try {
       final api = ref.read(apiClientProvider);
-      final response = await api.get('/lists/rankings/user/${widget.userId}');
+      final response = await api.get('/lists/user/${widget.userId}/rankings');
       if (mounted) {
+        final data = response.data;
+        List<dynamic> parsedStacks = [];
+        if (data is List) {
+          parsedStacks = data;
+        } else if (data is Map && data['items'] is List) {
+          parsedStacks = data['items'] as List;
+        }
+
         setState(() {
-          _stacks = (response.data as List<dynamic>?) ?? [];
+          _stacks = parsedStacks;
           _isLoading = false;
         });
       }
