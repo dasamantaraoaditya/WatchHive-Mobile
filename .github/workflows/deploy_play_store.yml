@@ -30,6 +30,12 @@ jobs:
         with:
           channel: 'stable'
 
+      - name: Ensure .env asset file exists
+        run: |
+          if [ ! -f ".env" ]; then
+            cp .env.example .env
+          fi
+
       - name: Install Dependencies
         run: flutter pub get
 
