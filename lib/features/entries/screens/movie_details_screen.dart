@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../entries/screens/add_entry_sheet.dart';
 import '../widgets/suggest_movie_modal.dart';
+import '../repositories/watchlist_repository.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -124,6 +126,21 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
               ),
               onPressed: () => context.pop(),
             ),
+            actions: [
+              IconButton(
+                icon: const CircleAvatar(
+                  backgroundColor: Colors.black54,
+                  child: Icon(Icons.share_rounded, color: Colors.white, size: 18),
+                ),
+                onPressed: () {
+                  final title = _details?['title'] ?? _details?['name'] ?? 'Movie/Show';
+                  Share.share(
+                    'Check out "$title" on WatchHive!',
+                    subject: 'WatchHive: $title',
+                  );
+                },
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -215,7 +232,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                   ),
                 const SizedBox(height: 20),
 
-                // Log Entry & Suggest Buttons Row
+                // Log Entry, Suggest & Watchlist Buttons Row
                 Row(
                   children: [
                     Expanded(
@@ -225,7 +242,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         label: const Text('Log This'),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
@@ -239,16 +256,47 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                             context: context,
                             isScrollControlled: true,
                             backgroundColor: Colors.transparent,
-                            builder: (ctx) => SuggestMovieModal(
+                            builder: (_) => SuggestMovieModal(
                               tmdbId: widget.tmdbId,
                               title: title,
                               mediaType: widget.mediaType,
                             ),
                           );
                         },
-                        icon: const Icon(Icons.auto_awesome, size: 18),
-                        label: const Text('Suggest'),
+                        icon: const Icon(Icons.send_rounded, size: 16),
+                        label: const Text('Suggest', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.outlined(
+                      style: IconButton.styleFrom(
+                        side: const BorderSide(color: AppColors.primary),
+                        foregroundColor: AppColors.primary,
+                      ),
+                      tooltip: 'Save to Watchlist',
+                      onPressed: () async {
+                        try {
+                          await ref.read(watchlistRepositoryProvider).addToWatchlist(
+                            tmdbId: widget.tmdbId,
+                            title: title,
+                            mediaType: widget.mediaType,
+                            posterPath: details['poster_path'] as String?,
+                            overview: details['overview'] as String?,
+                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Saved to Watchlist!')),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to save to Watchlist: $e')),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.bookmark_border_rounded),
                     ),
                   ],
                 ),

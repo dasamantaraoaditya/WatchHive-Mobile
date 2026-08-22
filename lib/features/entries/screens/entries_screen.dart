@@ -8,6 +8,7 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
 import 'add_entry_sheet.dart';
 import '../widgets/suggestions_tab.dart';
+import '../widgets/watchlist_tab.dart';
 
 // ─── Providers ───────────────────────────────────────────────────────────────
 
@@ -134,9 +135,10 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
   late final TabController _tabController;
 
   final _tabs = [
-    (label: '▶ Watching', type: null, isWatching: true, isSuggestions: false),
-    (label: '📜 History', type: null, isWatching: false, isSuggestions: false),
-    (label: '💡 Suggestions', type: null, isWatching: null, isSuggestions: true),
+    (label: '▶ Watching', type: null, isWatching: true, isSuggestions: false, isWatchlist: false),
+    (label: '📜 History', type: null, isWatching: false, isSuggestions: false, isWatchlist: false),
+    (label: '🔖 Watchlist', type: null, isWatching: null, isSuggestions: false, isWatchlist: true),
+    (label: '💡 Suggestions', type: null, isWatching: null, isSuggestions: true, isWatchlist: false),
   ];
 
   @override
@@ -147,7 +149,7 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
       if (!_tabController.indexIsChanging) {
         setState(() {});
         final tab = _tabs[_tabController.index];
-        if (!tab.isSuggestions) {
+        if (!tab.isSuggestions && !tab.isWatchlist) {
           ref.read(entriesProvider.notifier).loadEntries(
                 type: tab.type,
                 isWatching: tab.isWatching,
@@ -183,7 +185,6 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(entriesProvider);
-    final isSuggestionsTab = _tabs[_tabController.index].isSuggestions;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -198,7 +199,7 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          isScrollable: false,
+          isScrollable: true,
           indicatorColor: AppColors.primary,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textMuted,
@@ -219,44 +220,56 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
           ),
         ),
       ),
-      body: isSuggestionsTab
-          ? SuggestionsTab(
-              onTapMedia: (tmdbId, type) => context.push('/details/$type/$tmdbId'),
-            )
-          : state.isLoading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-              : state.entries.isEmpty
-                  ? const _EmptyEntries()
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                      itemCount: state.entries.length + (state.isLoadingMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == state.entries.length) {
-                          return const Padding(
-                            padding: EdgeInsets.all(20),
-                            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
-                          );
-                        }
-                        final entry = state.entries[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _EntryListItem(
-                            entry: entry,
-                            onTap: () => context.push('/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}'),
-                            onDelete: () => ref.read(entriesProvider.notifier).deleteEntry(entry.id),
-                            onEdit: () {
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => AddEntrySheet(editEntry: entry),
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildEntriesList(state),
+          _buildEntriesList(state),
+          const WatchlistTab(),
+          SuggestionsTab(
+            onTapMedia: (tmdbId, type) => context.push('/details/$type/$tmdbId'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEntriesList(EntriesState state) {
+    if (state.isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    }
+    if (state.entries.isEmpty) {
+      return const _EmptyEntries();
+    }
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      itemCount: state.entries.length + (state.isLoadingMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == state.entries.length) {
+          return const Padding(
+            padding: EdgeInsets.all(20),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+          );
+        }
+        final entry = state.entries[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _EntryListItem(
+            entry: entry,
+            onTap: () => context.push('/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}'),
+            onDelete: () => ref.read(entriesProvider.notifier).deleteEntry(entry.id),
+            onEdit: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => AddEntrySheet(editEntry: entry),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
