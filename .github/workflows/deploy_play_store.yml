@@ -39,16 +39,8 @@ jobs:
       - name: Decode Android Keystore
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            python3 -c "
-import os, base64
-try:
-    raw = os.environ['ANDROID_KEYSTORE_BASE64'].strip()
-    raw += '=' * (-len(raw) % 4)
-    open('android/upload-keystore.jks', 'wb').write(base64.b64decode(raw))
-    print('Android Keystore decoded successfully.')
-except Exception as e:
-    print(f'Error decoding keystore secret: {e}.')
-"
+            python3 -c "import os, base64; raw=os.environ['ANDROID_KEYSTORE_BASE64'].strip(); open('android/upload-keystore.jks', 'wb').write(base64.b64decode(raw + '='*(-len(raw)%4)))"
+            echo "Android Keystore decoded successfully."
           else
             echo "No ANDROID_KEYSTORE_BASE64 secret provided. Skipping release keystore decoding."
           fi
@@ -56,16 +48,8 @@ except Exception as e:
       - name: Decode Google Play Service Account Key
         run: |
           if [ -n "$PLAY_STORE_JSON_KEY_BASE64" ]; then
-            python3 -c "
-import os, base64
-try:
-    raw = os.environ['PLAY_STORE_JSON_KEY_BASE64'].strip()
-    raw += '=' * (-len(raw) % 4)
-    open('android/pc-api-key.json', 'wb').write(base64.b64decode(raw))
-    print('Google Play JSON key decoded successfully.')
-except Exception as e:
-    print(f'Error decoding JSON key secret: {e}.')
-"
+            python3 -c "import os, base64; raw=os.environ['PLAY_STORE_JSON_KEY_BASE64'].strip(); open('android/pc-api-key.json', 'wb').write(base64.b64decode(raw + '='*(-len(raw)%4)))"
+            echo "Google Play JSON key decoded successfully."
           else
             echo "No PLAY_STORE_JSON_KEY_BASE64 secret provided. Skipping Play Store JSON key decoding."
           fi
