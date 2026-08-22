@@ -360,34 +360,47 @@ class _FeedCard extends StatelessWidget {
                   ),
                   if (entry.suggestedByUser != null) ...[
                     const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.amber.withOpacity(0.3)),
-                      ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/profile',
+                          arguments: entry.suggestedByUser!.id,
+                        );
+                      },
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.lightbulb_outline, size: 13, color: Colors.amber),
-                          const SizedBox(width: 4),
                           const Text(
                             'Suggested by ',
                             style: TextStyle(
                               fontFamily: 'Inter',
-                              fontSize: 11,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: AppColors.textMuted,
                             ),
                           ),
+                          CircleAvatar(
+                            radius: 8,
+                            backgroundColor: AppColors.primary,
+                            backgroundImage: entry.suggestedByUser!.profilePictureUrl != null
+                                ? NetworkImage(entry.suggestedByUser!.profilePictureUrl!)
+                                : null,
+                            child: entry.suggestedByUser!.profilePictureUrl == null
+                                ? Text(
+                                    (entry.suggestedByUser!.displayName ?? entry.suggestedByUser!.username)[0].toUpperCase(),
+                                    style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 4),
                           Text(
                             '@${entry.suggestedByUser!.username}',
                             style: const TextStyle(
                               fontFamily: 'Inter',
-                              fontSize: 11,
+                              fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: Colors.amber,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ],
