@@ -11,12 +11,7 @@ class MindLensRepository {
   MindLensRepository(this._api);
 
   Future<Map<String, dynamic>> getInsights() async {
-    final response = await _api.get('/stats/insights');
-    return response.data as Map<String, dynamic>;
-  }
-
-  Future<Map<String, dynamic>> getInfluenceStats() async {
-    final response = await _api.get('/stats/influence');
+    final response = await _api.get('/mindlens/insights');
     return response.data as Map<String, dynamic>;
   }
 }

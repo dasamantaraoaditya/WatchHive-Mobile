@@ -29,14 +29,10 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
     });
     try {
       final repo = ref.read(mindLensRepositoryProvider);
-      final results = await Future.wait([
-        repo.getInsights(),
-        repo.getInfluenceStats(),
-      ]);
+      final data = await repo.getInsights();
       if (mounted) {
         setState(() {
-          _insights = results[0];
-          _influence = results[1];
+          _insights = data;
           _isLoading = false;
         });
       }
@@ -114,7 +110,8 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
   }
 
   Widget _buildMoodBanner() {
-    final prediction = _insights?['prediction'] as String? ?? 'Explorative & Cinematic';
+    final moodData = _insights?['moodPrediction'] as Map<String, dynamic>?;
+    final prediction = moodData?['mood'] as String? ?? 'Explorative & Cinematic';
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -164,7 +161,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
   }
 
   Widget _buildSoulPersonaCard() {
-    final persona = _insights?['soulPersona'] as Map<String, dynamic>?;
+    final persona = (_insights?['persona'] as Map<String, dynamic>?) ?? (_insights?['soulPersona'] as Map<String, dynamic>?);
     final name = persona?['name'] as String? ?? 'Cinematic Voyager';
     final desc = persona?['description'] as String? ?? 'Passionate cinema enthusiast exploring deep narratives and visual storytelling.';
 
@@ -220,7 +217,8 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
   }
 
   Widget _buildRecommendersLeaderboard() {
-    final leaderboard = (_influence?['leaderboard'] as List<dynamic>?) ?? [];
+    final suggestionAnalytics = _insights?['suggestionAnalytics'] as Map<String, dynamic>?;
+    final leaderboard = (suggestionAnalytics?['recommenders'] as List<dynamic>?) ?? [];
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -265,9 +263,8 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
               separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 16),
               itemBuilder: (ctx, i) {
                 final item = leaderboard[i] as Map<String, dynamic>;
-                final user = item['user'] as Map<String, dynamic>?;
-                final username = user?['username'] as String? ?? 'Friend';
-                final count = (item['count'] as num?)?.toInt() ?? 0;
+                final username = item['username'] as String? ?? (item['user'] as Map<String, dynamic>?)?['username'] as String? ?? 'Friend';
+                final count = (item['watchedCount'] as num?)?.toInt() ?? (item['totalSuggested'] as num?)?.toInt() ?? (item['count'] as num?)?.toInt() ?? 0;
 
                 return Row(
                   children: [
