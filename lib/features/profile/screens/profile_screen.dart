@@ -103,6 +103,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).value?.user;
 
+    if (user == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Profile')),
+        body: const Center(
+          child: Text('User session expired. Please sign in again.', style: TextStyle(color: AppColors.textMuted)),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _isLoading
@@ -110,20 +120,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           : CustomScrollView(
               slivers: [
                 SliverAppBar(
-                  title: Text(user?.username ?? 'Profile'),
+                  title: Text(user.username),
                   actions: [
                     IconButton(
                       icon: const Icon(Icons.settings_outlined),
                       onPressed: () {
-                        if (user != null) {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => EditProfileDialog(
-                              user: user,
-                              onSaved: _loadData,
-                            ),
-                          );
-                        }
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => EditProfileDialog(
+                            user: user,
+                            onSaved: _loadData,
+                          ),
+                        );
                       },
                     ),
                     IconButton(
@@ -136,7 +144,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   padding: const EdgeInsets.all(20),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _ProfileHeader(user: user!, showFollowButton: false),
+                      _ProfileHeader(user: user, showFollowButton: false),
                       const SizedBox(height: 24),
                       if (_stats != null) ...[
                         _StatsRow(stats: _stats!),
@@ -190,6 +198,7 @@ class _UserProfileScreenBodyState extends ConsumerState<UserProfileScreenBody> {
   List<Entry> _entries = [];
   bool _isLoading = true;
   bool _isFollowLoading = false;
+  String? _error;
 
   @override
   void initState() {
@@ -198,20 +207,31 @@ class _UserProfileScreenBodyState extends ConsumerState<UserProfileScreenBody> {
   }
 
   Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final profileData = await ref.read(profileRepositoryProvider).getUserProfile(widget.userId);
       final entriesResult = await ref.read(entriesRepositoryProvider).getEntries(userId: widget.userId, limit: 6);
 
-      setState(() {
-        _user = profileData.user;
-        _isFollowing = profileData.isFollowing;
-        _followersCount = profileData.followersCount;
-        _followingCount = profileData.followingCount;
-        _entries = entriesResult.entries;
-        _isLoading = false;
-      });
-    } catch (_) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _user = profileData.user;
+          _isFollowing = profileData.isFollowing;
+          _followersCount = profileData.followersCount;
+          _followingCount = profileData.followingCount;
+          _entries = entriesResult.entries;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -232,68 +252,103 @@ class _UserProfileScreenBodyState extends ConsumerState<UserProfileScreenBody> {
         });
       }
     } catch (_) {}
-    setState(() => _isFollowLoading = false);
+    if (mounted) setState(() => _isFollowLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  title: Text(_user?.username ?? ''),
-                  floating: true,
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
+    if (_error != null || _user == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Profile')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.person_off_outlined, size: 48, color: AppColors.textMuted),
+                const SizedBox(height: 12),
+                Text(
+                  _error ?? 'User profile not found',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.all(20),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      _ProfileHeader(
-                        user: _user!,
-                        showFollowButton: true,
-                        isFollowing: _isFollowing,
-                        isFollowLoading: _isFollowLoading,
-                        followersCount: _followersCount,
-                        followingCount: _followingCount,
-                        onFollow: _toggleFollow,
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Cinematic Stacks & Rankings',
-                        style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 320,
-                        child: UserRankingsTab(userId: widget.userId),
-                      ),
-                      const SizedBox(height: 24),
-                      if (_entries.isNotEmpty) ...[
-                        const Text(
-                          'Watch History',
-                          style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                        ),
-                        const SizedBox(height: 12),
-                        ..._entries.map((entry) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: _EntryRow(entry: entry),
-                            )),
-                      ] else ...[
-                        const Center(
-                          child: Text(
-                            'No public entries',
-                            style: TextStyle(color: AppColors.textMuted),
-                          ),
-                        ),
-                      ],
-                    ]),
-                  ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _loadData,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
                 ),
               ],
             ),
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            title: Text(_user!.username),
+            floating: true,
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.all(20),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _ProfileHeader(
+                  user: _user!,
+                  showFollowButton: true,
+                  isFollowing: _isFollowing,
+                  isFollowLoading: _isFollowLoading,
+                  followersCount: _followersCount,
+                  followingCount: _followingCount,
+                  onFollow: _toggleFollow,
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Cinematic Stacks & Rankings',
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 320,
+                  child: UserRankingsTab(userId: widget.userId),
+                ),
+                const SizedBox(height: 24),
+                if (_entries.isNotEmpty) ...[
+                  const Text(
+                    'Watch History',
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 12),
+                  ..._entries.map((entry) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _EntryRow(entry: entry),
+                      )),
+                ] else ...[
+                  const Center(
+                    child: Text(
+                      'No public entries',
+                      style: TextStyle(color: AppColors.textMuted),
+                    ),
+                  ),
+                ],
+              ]),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
