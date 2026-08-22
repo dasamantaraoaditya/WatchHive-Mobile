@@ -39,7 +39,7 @@ jobs:
       - name: Decode Android Keystore
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks || echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
+            python3 -c "import os, base64; open('android/upload-keystore.jks', 'wb').write(base64.b64decode(os.environ['ANDROID_KEYSTORE_BASE64'].strip()))"
             echo "Android Keystore decoded successfully."
           else
             echo "No ANDROID_KEYSTORE_BASE64 secret provided. Skipping release keystore decoding."
@@ -48,7 +48,7 @@ jobs:
       - name: Decode Google Play Service Account Key
         run: |
           if [ -n "$PLAY_STORE_JSON_KEY_BASE64" ]; then
-            echo "$PLAY_STORE_JSON_KEY_BASE64" | base64 -d > android/pc-api-key.json || echo "$PLAY_STORE_JSON_KEY_BASE64" | base64 --decode > android/pc-api-key.json
+            python3 -c "import os, base64; open('android/pc-api-key.json', 'wb').write(base64.b64decode(os.environ['PLAY_STORE_JSON_KEY_BASE64'].strip()))"
             echo "Google Play JSON key decoded successfully."
           else
             echo "No PLAY_STORE_JSON_KEY_BASE64 secret provided. Skipping Play Store JSON key decoding."
