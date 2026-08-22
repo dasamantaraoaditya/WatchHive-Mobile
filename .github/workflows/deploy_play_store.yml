@@ -37,9 +37,22 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Decode Android Keystore
-        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
         run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
+            echo "Android Keystore decoded successfully."
+          else
+            echo "No ANDROID_KEYSTORE_BASE64 secret provided. Skipping release keystore decoding."
+          fi
+
+      - name: Decode Google Play Service Account Key
+        run: |
+          if [ -n "$PLAY_STORE_JSON_KEY_BASE64" ]; then
+            echo "$PLAY_STORE_JSON_KEY_BASE64" | base64 --decode > android/pc-api-key.json
+            echo "Google Play JSON key decoded successfully."
+          else
+            echo "No PLAY_STORE_JSON_KEY_BASE64 secret provided. Skipping Play Store JSON key decoding."
+          fi
 
       - name: Build Android App Bundle (.aab)
         env:
@@ -49,8 +62,10 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -f "android/upload-keystore.jks" ]; then
+            echo "Building Release App Bundle (.aab)..."
             flutter build appbundle --release
           else
+            echo "Building Debug App Bundle (.aab)..."
             flutter build appbundle --debug
           fi
 
@@ -61,21 +76,12 @@ jobs:
           path: build/app/outputs/bundle/*/*.aab
           retention-days: 14
 
-      - name: Setup Ruby for Fastlane
-        if: ${{ env.PLAY_STORE_JSON_KEY_BASE64 != '' }}
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-          working-directory: android
-
-      - name: Install Fastlane
-        if: ${{ env.PLAY_STORE_JSON_KEY_BASE64 != '' }}
-        run: |
-          cd android
-          gem install fastlane
-
       - name: Deploy to Google Play Store (Internal Track)
-        if: ${{ env.PLAY_STORE_JSON_KEY_BASE64 != '' }}
         run: |
-          cd android
-          fastlane internal
+          if [ -n "$PLAY_STORE_JSON_KEY_BASE64" ]; then
+            cd android
+            gem install fastlane
+            fastlane internal
+          else
+            echo "No PLAY_STORE_JSON_KEY_BASE64 secret provided. Skipping Fastlane Play Store deployment."
+          fi
