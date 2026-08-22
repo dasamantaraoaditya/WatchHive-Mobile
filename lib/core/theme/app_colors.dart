@@ -1,42 +1,42 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary brand palette — amber/honey
-  static const Color primary = Color(0xFFF5A623);
-  static const Color primaryLight = Color(0xFFFFBF47);
-  static const Color primaryDark = Color(0xFFD4891A);
+  // WatchHive Signature Web Warm Honey Palette
+  static const Color primary = Color(0xFFFFB700);
+  static const Color primaryLight = Color(0xFFFFDA40);
+  static const Color primaryDark = Color(0xFFE59700);
 
-  // Background palette — deep slate
-  static const Color background = Color(0xFF0F0F14);
-  static const Color surface = Color(0xFF1A1A24);
-  static const Color surfaceElevated = Color(0xFF222233);
-  static const Color cardBg = Color(0xFF222233);
-  static const Color surfaceHighest = Color(0xFF2A2A3A);
+  // Background palette — Warm Cream (#FFF9F0) matching Web PWA
+  static const Color background = Color(0xFFFFF9F0);
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceElevated = Color(0xFFFFF3E0);
+  static const Color cardBg = Color(0xFFFFFFFF);
+  static const Color surfaceHighest = Color(0xFFF5EFE6);
 
-  // Text
-  static const Color textPrimary = Color(0xFFF1F1F5);
-  static const Color textSecondary = Color(0xFFAAAAAF);
-  static const Color textMuted = Color(0xFF6B6B7A);
+  // Text — Charcoal Black (#2D2926) matching Web PWA
+  static const Color textPrimary = Color(0xFF2D2926);
+  static const Color textSecondary = Color(0xFF525252);
+  static const Color textMuted = Color(0xFF737373);
 
   // Semantic colors
-  static const Color success = Color(0xFF4CAF50);
-  static const Color error = Color(0xFFEF5350);
-  static const Color warning = Color(0xFFFFA726);
-  static const Color info = Color(0xFF42A5F5);
+  static const Color success = Color(0xFF22C55E);
+  static const Color error = Color(0xFFEF4444);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color info = Color(0xFF3B82F6);
 
   // Border
-  static const Color border = Color(0xFF2E2E3E);
-  static const Color borderFocused = Color(0xFFF5A623);
+  static const Color border = Color(0xFFE5E5E5);
+  static const Color borderFocused = Color(0xFFFFB700);
 
   // Gradient stops
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFFF5A623), Color(0xFFFF6B35)],
+    colors: [Color(0xFFFFB700), Color(0xFFFF9E00)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient heroGradient = LinearGradient(
-    colors: [Colors.transparent, Color(0xFF0F0F14)],
+    colors: [Colors.transparent, Color(0xFFFFF9F0)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
