@@ -71,19 +71,20 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
       color: AppColors.primary,
       child: Column(
         children: [
+          // Search Input Bar
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
             child: TextField(
               controller: _searchController,
               onChanged: (val) => setState(() => _searchQuery = val.trim()),
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+              style: const TextStyle(fontFamily: 'Inter', color: AppColors.textPrimary, fontSize: 14),
               decoration: InputDecoration(
-                hintText: 'Search recommendations...',
-                hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-                prefixIcon: const Icon(Icons.search, color: AppColors.textMuted, size: 20),
+                hintText: 'Search recommendations by friend or ID…',
+                hintStyle: const TextStyle(fontFamily: 'Inter', color: AppColors.textMuted, fontSize: 14),
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.close, color: AppColors.textMuted, size: 18),
+                        icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
@@ -91,15 +92,24 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                       )
                     : null,
                 filled: true,
-                fillColor: AppColors.surface,
+                fillColor: AppColors.surfaceElevated,
                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.primary),
                 ),
               ),
             ),
           ),
+
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -108,35 +118,47 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                            const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
                             const SizedBox(height: 12),
-                            Text('Error: $_error', style: const TextStyle(color: AppColors.textMuted)),
+                            Text('Failed to load suggestions: $_error', style: const TextStyle(color: AppColors.textMuted)),
                             const SizedBox(height: 12),
                             ElevatedButton(
                               onPressed: _fetchSuggestions,
                               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                              child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                              child: const Text('Retry', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),
                       )
                     : filteredGroups.isEmpty
                         ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.auto_awesome_outlined, size: 48, color: Colors.amber.withOpacity(0.5)),
-                                const SizedBox(height: 12),
-                                Text(
-                                  _searchQuery.isEmpty ? 'No recommendations yet' : 'No recommendations match "$_searchQuery"',
-                                  style: const TextStyle(color: AppColors.textMuted, fontSize: 15, fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 6),
-                                const Text(
-                                  'Movie recommendations from your friends will appear here!',
-                                  style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-                                ),
-                              ],
+                            child: Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
+                                    ),
+                                    child: const Icon(Icons.lightbulb_outline_rounded, size: 48, color: Colors.amber),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _searchQuery.isEmpty ? 'No Hive Recommendations Yet' : 'No matches for "$_searchQuery"',
+                                    style: const TextStyle(fontFamily: 'Inter', color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'When your cinephile friends recommend movies or TV shows to you, they will show up here as rich poster cards!',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontFamily: 'Inter', color: AppColors.textMuted, fontSize: 13, height: 1.4),
+                                  ),
+                                ],
+                              ),
                             ),
                           )
                         : GridView.builder(
