@@ -65,6 +65,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   final _suggestedByController = TextEditingController();
   final _locationController = TextEditingController();
   final _tagController = TextEditingController();
+  final _ratingInputController = TextEditingController();
 
   int _tmdbId = 0;
   String _type = 'MOVIE';
@@ -74,6 +75,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   bool _isLoading = false;
   String _watchLocation = '';
   List<String> _tags = [];
+  bool _showRatingGuide = false;
 
   List<MediaResult> _searchResults = [];
   bool _isSearching = false;
@@ -105,6 +107,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       _suggestorAvatar = e.suggestedByUser?.profilePictureUrl;
       _type = e.type;
       _rating = e.rating ?? 0;
+      if (_rating > 0) {
+        _ratingInputController.text = _rating.toStringAsFixed(1);
+      }
       _isRewatch = e.isRewatch;
       _isWatching = e.isWatching;
       _watchLocation = e.watchLocation ?? '';
@@ -144,6 +149,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     _suggestedByController.dispose();
     _locationController.dispose();
     _tagController.dispose();
+    _ratingInputController.dispose();
     super.dispose();
   }
 
@@ -554,9 +560,42 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                     const SizedBox(height: 16),
                   ],
 
-                  // ── Rating Section & Mood Banner ──
-                  const _SectionLabel('Rate this Cinematic Experience'),
+                  // ── Rating Section with 0.1 Precision & Rating Guide Breakdown ──
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const _SectionLabel('Rate this Cinematic Experience'),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _showRatingGuide = !_showRatingGuide;
+                          });
+                        },
+                        child: Row(
+                          children: [
+                            Icon(
+                              _showRatingGuide ? Icons.info_rounded : Icons.info_outline_rounded,
+                              size: 14,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _showRatingGuide ? 'Hide Scale' : 'Rating Scale Guide',
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
+
+                  // Rating Container Box
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -565,46 +604,83 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                       border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
+                          color: Colors.black.withValues(alpha: 0.25),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Star Bar + 0.1 Precision Number Field Box
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            RatingBar.builder(
-                              initialRating: _rating / 2,
-                              minRating: 0,
-                              maxRating: 5,
-                              allowHalfRating: true,
-                              itemSize: 32,
-                              unratedColor: AppColors.surfaceHighest,
-                              itemBuilder: (_, __) => const Icon(Icons.star_rounded, color: AppColors.primary),
-                              onRatingUpdate: (rating) => setState(() => _rating = rating * 2),
+                            // 5-Star Row (interactive 0.5 step touch)
+                            Expanded(
+                              child: RatingBar.builder(
+                                initialRating: _rating / 2,
+                                minRating: 0,
+                                maxRating: 5,
+                                allowHalfRating: true,
+                                itemSize: 28,
+                                unratedColor: AppColors.surfaceHighest,
+                                itemBuilder: (_, __) => const Icon(Icons.star_rounded, color: AppColors.primary),
+                                onRatingUpdate: (rating) => setState(() {
+                                  final val = (rating * 20).round() / 10;
+                                  _rating = val;
+                                  _ratingInputController.text = val > 0 ? val.toStringAsFixed(1) : '';
+                                }),
+                              ),
                             ),
+                            const SizedBox(width: 8),
+
+                            // Direct 0.1 Precision Input Field Box (e.g. 4.6, 8.9, 9.7)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              width: 86,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.15),
+                                color: AppColors.cardBg,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
                               ),
                               child: Row(
-                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.star_rounded, color: AppColors.primary, size: 15),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _rating > 0 ? '${_rating.toStringAsFixed(1)} / 10' : '0.0 / 10',
-                                    style: const TextStyle(
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _ratingInputController,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w900,
+                                        color: AppColors.primary,
+                                      ),
+                                      decoration: const InputDecoration(
+                                        isDense: true,
+                                        border: InputBorder.none,
+                                        contentPadding: EdgeInsets.zero,
+                                        hintText: '0.0',
+                                        hintStyle: TextStyle(color: AppColors.textMuted),
+                                      ),
+                                      onChanged: (val) {
+                                        final parsed = double.tryParse(val);
+                                        if (parsed != null) {
+                                          final clamped = (parsed.clamp(0.0, 10.0) * 10).round() / 10;
+                                          setState(() => _rating = clamped);
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  const Text(
+                                    '/ 10',
+                                    style: TextStyle(
                                       fontFamily: 'Inter',
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.primary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textMuted,
                                     ),
                                   ),
                                 ],
@@ -612,7 +688,46 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+
+                        const SizedBox(height: 10),
+
+                        // Smooth 0.1 Precision Slider (0.0 to 10.0)
+                        Row(
+                          children: [
+                            const Text('0', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
+                            Expanded(
+                              child: SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  trackHeight: 4,
+                                  activeTrackColor: AppColors.primary,
+                                  inactiveTrackColor: AppColors.surfaceHighest,
+                                  thumbColor: AppColors.primary,
+                                  overlayColor: AppColors.primary.withValues(alpha: 0.2),
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                                ),
+                                child: Slider(
+                                  value: _rating.clamp(0.0, 10.0),
+                                  min: 0.0,
+                                  max: 10.0,
+                                  divisions: 100, // 0.1 precision increments!
+                                  label: _rating.toStringAsFixed(1),
+                                  onChanged: (val) {
+                                    final step = (val * 10).round() / 10;
+                                    setState(() {
+                                      _rating = step;
+                                      _ratingInputController.text = step > 0 ? step.toStringAsFixed(1) : '';
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                            const Text('10', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
+                          ],
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        // Dynamic Mood Banner Box
                         Builder(builder: (_) {
                           final mood = _getRatingMoodInfo(_rating);
                           return AnimatedContainer(
@@ -643,6 +758,30 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                             ),
                           );
                         }),
+
+                        // Rating Scale Breakdown Guide (Expandable)
+                        if (_showRatingGuide) ...[
+                          const SizedBox(height: 12),
+                          const Divider(height: 1, color: AppColors.border),
+                          const SizedBox(height: 12),
+                          const Text(
+                            '📜 WatchHive Cinephile Rating Scale Breakdown',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const _RatingScaleRow(range: '9.6 – 10.0', label: 'Masterpiece / Cinematic Perfection 🏆', color: Colors.amberAccent),
+                          const _RatingScaleRow(range: '8.6 – 9.5', label: 'Outstanding / Near Flawless 🌟', color: AppColors.primary),
+                          const _RatingScaleRow(range: '7.1 – 8.5', label: 'Excellent / Highly Recommended 🔥', color: Colors.greenAccent),
+                          const _RatingScaleRow(range: '5.6 – 7.0', label: 'Decent / Enjoyable 👍', color: Colors.lightGreenAccent),
+                          const _RatingScaleRow(range: '4.1 – 5.5', label: 'Mediocre / Average 🍿', color: Colors.amber),
+                          const _RatingScaleRow(range: '2.1 – 4.0', label: 'Poor / Not Recommended 👎', color: Colors.orangeAccent),
+                          const _RatingScaleRow(range: '0.1 – 2.0', label: 'Disaster / Complete Waste of Time 🗑️', color: Colors.redAccent),
+                        ],
                       ],
                     ),
                   ),
@@ -1058,6 +1197,60 @@ class _SearchResultTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _RatingScaleRow extends StatelessWidget {
+  final String range;
+  final String label;
+  final Color color;
+
+  const _RatingScaleRow({
+    required this.range,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Container(
+            width: 76,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
+            ),
+            child: Text(
+              range,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
