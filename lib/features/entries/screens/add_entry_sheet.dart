@@ -13,6 +13,29 @@ import '../repositories/suggestions_repository.dart';
 import 'entries_screen.dart';
 import '../../search/repositories/search_repository.dart';
 
+class _LocationPreset {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _LocationPreset({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+}
+
+const _locationPresets = [
+  _LocationPreset(label: 'Cinema', value: 'Cinema', icon: Icons.theaters_rounded, color: Color(0xFFE53935)),
+  _LocationPreset(label: 'Home', value: 'Home', icon: Icons.chair_rounded, color: Color(0xFFF39C12)),
+  _LocationPreset(label: 'Netflix', value: 'Netflix', icon: Icons.play_circle_fill_rounded, color: Color(0xFFE50914)),
+  _LocationPreset(label: 'Disney+', value: 'Disney+', icon: Icons.auto_awesome_rounded, color: Color(0xFF3B82F6)),
+  _LocationPreset(label: 'Prime', value: 'Prime Video', icon: Icons.ondemand_video_rounded, color: Color(0xFF00A8E8)),
+  _LocationPreset(label: 'Mobile', value: 'On the Go', icon: Icons.smartphone_rounded, color: Color(0xFF00D2D3)),
+];
+
 class AddEntrySheet extends ConsumerStatefulWidget {
   final Entry? editEntry;
   final int? prefillTmdbId;
@@ -206,15 +229,61 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     });
   }
 
-  String _getRatingMood(double rating) {
-    if (rating == 0) return 'Select a rating to record your thoughts';
-    if (rating <= 2.0) return 'Disaster / Complete Waste of Time 🗑️';
-    if (rating <= 4.0) return 'Poor / Not Recommended 👎';
-    if (rating <= 5.5) return 'Mediocre / Average 🍿';
-    if (rating <= 7.0) return 'Decent / Enjoyable 👍';
-    if (rating <= 8.5) return 'Excellent / Highly Recommended 🔥';
-    if (rating <= 9.5) return 'Outstanding / Near Flawless 🌟';
-    return 'Absolute Masterpiece / Cinematic Perfection 🏆';
+  ({IconData icon, Color color, String text}) _getRatingMoodInfo(double rating) {
+    if (rating == 0) {
+      return (
+        icon: Icons.rate_review_rounded,
+        color: AppColors.textMuted,
+        text: 'Select a rating to record your thoughts',
+      );
+    }
+    if (rating <= 2.0) {
+      return (
+        icon: Icons.sentiment_very_dissatisfied_rounded,
+        color: Colors.redAccent,
+        text: 'Disaster / Complete Waste of Time 🗑️',
+      );
+    }
+    if (rating <= 4.0) {
+      return (
+        icon: Icons.sentiment_dissatisfied_rounded,
+        color: Colors.orangeAccent,
+        text: 'Poor / Not Recommended 👎',
+      );
+    }
+    if (rating <= 5.5) {
+      return (
+        icon: Icons.sentiment_neutral_rounded,
+        color: Colors.amber,
+        text: 'Mediocre / Average 🍿',
+      );
+    }
+    if (rating <= 7.0) {
+      return (
+        icon: Icons.sentiment_satisfied_rounded,
+        color: Colors.lightGreenAccent,
+        text: 'Decent / Enjoyable 👍',
+      );
+    }
+    if (rating <= 8.5) {
+      return (
+        icon: Icons.sentiment_very_satisfied_rounded,
+        color: Colors.greenAccent,
+        text: 'Excellent / Highly Recommended 🔥',
+      );
+    }
+    if (rating <= 9.5) {
+      return (
+        icon: Icons.grade_rounded,
+        color: AppColors.primary,
+        text: 'Outstanding / Near Flawless 🌟',
+      );
+    }
+    return (
+      icon: Icons.emoji_events_rounded,
+      color: Colors.amberAccent,
+      text: 'Absolute Masterpiece / Cinematic Perfection 🏆',
+    );
   }
 
   Future<void> _save() async {
@@ -489,11 +558,18 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                   const _SectionLabel('Rate this Cinematic Experience'),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceElevated,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Column(
                       children: [
@@ -505,48 +581,68 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                               minRating: 0,
                               maxRating: 5,
                               allowHalfRating: true,
-                              itemSize: 30,
+                              itemSize: 32,
                               unratedColor: AppColors.surfaceHighest,
                               itemBuilder: (_, __) => const Icon(Icons.star_rounded, color: AppColors.primary),
                               onRatingUpdate: (rating) => setState(() => _rating = rating * 2),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
                                 color: AppColors.primary.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
                               ),
-                              child: Text(
-                                '${_rating.toStringAsFixed(1)} / 10',
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.star_rounded, color: AppColors.primary, size: 15),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _rating > 0 ? '${_rating.toStringAsFixed(1)} / 10' : '0.0 / 10',
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            _getRatingMood(_rating),
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                        const SizedBox(height: 12),
+                        Builder(builder: (_) {
+                          final mood = _getRatingMoodInfo(_rating);
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.cardBg,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: mood.color.withValues(alpha: 0.4)),
                             ),
-                          ),
-                        ),
+                            child: Row(
+                              children: [
+                                Icon(mood.icon, color: mood.color, size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    mood.text,
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: mood.color == AppColors.textMuted ? AppColors.textMuted : Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
                       ],
                     ),
                   ),
@@ -573,48 +669,47 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: [
-                      _LocationChip(
-                        label: '🍿 Cinema',
-                        selected: _watchLocation == 'Cinema',
+                    children: _locationPresets.map((preset) {
+                      final isSelected = _watchLocation == preset.value;
+                      return GestureDetector(
                         onTap: () => setState(() {
-                          _watchLocation = _watchLocation == 'Cinema' ? '' : 'Cinema';
+                          _watchLocation = isSelected ? '' : preset.value;
                           _locationController.text = _watchLocation;
                         }),
-                      ),
-                      _LocationChip(
-                        label: '🛋️ Home',
-                        selected: _watchLocation == 'Home',
-                        onTap: () => setState(() {
-                          _watchLocation = _watchLocation == 'Home' ? '' : 'Home';
-                          _locationController.text = _watchLocation;
-                        }),
-                      ),
-                      _LocationChip(
-                        label: '🔴 Netflix',
-                        selected: _watchLocation == 'Netflix',
-                        onTap: () => setState(() {
-                          _watchLocation = _watchLocation == 'Netflix' ? '' : 'Netflix';
-                          _locationController.text = _watchLocation;
-                        }),
-                      ),
-                      _LocationChip(
-                        label: '✨ Disney+',
-                        selected: _watchLocation == 'Disney+',
-                        onTap: () => setState(() {
-                          _watchLocation = _watchLocation == 'Disney+' ? '' : 'Disney+';
-                          _locationController.text = _watchLocation;
-                        }),
-                      ),
-                      _LocationChip(
-                        label: '📦 Prime Video',
-                        selected: _watchLocation == 'Prime Video',
-                        onTap: () => setState(() {
-                          _watchLocation = _watchLocation == 'Prime Video' ? '' : 'Prime Video';
-                          _locationController.text = _watchLocation;
-                        }),
-                      ),
-                    ],
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected ? preset.color.withValues(alpha: 0.2) : AppColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected ? preset.color : AppColors.border,
+                              width: isSelected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                preset.icon,
+                                size: 16,
+                                color: isSelected ? preset.color : AppColors.textMuted,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                preset.label,
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                  color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -897,42 +992,6 @@ class _SectionLabel extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: AppColors.textSecondary,
         letterSpacing: 0.3,
-      ),
-    );
-  }
-}
-
-class _LocationChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _LocationChip({required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary.withValues(alpha: 0.2) : AppColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 12,
-            fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-            color: selected ? AppColors.primary : AppColors.textSecondary,
-          ),
-        ),
       ),
     );
   }
