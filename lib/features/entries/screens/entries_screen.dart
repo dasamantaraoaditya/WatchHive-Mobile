@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/entry.dart';
 import '../repositories/entries_repository.dart';
+import '../../search/repositories/search_repository.dart';
 import 'add_entry_sheet.dart';
 import '../widgets/suggestions_tab.dart';
 import '../widgets/watchlist_tab.dart';
@@ -289,7 +290,15 @@ class _EntryGridCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final imageUrl = ApiEndpoints.tmdbPoster(entry.posterPath);
+    final mediaType = (entry.type == 'TV_SHOW' || entry.type == 'EPISODE') ? 'tv' : 'movie';
+    final shouldFetch = (entry.posterPath == null || entry.posterPath!.isEmpty) && entry.tmdbId > 0;
+
+    final detailsAsync = shouldFetch
+        ? ref.watch(tmdbMediaDetailsProvider((tmdbId: entry.tmdbId, mediaType: mediaType)))
+        : null;
+
+    final posterPath = entry.posterPath ?? detailsAsync?.value?['poster_path'] as String?;
+    final imageUrl = ApiEndpoints.tmdbPoster(posterPath);
 
     return GestureDetector(
       onTap: onTap,

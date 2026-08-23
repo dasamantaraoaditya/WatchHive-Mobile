@@ -6,6 +6,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../repositories/watchlist_repository.dart';
+import '../../search/repositories/search_repository.dart';
 import '../screens/add_entry_sheet.dart';
 
 class WatchlistTab extends ConsumerStatefulWidget {
@@ -150,166 +151,195 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
         itemBuilder: (ctx, i) {
           final item = _items[i] as Map<String, dynamic>;
           final itemId = item['id'] as String;
-          final tmdbId = item['tmdbId'];
-          final title = item['title'] as String? ?? 'Untitled';
-          final posterPath = item['posterPath'] as String?;
-          final mediaType = item['mediaType'] == 'tv' ? 'tv' : 'movie';
-          final posterUrl = ApiEndpoints.tmdbPoster(posterPath);
 
-          return GestureDetector(
-            onTap: () {
-              if (tmdbId != null) context.push('/details/$mediaType/$tmdbId');
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          return _WatchlistGridCard(
+            item: item,
+            onLog: () => _logWatchlistItem(item),
+            onDelete: () => _removeItem(itemId),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _WatchlistGridCard extends ConsumerWidget {
+  final Map<String, dynamic> item;
+  final VoidCallback onLog;
+  final VoidCallback onDelete;
+
+  const _WatchlistGridCard({
+    required this.item,
+    required this.onLog,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
+    final title = item['title'] as String? ?? 'Untitled';
+    final initialPosterPath = item['posterPath'] as String?;
+    final mediaType = item['mediaType'] == 'tv' ? 'tv' : 'movie';
+
+    final shouldFetch = (initialPosterPath == null || initialPosterPath.isEmpty) && tmdbId > 0;
+    final detailsAsync = shouldFetch
+        ? ref.watch(tmdbMediaDetailsProvider((tmdbId: tmdbId, mediaType: mediaType)))
+        : null;
+
+    final posterPath = initialPosterPath ?? detailsAsync?.value?['poster_path'] as String?;
+    final posterUrl = ApiEndpoints.tmdbPoster(posterPath);
+
+    return GestureDetector(
+      onTap: () {
+        if (tmdbId > 0) context.push('/details/$mediaType/$tmdbId');
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Stack(
                 children: [
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: posterUrl.isNotEmpty
-                              ? CachedNetworkImage(
-                                  imageUrl: posterUrl,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) => Shimmer.fromColors(
-                                    baseColor: AppColors.surfaceElevated,
-                                    highlightColor: AppColors.surfaceHighest,
-                                    child: Container(color: AppColors.surfaceElevated),
-                                  ),
-                                  errorWidget: (context, url, error) => Container(
-                                    color: AppColors.surfaceElevated,
-                                    child: const Center(
-                                      child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
-                                    ),
-                                  ),
-                                )
-                              : Container(
-                                  color: AppColors.surfaceElevated,
-                                  child: const Center(
-                                    child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
-                                  ),
-                                ),
-                        ),
-                        Positioned.fill(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                stops: const [0.5, 1.0],
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.85),
-                                ],
+                  Positioned.fill(
+                    child: posterUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: posterUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Shimmer.fromColors(
+                              baseColor: AppColors.surfaceElevated,
+                              highlightColor: AppColors.surfaceHighest,
+                              child: Container(color: AppColors.surfaceElevated),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.surfaceElevated,
+                              child: const Center(
+                                child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
                               ),
                             ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 8,
-                          left: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.75),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
-                            ),
-                            child: Text(
-                              mediaType == 'tv' ? '📺 TV' : '🎬 Movie',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                              ),
+                          )
+                        : Container(
+                            color: AppColors.surfaceElevated,
+                            child: const Center(
+                              child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
                             ),
                           ),
+                  ),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: const [0.5, 1.0],
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.85),
+                          ],
                         ),
-                        Positioned(
-                          bottom: 8,
-                          left: 8,
-                          right: 8,
-                          child: Text(
-                            title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              shadows: [
-                                Shadow(offset: Offset(0, 1), blurRadius: 4, color: Colors.black),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => _logWatchlistItem(item),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.add_rounded, size: 14, color: Colors.black),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'Log',
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.black,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        mediaType == 'tv' ? '📺 TV' : '🎬 Movie',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
                         ),
-                        const SizedBox(width: 6),
-                        IconButton(
-                          constraints: const BoxConstraints(),
-                          padding: const EdgeInsets.all(4),
-                          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 18),
-                          onPressed: () => _removeItem(itemId),
-                        ),
-                      ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 8,
+                    left: 8,
+                    right: 8,
+                    child: Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(offset: Offset(0, 1), blurRadius: 4, color: Colors.black),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          );
-        },
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: onLog,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_rounded, size: 14, color: Colors.black),
+                            SizedBox(width: 4),
+                            Text(
+                              'Log',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(4),
+                    icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 18),
+                    onPressed: onDelete,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

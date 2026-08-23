@@ -70,3 +70,17 @@ class SearchRepository {
         .toList();
   }
 }
+
+final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({int tmdbId, String mediaType})>((ref, arg) async {
+  if (arg.tmdbId <= 0) return null;
+  final searchRepo = ref.read(searchRepositoryProvider);
+  try {
+    if (arg.mediaType == 'tv') {
+      return await searchRepo.getTvDetails(arg.tmdbId);
+    } else {
+      return await searchRepo.getMovieDetails(arg.tmdbId);
+    }
+  } catch (e) {
+    return null;
+  }
+});
