@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
-import '../../../core/api/api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../repositories/watchlist_repository.dart';
 import '../repositories/entries_repository.dart';
-import '../../search/repositories/search_repository.dart';
 import '../screens/add_entry_sheet.dart';
+import 'wh_entry_grid_card.dart';
 
 class WatchlistTab extends ConsumerStatefulWidget {
   const WatchlistTab({super.key});
@@ -209,257 +206,28 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
         itemBuilder: (ctx, i) {
           final item = _items[i] as Map<String, dynamic>;
           final itemId = item['id'] as String;
+          final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
+          final title = item['title'] as String? ?? 'Untitled';
+          final posterPath = item['posterPath'] as String?;
+          final mediaType = item['mediaType'] == 'tv' ? 'tv' : 'movie';
+          final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
+          final suggestorUsername = suggestedByUser?['username'] as String? ?? item['suggestedByUsername'] as String?;
 
-          return _WatchlistGridCard(
-            item: item,
-            onLog: () => _logWatchlistItem(item),
+          return WHEntryGridCard(
+            tmdbId: tmdbId,
+            title: title,
+            initialPosterPath: posterPath,
+            mediaType: mediaType,
+            mode: WHEntryCardMode.watchlist,
+            suggestedByUsername: suggestorUsername,
+            onTap: () {
+              if (tmdbId > 0) context.push('/details/$mediaType/$tmdbId');
+            },
             onMoveToWatching: () => _addToCurrentlyWatching(item),
+            onMarkWatched: () => _logWatchlistItem(item),
             onDelete: () => _removeItem(itemId),
           );
         },
-      ),
-    );
-  }
-}
-
-class _WatchlistGridCard extends ConsumerWidget {
-  final Map<String, dynamic> item;
-  final VoidCallback onLog;
-  final VoidCallback onMoveToWatching;
-  final VoidCallback onDelete;
-
-  const _WatchlistGridCard({
-    required this.item,
-    required this.onLog,
-    required this.onMoveToWatching,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
-    final title = item['title'] as String? ?? 'Untitled';
-    final initialPosterPath = item['posterPath'] as String?;
-    final mediaType = item['mediaType'] == 'tv' ? 'tv' : 'movie';
-    final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
-    final suggestorUsername = suggestedByUser?['username'] as String? ?? item['suggestedByUsername'] as String?;
-
-    final detailsAsync = tmdbId > 0
-        ? ref.watch(tmdbMediaDetailsProvider((tmdbId: tmdbId, mediaType: mediaType)))
-        : null;
-
-    final posterPath = initialPosterPath ?? detailsAsync?.value?['poster_path'] as String?;
-    final voteAvg = (detailsAsync?.value?['vote_average'] as num?)?.toDouble();
-    final releaseDate = detailsAsync?.value?['release_date'] as String? ?? detailsAsync?.value?['first_air_date'] as String?;
-    final year = releaseDate != null && releaseDate.length >= 4 ? releaseDate.substring(0, 4) : null;
-    final posterUrl = ApiEndpoints.tmdbPoster(posterPath);
-
-    return GestureDetector(
-      onTap: () {
-        if (tmdbId > 0) context.push('/details/$mediaType/$tmdbId');
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: posterUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: posterUrl,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Shimmer.fromColors(
-                              baseColor: AppColors.surfaceElevated,
-                              highlightColor: AppColors.surfaceHighest,
-                              child: Container(color: AppColors.surfaceElevated),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: AppColors.surfaceElevated,
-                              child: const Center(
-                                child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
-                              ),
-                            ),
-                          )
-                        : Container(
-                            color: AppColors.surfaceElevated,
-                            child: const Center(
-                              child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
-                            ),
-                          ),
-                  ),
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          stops: const [0.4, 1.0],
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.88),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.75),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
-                      ),
-                      child: Text(
-                        mediaType == 'tv' ? '📺 TV' : '🎬 Movie',
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (suggestorUsername != null && suggestorUsername.isNotEmpty)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('💡 ', style: TextStyle(fontSize: 8)),
-                            Text(
-                              '@$suggestorUsername',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.amber,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  Positioned(
-                    bottom: 8,
-                    left: 8,
-                    right: 8,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(offset: Offset(0, 1), blurRadius: 4, color: Colors.black),
-                            ],
-                          ),
-                        ),
-                        if (year != null || voteAvg != null) ...[
-                          const SizedBox(height: 3),
-                          Row(
-                            children: [
-                              if (year != null)
-                                Text(
-                                  year,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                              if (year != null && voteAvg != null)
-                                const Text(' • ', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
-                              if (voteAvg != null)
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.star_rounded, color: AppColors.primary, size: 12),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      voteAvg.toStringAsFixed(1),
-                                      style: const TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(4),
-                    icon: const Icon(Icons.play_arrow_rounded, color: AppColors.info, size: 20),
-                    tooltip: 'Log as Currently Watching',
-                    onPressed: onMoveToWatching,
-                  ),
-                  IconButton(
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(4),
-                    icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 19),
-                    tooltip: 'Mark as Watched (Hive It)',
-                    onPressed: onLog,
-                  ),
-                  IconButton(
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(4),
-                    icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 19),
-                    tooltip: 'Remove from Watchlist',
-                    onPressed: onDelete,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

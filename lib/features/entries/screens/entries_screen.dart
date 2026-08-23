@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/entry.dart';
 import '../repositories/entries_repository.dart';
-import '../../search/repositories/search_repository.dart';
 import 'add_entry_sheet.dart';
 import '../widgets/suggestions_tab.dart';
 import '../widgets/watchlist_tab.dart';
+import '../widgets/wh_entry_grid_card.dart';
 
 // ─── Providers ───────────────────────────────────────────────────────────────
 
@@ -252,15 +248,21 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
         crossAxisCount: 2,
         mainAxisSpacing: 14,
         crossAxisSpacing: 14,
-        childAspectRatio: 0.65,
+        childAspectRatio: 0.63,
       ),
       itemCount: state.entries.length,
       itemBuilder: (context, index) {
         final entry = state.entries[index];
-        return _EntryGridCard(
-          entry: entry,
+        return WHEntryGridCard(
+          tmdbId: entry.tmdbId,
+          title: entry.title,
+          initialPosterPath: entry.posterPath,
+          mediaType: entry.type,
+          mode: entry.isWatching ? WHEntryCardMode.watching : WHEntryCardMode.history,
+          rating: entry.rating,
+          watchedAt: entry.watchedAt,
+          tags: entry.tags,
           onTap: () => context.push('/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}'),
-          onDelete: () => ref.read(entriesProvider.notifier).deleteEntry(entry.id),
           onEdit: () {
             showModalBottomSheet(
               context: context,
@@ -269,261 +271,9 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
               builder: (_) => AddEntrySheet(editEntry: entry),
             );
           },
+          onDelete: () => ref.read(entriesProvider.notifier).deleteEntry(entry.id),
         );
       },
-    );
-  }
-}
-
-class _EntryGridCard extends ConsumerWidget {
-  final Entry entry;
-  final VoidCallback onTap;
-  final VoidCallback onDelete;
-  final VoidCallback onEdit;
-
-  const _EntryGridCard({
-    required this.entry,
-    required this.onTap,
-    required this.onDelete,
-    required this.onEdit,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mediaType = (entry.type == 'TV_SHOW' || entry.type == 'EPISODE') ? 'tv' : 'movie';
-    final shouldFetch = (entry.posterPath == null || entry.posterPath!.isEmpty) && entry.tmdbId > 0;
-
-    final detailsAsync = shouldFetch
-        ? ref.watch(tmdbMediaDetailsProvider((tmdbId: entry.tmdbId, mediaType: mediaType)))
-        : null;
-
-    final posterPath = entry.posterPath ?? detailsAsync?.value?['poster_path'] as String?;
-    final imageUrl = ApiEndpoints.tmdbPoster(posterPath);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Poster Image Banner with Gradient & Badges
-            Expanded(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: imageUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: imageUrl,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Shimmer.fromColors(
-                              baseColor: AppColors.surfaceElevated,
-                              highlightColor: AppColors.surfaceHighest,
-                              child: Container(color: AppColors.surfaceElevated),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: AppColors.surfaceElevated,
-                              child: const Center(
-                                child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
-                              ),
-                            ),
-                          )
-                        : Container(
-                            color: AppColors.surfaceElevated,
-                            child: const Center(
-                              child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
-                            ),
-                          ),
-                  ),
-
-                  // Dark gradient overlay for title legibility
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          stops: const [0.5, 1.0],
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.85),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Top-Left Category Badge
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.75),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
-                      ),
-                      child: Text(
-                        entry.type == 'MOVIE' ? '🎬 Movie' : '📺 TV',
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Top-Right Badge: Rating or Watching Indicator
-                  if (entry.isWatching)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.info.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          '▶ Watching',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    )
-                  else if (entry.rating != null)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.star_rounded, color: AppColors.primary, size: 13),
-                            const SizedBox(width: 3),
-                            Text(
-                              entry.rating!.toStringAsFixed(1),
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                  // Bottom Title & Tags Overlay
-                  Positioned(
-                    bottom: 8,
-                    left: 8,
-                    right: 8,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          entry.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(offset: Offset(0, 1), blurRadius: 4, color: Colors.black),
-                            ],
-                          ),
-                        ),
-                        if (entry.tags.isNotEmpty) ...[
-                          const SizedBox(height: 3),
-                          Text(
-                            entry.tags.take(2).map((t) => '#$t').join(' '),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Card Footer: Date & Actions
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      entry.isWatching
-                          ? 'Active Session'
-                          : DateFormat('MMM d, yyyy').format(entry.watchedAt),
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.more_vert_rounded, color: AppColors.textMuted, size: 18),
-                    color: AppColors.surfaceElevated,
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Delete', style: TextStyle(color: AppColors.error)),
-                      ),
-                    ],
-                    onSelected: (value) {
-                      if (value == 'edit') onEdit();
-                      if (value == 'delete') onDelete();
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
