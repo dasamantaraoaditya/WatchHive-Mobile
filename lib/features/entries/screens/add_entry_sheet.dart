@@ -75,7 +75,6 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   bool _isLoading = false;
   String _watchLocation = '';
   List<String> _tags = [];
-  bool _showRatingGuide = false;
 
   List<MediaResult> _searchResults = [];
   bool _isSearching = false;
@@ -560,44 +559,33 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                     const SizedBox(height: 16),
                   ],
 
-                  // ── Rating Section & Mood Banner ──
+                  // ── Rating Section ──
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const _SectionLabel('Rate this Movie / Show'),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _showRatingGuide = !_showRatingGuide;
-                          });
-                        },
-                        child: Row(
-                          children: [
-                            Icon(
-                              _showRatingGuide ? Icons.info_rounded : Icons.info_outline_rounded,
-                              size: 14,
-                              color: AppColors.primary,
+                      if (_rating > 0)
+                        GestureDetector(
+                          onTap: () => setState(() {
+                            _rating = 0;
+                            _ratingInputController.clear();
+                          }),
+                          child: const Text(
+                            'Clear',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.error,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _showRatingGuide ? 'Hide Guide' : 'Rating Guide',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
 
-                  // Rating Container Card
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceElevated,
                       borderRadius: BorderRadius.circular(20),
@@ -611,48 +599,67 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                       ],
                     ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Header Row: Interactive 5-Star Bar + Numeric Badge Box
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Interactive Star Bar
-                            RatingBar.builder(
-                              initialRating: _rating / 2,
-                              minRating: 0,
-                              maxRating: 5,
-                              allowHalfRating: true,
-                              itemSize: 32,
-                              unratedColor: AppColors.surfaceHighest,
-                              itemBuilder: (_, __) => const Icon(Icons.star_rounded, color: AppColors.primary),
-                              onRatingUpdate: (rating) => setState(() {
-                                final val = (rating * 20).round() / 10;
-                                _rating = val;
-                                _ratingInputController.text = val > 0 ? val.toStringAsFixed(1) : '';
-                              }),
-                            ),
+                        // Center 5-Star Row (interactive 0.5 step touch)
+                        Center(
+                          child: RatingBar.builder(
+                            initialRating: _rating / 2,
+                            minRating: 0,
+                            maxRating: 5,
+                            allowHalfRating: true,
+                            itemSize: 34,
+                            unratedColor: AppColors.surfaceHighest,
+                            itemBuilder: (_, __) => const Icon(Icons.star_rounded, color: AppColors.primary),
+                            onRatingUpdate: (rating) => setState(() {
+                              final val = (rating * 20).round() / 10;
+                              _rating = val;
+                              _ratingInputController.text = val > 0 ? val.toStringAsFixed(1) : '';
+                            }),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
 
-                            // Score Badge & Decimal Fine-Tuning Box
+                        // Center Score Dial & Steppers (-0.1 and +0.1)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Quick -0.1 Stepper Button
+                            IconButton(
+                              onPressed: () {
+                                final newVal = ((_rating - 0.1) * 10).round() / 10;
+                                final clamped = newVal.clamp(0.0, 10.0);
+                                setState(() {
+                                  _rating = clamped;
+                                  _ratingInputController.text = clamped > 0 ? clamped.toStringAsFixed(1) : '';
+                                });
+                              },
+                              icon: const Icon(Icons.remove_circle_outline_rounded, color: AppColors.primary, size: 24),
+                              tooltip: '-0.1',
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Score Badge (Editable Number Field)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                               decoration: BoxDecoration(
                                 color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.5), width: 1.5),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
                                 children: [
                                   SizedBox(
-                                    width: 36,
+                                    width: 44,
                                     child: TextField(
                                       controller: _ratingInputController,
                                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         fontFamily: 'Inter',
-                                        fontSize: 15,
+                                        fontSize: 22,
                                         fontWeight: FontWeight.w900,
                                         color: AppColors.primary,
                                       ),
@@ -661,7 +668,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                         border: InputBorder.none,
                                         contentPadding: EdgeInsets.zero,
                                         hintText: '0.0',
-                                        hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                                        hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 18),
                                       ),
                                       onChanged: (val) {
                                         final parsed = double.tryParse(val);
@@ -673,10 +680,10 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                     ),
                                   ),
                                   const Text(
-                                    '/ 10',
+                                    ' / 10',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
-                                      fontSize: 11,
+                                      fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.textMuted,
                                     ),
@@ -684,94 +691,53 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                 ],
                               ),
                             ),
+                            const SizedBox(width: 8),
+
+                            // Quick +0.1 Stepper Button
+                            IconButton(
+                              onPressed: () {
+                                final newVal = ((_rating + 0.1) * 10).round() / 10;
+                                final clamped = newVal.clamp(0.0, 10.0);
+                                setState(() {
+                                  _rating = clamped;
+                                  _ratingInputController.text = clamped > 0 ? clamped.toStringAsFixed(1) : '';
+                                });
+                              },
+                              icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary, size: 24),
+                              tooltip: '+0.1',
+                            ),
                           ],
                         ),
 
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
 
-                        // Standard 10-Point Score Pills (1 to 10)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: List.generate(10, (index) {
-                            final score = (index + 1).toDouble();
-                            final isSelected = (_rating.roundToDouble() == score) || (_rating >= score - 0.4 && _rating <= score + 0.4 && _rating > 0);
-                            return Flexible(
-                              child: GestureDetector(
-                                onTap: () => setState(() {
-                                  _rating = score;
-                                  _ratingInputController.text = score.toStringAsFixed(1);
-                                }),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
-                                  margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: isSelected ? AppColors.primary : AppColors.surface,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: isSelected ? AppColors.primary : AppColors.border,
-                                      width: isSelected ? 1.5 : 1,
-                                    ),
-                                    boxShadow: isSelected
-                                        ? [
-                                            BoxShadow(
-                                              color: AppColors.primary.withValues(alpha: 0.35),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ]
-                                        : null,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '${index + 1}',
-                                      style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 12,
-                                        fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                                        color: isSelected ? Colors.black : AppColors.textSecondary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-
-                        const SizedBox(height: 14),
-
-                        // Dynamic Mood Banner Box with Crystal-Clear Contrast
+                        // Sleek Mood Phrase Banner
                         Builder(builder: (_) {
                           final mood = _getRatingMoodInfo(_rating);
                           return AnimatedContainer(
-                            duration: const Duration(milliseconds: 250),
+                            duration: const Duration(milliseconds: 200),
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
                               color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: mood.color.withValues(alpha: 0.5), width: 1.5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: mood.color.withValues(alpha: 0.4)),
                             ),
                             child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: mood.color.withValues(alpha: 0.15),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(mood.icon, color: mood.color, size: 20),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
+                                Icon(mood.icon, color: mood.color, size: 18),
+                                const SizedBox(width: 8),
+                                Flexible(
                                   child: Text(
                                     mood.text,
-                                    style: const TextStyle(
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
                                       fontFamily: 'Inter',
-                                      fontSize: 13,
+                                      fontSize: 12,
                                       fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
+                                      color: mood.color == AppColors.textMuted ? AppColors.textMuted : AppColors.textPrimary,
                                     ),
                                   ),
                                 ),
@@ -779,30 +745,6 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                             ),
                           );
                         }),
-
-                        // Rating Scale Breakdown Guide (Expandable)
-                        if (_showRatingGuide) ...[
-                          const SizedBox(height: 14),
-                          const Divider(height: 1, color: AppColors.border),
-                          const SizedBox(height: 12),
-                          const Text(
-                            '📜 WatchHive Cinephile Rating Scale',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const _RatingScaleRow(range: '9.6 – 10.0', label: 'Masterpiece / Cinematic Perfection 🏆', color: Colors.amberAccent),
-                          const _RatingScaleRow(range: '8.6 – 9.5', label: 'Outstanding / Near Flawless 🌟', color: AppColors.primary),
-                          const _RatingScaleRow(range: '7.1 – 8.5', label: 'Excellent / Highly Recommended 🔥', color: Colors.greenAccent),
-                          const _RatingScaleRow(range: '5.6 – 7.0', label: 'Decent / Enjoyable 👍', color: Colors.lightGreenAccent),
-                          const _RatingScaleRow(range: '4.1 – 5.5', label: 'Mediocre / Average 🍿', color: Colors.amber),
-                          const _RatingScaleRow(range: '2.1 – 4.0', label: 'Poor / Not Recommended 👎', color: Colors.orangeAccent),
-                          const _RatingScaleRow(range: '0.1 – 2.0', label: 'Disaster / Complete Waste of Time 🗑️', color: Colors.redAccent),
-                        ],
                       ],
                     ),
                   ),
@@ -1223,56 +1165,3 @@ class _SearchResultTile extends StatelessWidget {
   }
 }
 
-class _RatingScaleRow extends StatelessWidget {
-  final String range;
-  final String label;
-  final Color color;
-
-  const _RatingScaleRow({
-    required this.range,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          Container(
-            width: 76,
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: color.withValues(alpha: 0.3)),
-            ),
-            child: Text(
-              range,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
