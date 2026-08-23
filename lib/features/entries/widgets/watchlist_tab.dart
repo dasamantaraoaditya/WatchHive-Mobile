@@ -70,9 +70,11 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
   }
 
   void _logWatchlistItem(Map<String, dynamic> item) {
+    final itemId = item['id'] as String?;
     final tmdbId = (item['tmdbId'] as num?)?.toInt();
     final mediaType = item['mediaType'] == 'tv' ? 'TV_SHOW' : 'MOVIE';
-    final itemId = item['id'] as String?;
+    final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
+    final suggestedByUserId = item['suggestedByUserId'] as String? ?? suggestedByUser?['id'] as String?;
 
     showModalBottomSheet(
       context: context,
@@ -81,6 +83,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       builder: (_) => AddEntrySheet(
         prefillTmdbId: tmdbId,
         prefillType: mediaType,
+        prefillSuggestedByUserId: suggestedByUserId,
         onSuccess: () {
           if (itemId != null) {
             _removeItem(itemId);

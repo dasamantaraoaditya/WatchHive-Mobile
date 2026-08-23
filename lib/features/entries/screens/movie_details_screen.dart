@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../entries/screens/add_entry_sheet.dart';
@@ -13,11 +14,15 @@ import '../repositories/watchlist_repository.dart';
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
   final int tmdbId;
+  final String? suggestedByUserId;
+  final User? suggestedByUser;
 
   const MovieDetailsScreen({
     super.key,
     required this.mediaType,
     required this.tmdbId,
+    this.suggestedByUserId,
+    this.suggestedByUser,
   });
 
   @override
@@ -63,7 +68,12 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => ProviderScope(
         parent: ProviderScope.containerOf(context),
-        child: AddEntrySheet(),
+        child: AddEntrySheet(
+          prefillTmdbId: widget.tmdbId,
+          prefillType: widget.mediaType,
+          prefillSuggestor: widget.suggestedByUser,
+          prefillSuggestedByUserId: widget.suggestedByUserId,
+        ),
       ),
     );
   }
@@ -282,6 +292,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                             mediaType: widget.mediaType,
                             posterPath: details['poster_path'] as String?,
                             overview: details['overview'] as String?,
+                            suggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id,
                           );
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(

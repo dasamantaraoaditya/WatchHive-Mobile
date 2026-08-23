@@ -18,6 +18,7 @@ class AddEntrySheet extends ConsumerStatefulWidget {
   final int? prefillTmdbId;
   final String? prefillType;
   final User? prefillSuggestor;
+  final String? prefillSuggestedByUserId;
   final VoidCallback? onSuccess;
 
   const AddEntrySheet({
@@ -26,6 +27,7 @@ class AddEntrySheet extends ConsumerStatefulWidget {
     this.prefillTmdbId,
     this.prefillType,
     this.prefillSuggestor,
+    this.prefillSuggestedByUserId,
     this.onSuccess,
   });
 
@@ -54,7 +56,15 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   bool _isSearching = false;
   MediaResult? _selectedMedia;
   Map<String, dynamic>? _mediaDetails;
+
+  // ── Friend Suggestion State ──
+  String? _suggestedByUserId;
   String? _suggestorUsername;
+  String? _suggestorDisplayName;
+  String? _suggestorAvatar;
+  List<User> _friendResults = [];
+  bool _isSearchingFriends = false;
+  bool _showFriendPicker = false;
 
   bool get isEditing => widget.editEntry != null;
 
@@ -66,8 +76,10 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       _tmdbId = e.tmdbId;
       _titleController.text = e.title;
       _reviewController.text = e.review ?? '';
-      _suggestedByController.text = e.suggestedByUser?.username ?? e.suggestedByUserId ?? '';
+      _suggestedByUserId = e.suggestedByUserId ?? e.suggestedByUser?.id;
       _suggestorUsername = e.suggestedByUser?.username;
+      _suggestorDisplayName = e.suggestedByUser?.displayName;
+      _suggestorAvatar = e.suggestedByUser?.profilePictureUrl;
       _type = e.type;
       _rating = e.rating ?? 0;
       _isRewatch = e.isRewatch;
@@ -84,12 +96,19 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         _type = widget.prefillType == 'tv' ? 'TV_SHOW' : widget.prefillType!;
       }
       if (widget.prefillSuggestor != null) {
-        _suggestedByController.text = widget.prefillSuggestor!.id;
+        _suggestedByUserId = widget.prefillSuggestor!.id;
         _suggestorUsername = widget.prefillSuggestor!.username;
+        _suggestorDisplayName = widget.prefillSuggestor!.displayName;
+        _suggestorAvatar = widget.prefillSuggestor!.profilePictureUrl;
+      } else if (widget.prefillSuggestedByUserId != null) {
+        _suggestedByUserId = widget.prefillSuggestedByUserId;
       }
+
       if (_tmdbId > 0) {
         _loadMediaDetails(_tmdbId, _type);
-        _checkSuggestionsForTmdbId(_tmdbId);
+        if (_suggestedByUserId == null) {
+          _checkSuggestionsForTmdbId(_tmdbId);
+        }
       }
     }
   }
@@ -127,9 +146,12 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       final groups = await ref.read(suggestionsRepositoryProvider).getMySuggestions();
       final matches = groups.where((g) => g.tmdbId == tmdbId).toList();
       if (matches.isNotEmpty && matches.first.suggestors.isNotEmpty && mounted) {
+        final s = matches.first.suggestors.first;
         setState(() {
-          _suggestedByController.text = matches.first.suggestors.first.id;
-          _suggestorUsername = matches.first.suggestors.first.username;
+          _suggestedByUserId = s.id;
+          _suggestorUsername = s.username;
+          _suggestorDisplayName = s.displayName;
+          _suggestorAvatar = s.profilePictureUrl;
         });
       }
     } catch (_) {}
@@ -147,6 +169,24 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     } catch (_) {
     } finally {
       if (mounted) setState(() => _isSearching = false);
+    }
+  }
+
+  Future<void> _searchFriends(String query) async {
+    setState(() {
+      _isSearchingFriends = true;
+      _showFriendPicker = true;
+    });
+    try {
+      final results = await ref.read(searchRepositoryProvider).searchUsers(query.isNotEmpty ? query : 'a');
+      if (mounted) {
+        setState(() {
+          _friendResults = results;
+          _isSearchingFriends = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isSearchingFriends = false);
     }
   }
 
@@ -199,8 +239,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         'watchLocation': _watchLocation.isNotEmpty ? _watchLocation : null,
         'tags': _tags,
         'watchedAt': DateTime.now().toIso8601String(),
-        if (_suggestedByController.text.trim().isNotEmpty)
-          'suggestedByUserId': _suggestedByController.text.trim(),
+        if (_suggestedByUserId != null && _suggestedByUserId!.isNotEmpty)
+          'suggestedByUserId': _suggestedByUserId,
       };
 
       if (isEditing) {
@@ -588,45 +628,161 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ── Suggested By User / Friend Tag ──
-                  const _SectionLabel('💡 Suggested By (Friend Recommender)'),
+                  // ── Suggested By Friend Interactive Picker ──
+                  const _SectionLabel('💡 Suggested By (Tag a friend who recommended this)'),
                   const SizedBox(height: 8),
-                  if (_suggestorUsername != null && _suggestorUsername!.isNotEmpty)
+                  if (_suggestedByUserId != null && _suggestedByUserId!.isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: Colors.amber.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.lightbulb_rounded, color: Colors.amber, size: 18),
-                          const SizedBox(width: 8),
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: AppColors.primary,
+                            backgroundImage: _suggestorAvatar != null && _suggestorAvatar!.isNotEmpty
+                                ? NetworkImage(_suggestorAvatar!)
+                                : null,
+                            child: _suggestorAvatar == null || _suggestorAvatar!.isEmpty
+                                ? Text((_suggestorUsername ?? 'U')[0].toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white))
+                                : null,
+                          ),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: Text(
-                              'Suggested by @$_suggestorUsername',
-                              style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: Colors.amber),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _suggestorDisplayName ?? '@${_suggestorUsername ?? "user"}',
+                                  style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                ),
+                                if (_suggestorUsername != null)
+                                  Text(
+                                    '@$_suggestorUsername',
+                                    style: const TextStyle(fontFamily: 'Inter', fontSize: 10, color: Colors.amber, fontWeight: FontWeight.w600),
+                                  ),
+                              ],
                             ),
                           ),
-                          GestureDetector(
-                            onTap: () => setState(() {
-                              _suggestedByController.clear();
+                          IconButton(
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(4),
+                            icon: const Icon(Icons.close_rounded, color: Colors.amber, size: 20),
+                            onPressed: () => setState(() {
+                              _suggestedByUserId = null;
                               _suggestorUsername = null;
+                              _suggestorDisplayName = null;
+                              _suggestorAvatar = null;
+                              _suggestedByController.clear();
                             }),
-                            child: const Icon(Icons.close_rounded, color: Colors.amber, size: 18),
                           ),
                         ],
                       ),
                     )
                   else
-                    TextField(
-                      controller: _suggestedByController,
-                      style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.textPrimary),
-                      decoration: const InputDecoration(
-                        hintText: 'Suggested user ID or @username',
-                        prefixIcon: Icon(Icons.person_outline_rounded, color: AppColors.textMuted, size: 18),
-                      ),
+                    Column(
+                      children: [
+                        TextField(
+                          controller: _suggestedByController,
+                          style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.textPrimary),
+                          onChanged: (val) {
+                            _searchFriends(val);
+                          },
+                          onTap: () {
+                            if (_friendResults.isEmpty) _searchFriends('');
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Search follower or friend username…',
+                            prefixIcon: const Icon(Icons.lightbulb_outline_rounded, color: Colors.amber, size: 20),
+                            suffixIcon: _isSearchingFriends
+                                ? const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                                  )
+                                : null,
+                          ),
+                        ),
+                        if (_showFriendPicker && _friendResults.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Container(
+                            constraints: const BoxConstraints(maxHeight: 180),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceElevated,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.border),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.25),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.all(6),
+                              itemCount: _friendResults.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
+                              itemBuilder: (ctx, i) {
+                                final user = _friendResults[i];
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: () {
+                                    setState(() {
+                                      _suggestedByUserId = user.id;
+                                      _suggestorUsername = user.username;
+                                      _suggestorDisplayName = user.displayName;
+                                      _suggestorAvatar = user.profilePictureUrl;
+                                      _showFriendPicker = false;
+                                    });
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 14,
+                                          backgroundColor: AppColors.primary,
+                                          backgroundImage: user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty
+                                              ? NetworkImage(user.profilePictureUrl!)
+                                              : null,
+                                          child: user.profilePictureUrl == null || user.profilePictureUrl!.isEmpty
+                                              ? Text(
+                                                  (user.displayName ?? user.username)[0].toUpperCase(),
+                                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                                                )
+                                              : null,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                user.displayName ?? user.username,
+                                                style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                              ),
+                                              Text(
+                                                '@${user.username}',
+                                                style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.textMuted),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary, size: 18),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   const SizedBox(height: 16),
 
