@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/suggestion.dart';
 import '../repositories/entries_repository.dart';
 import '../repositories/suggestions_repository.dart';
+import '../../search/repositories/search_repository.dart';
 import '../screens/add_entry_sheet.dart';
 
 class SuggestionCard extends ConsumerStatefulWidget {
@@ -140,108 +144,210 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
   @override
   Widget build(BuildContext context) {
     final firstSuggestor = widget.group.suggestors.isNotEmpty ? widget.group.suggestors.first : null;
+    final mediaType = widget.group.mediaType == 'tv' ? 'tv' : 'movie';
+    final tmdbId = widget.group.tmdbId;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: AppColors.cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        onTap: () => widget.onTapMedia?.call(widget.group.tmdbId, widget.group.mediaType),
-        leading: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            width: 44,
-            height: 66,
-            color: Colors.amber.withOpacity(0.12),
-            child: const Icon(Icons.movie_outlined, color: AppColors.primary),
-          ),
+    final detailsAsync = tmdbId > 0
+        ? ref.watch(tmdbMediaDetailsProvider((tmdbId: tmdbId, mediaType: mediaType)))
+        : null;
+
+    final posterPath = detailsAsync?.value?['poster_path'] as String?;
+    final title = detailsAsync?.value?['title'] as String? ??
+        detailsAsync?.value?['name'] as String? ??
+        'Title #$tmdbId';
+    final posterUrl = ApiEndpoints.tmdbPoster(posterPath);
+
+    return GestureDetector(
+      onTap: () => widget.onTapMedia?.call(tmdbId, mediaType),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        title: Text(
-          'Title #${widget.group.tmdbId}',
-          style: const TextStyle(
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w700,
-            fontSize: 15,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        subtitle: Column(
+        clipBehavior: Clip.antiAlias,
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
-            if (firstSuggestor != null)
-              Row(
+            // Poster Image Banner with Gradient & Badges
+            Expanded(
+              child: Stack(
                 children: [
-                  const Text(
-                    'Suggested by ',
-                    style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                  ),
-                  CircleAvatar(
-                    radius: 8,
-                    backgroundColor: AppColors.primary,
-                    backgroundImage: firstSuggestor.profilePictureUrl != null && firstSuggestor.profilePictureUrl!.isNotEmpty
-                        ? NetworkImage(firstSuggestor.profilePictureUrl!)
-                        : null,
-                    onBackgroundImageError: firstSuggestor.profilePictureUrl != null && firstSuggestor.profilePictureUrl!.isNotEmpty
-                        ? (_, __) {}
-                        : null,
-                    child: firstSuggestor.profilePictureUrl == null || firstSuggestor.profilePictureUrl!.isEmpty
-                        ? Text(
-                            (firstSuggestor.displayName ?? firstSuggestor.username)[0].toUpperCase(),
-                            style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                  Positioned.fill(
+                    child: posterUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: posterUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Shimmer.fromColors(
+                              baseColor: AppColors.surfaceElevated,
+                              highlightColor: AppColors.surfaceHighest,
+                              child: Container(color: AppColors.surfaceElevated),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.surfaceElevated,
+                              child: const Center(
+                                child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
+                              ),
+                            ),
                           )
-                        : null,
+                        : Container(
+                            color: AppColors.surfaceElevated,
+                            child: const Center(
+                              child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
+                            ),
+                          ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '@${firstSuggestor.username}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+
+                  // Dark gradient overlay
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: const [0.4, 1.0],
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.88),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Top-Left Category Badge
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        mediaType == 'tv' ? '📺 TV' : '🎬 Movie',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Top-Right Suggested By Avatar Pill
+                  if (firstSuggestor != null)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircleAvatar(
+                              radius: 7,
+                              backgroundColor: AppColors.primary,
+                              backgroundImage: firstSuggestor.profilePictureUrl != null &&
+                                      firstSuggestor.profilePictureUrl!.isNotEmpty
+                                  ? NetworkImage(firstSuggestor.profilePictureUrl!)
+                                  : null,
+                              child: firstSuggestor.profilePictureUrl == null ||
+                                      firstSuggestor.profilePictureUrl!.isEmpty
+                                  ? Text(
+                                      (firstSuggestor.displayName ?? firstSuggestor.username)[0].toUpperCase(),
+                                      style: const TextStyle(fontSize: 7, color: Colors.white, fontWeight: FontWeight.bold),
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '@${firstSuggestor.username}',
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Bottom Title Overlay
+                  Positioned(
+                    bottom: 8,
+                    left: 8,
+                    right: 8,
+                    child: Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(offset: Offset(0, 1), blurRadius: 4, color: Colors.black),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
+            ),
+
+            // Card Footer: Quick Action Buttons
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: _isProcessing
+                  ? const Center(child: SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2)))
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        IconButton(
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.all(4),
+                          icon: const Icon(Icons.play_arrow_rounded, color: AppColors.info, size: 20),
+                          tooltip: 'Log as Currently Watching',
+                          onPressed: _handleAddToWatching,
+                        ),
+                        IconButton(
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.all(4),
+                          icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 19),
+                          tooltip: 'Mark as Watched',
+                          onPressed: _handleMarkAsWatched,
+                        ),
+                        IconButton(
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.all(4),
+                          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 19),
+                          tooltip: 'Delete Suggestion',
+                          onPressed: _handleDelete,
+                        ),
+                      ],
+                    ),
+            ),
           ],
         ),
-        trailing: _isProcessing
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.visibility_outlined, color: AppColors.primary, size: 20),
-                    tooltip: 'Log as Currently Watching',
-                    onPressed: _handleAddToWatching,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.check_circle_outline, color: Colors.green, size: 20),
-                    tooltip: 'Mark as Watched',
-                    onPressed: _handleMarkAsWatched,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                    tooltip: 'Delete',
-                    onPressed: _handleDelete,
-                  ),
-                ],
-              ),
       ),
     );
   }

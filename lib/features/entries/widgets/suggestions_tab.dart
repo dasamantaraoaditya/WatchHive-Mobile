@@ -139,8 +139,14 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                               ],
                             ),
                           )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        : GridView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 14,
+                              crossAxisSpacing: 14,
+                              childAspectRatio: 0.63,
+                            ),
                             itemCount: filteredGroups.length,
                             itemBuilder: (ctx, i) => SuggestionCard(
                               group: filteredGroups[i],
