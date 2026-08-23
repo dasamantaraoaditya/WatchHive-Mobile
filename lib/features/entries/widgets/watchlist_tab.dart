@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../repositories/watchlist_repository.dart';
@@ -136,8 +138,14 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     return RefreshIndicator(
       onRefresh: _fetchWatchlist,
       color: AppColors.primary,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: GridView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 14,
+          crossAxisSpacing: 14,
+          childAspectRatio: 0.65,
+        ),
         itemCount: _items.length,
         itemBuilder: (ctx, i) {
           final item = _items[i] as Map<String, dynamic>;
@@ -148,91 +156,157 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
           final mediaType = item['mediaType'] == 'tv' ? 'tv' : 'movie';
           final posterUrl = ApiEndpoints.tmdbPoster(posterPath);
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.cardBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    if (tmdbId != null) context.push('/details/$mediaType/$tmdbId');
-                  },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: posterUrl.isNotEmpty
-                        ? Image.network(
-                            posterUrl,
-                            width: 56,
-                            height: 80,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 56,
-                              height: 80,
-                              color: AppColors.surface,
-                              child: const Icon(Icons.movie, color: AppColors.textMuted),
-                            ),
-                          )
-                        : Container(
-                            width: 56,
-                            height: 80,
-                            color: AppColors.surface,
-                            child: const Icon(Icons.movie, color: AppColors.textMuted),
-                          ),
+          return GestureDetector(
+            onTap: () {
+              if (tmdbId != null) context.push('/details/$mediaType/$tmdbId');
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: AppColors.textPrimary,
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: posterUrl.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: posterUrl,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Shimmer.fromColors(
+                                    baseColor: AppColors.surfaceElevated,
+                                    highlightColor: AppColors.surfaceHighest,
+                                    child: Container(color: AppColors.surfaceElevated),
+                                  ),
+                                  errorWidget: (context, url, error) => Container(
+                                    color: AppColors.surfaceElevated,
+                                    child: const Center(
+                                      child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  color: AppColors.surfaceElevated,
+                                  child: const Center(
+                                    child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
+                                  ),
+                                ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        mediaType == 'tv' ? '📺 TV Series' : '🎬 Movie',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                stops: const [0.5, 1.0],
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withValues(alpha: 0.85),
+                                ],
+                              ),
                             ),
-                            onPressed: () => _logWatchlistItem(item),
-                            icon: const Icon(Icons.check, size: 14),
-                            label: const Text('Log Watch', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
-                            onPressed: () => _removeItem(itemId),
+                        ),
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.75),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              mediaType == 'tv' ? '📺 TV' : '🎬 Movie',
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                        Positioned(
+                          bottom: 8,
+                          left: 8,
+                          right: 8,
+                          child: Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(offset: Offset(0, 1), blurRadius: 4, color: Colors.black),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _logWatchlistItem(item),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_rounded, size: 14, color: Colors.black),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Log',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.all(4),
+                          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 18),
+                          onPressed: () => _removeItem(itemId),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },

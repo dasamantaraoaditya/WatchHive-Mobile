@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/entry.dart';
-import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
 import 'add_entry_sheet.dart';
 import '../widgets/suggestions_tab.dart';
@@ -242,46 +244,43 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
     if (state.entries.isEmpty) {
       return const _EmptyEntries();
     }
-    return ListView.builder(
+    return GridView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-      itemCount: state.entries.length + (state.isLoadingMore ? 1 : 0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        childAspectRatio: 0.65,
+      ),
+      itemCount: state.entries.length,
       itemBuilder: (context, index) {
-        if (index == state.entries.length) {
-          return const Padding(
-            padding: EdgeInsets.all(20),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
-          );
-        }
         final entry = state.entries[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _EntryListItem(
-            entry: entry,
-            onTap: () => context.push('/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}'),
-            onDelete: () => ref.read(entriesProvider.notifier).deleteEntry(entry.id),
-            onEdit: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) => AddEntrySheet(editEntry: entry),
-              );
-            },
-          ),
+        return _EntryGridCard(
+          entry: entry,
+          onTap: () => context.push('/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}'),
+          onDelete: () => ref.read(entriesProvider.notifier).deleteEntry(entry.id),
+          onEdit: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => AddEntrySheet(editEntry: entry),
+            );
+          },
         );
       },
     );
   }
 }
 
-class _EntryListItem extends StatelessWidget {
+class _EntryGridCard extends ConsumerWidget {
   final Entry entry;
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
 
-  const _EntryListItem({
+  const _EntryGridCard({
     required this.entry,
     required this.onTap,
     required this.onDelete,
@@ -289,93 +288,229 @@ class _EntryListItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final imageUrl = ApiEndpoints.tmdbPoster(entry.posterPath);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            // Type icon
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  entry.type == 'MOVIE' ? '🎬' : '📺',
-                  style: const TextStyle(fontSize: 22),
-                ),
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
-            const SizedBox(width: 12),
-            // Title + meta
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Poster Image Banner with Gradient & Badges
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  Text(
-                    entry.title,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Positioned.fill(
+                    child: imageUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Shimmer.fromColors(
+                              baseColor: AppColors.surfaceElevated,
+                              highlightColor: AppColors.surfaceHighest,
+                              child: Container(color: AppColors.surfaceElevated),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.surfaceElevated,
+                              child: const Center(
+                                child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            color: AppColors.surfaceElevated,
+                            child: const Center(
+                              child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
+                            ),
+                          ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      if (entry.rating != null) ...[
-                        WHRatingStars(rating: entry.rating),
-                        const SizedBox(width: 8),
-                      ],
-                      if (entry.isWatching)
-                        const Text('▶ Watching', style: TextStyle(fontSize: 11, color: AppColors.info, fontWeight: FontWeight.w600))
-                      else
-                        Text(
-                          DateFormat('MMM d, yyyy').format(entry.watchedAt),
-                          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+
+                  // Dark gradient overlay for title legibility
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: const [0.5, 1.0],
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.85),
+                          ],
                         ),
-                    ],
-                  ),
-                  if (entry.tags.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      entry.tags.take(3).join(' · '),
-                      style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ],
+                  ),
+
+                  // Top-Left Category Badge
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        entry.type == 'MOVIE' ? '🎬 Movie' : '📺 TV',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Top-Right Badge: Rating or Watching Indicator
+                  if (entry.isWatching)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.info.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          '▶ Watching',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (entry.rating != null)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star_rounded, color: AppColors.primary, size: 13),
+                            const SizedBox(width: 3),
+                            Text(
+                              entry.rating!.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Bottom Title & Tags Overlay
+                  Positioned(
+                    bottom: 8,
+                    left: 8,
+                    right: 8,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          entry.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            shadows: [
+                              Shadow(offset: Offset(0, 1), blurRadius: 4, color: Colors.black),
+                            ],
+                          ),
+                        ),
+                        if (entry.tags.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            entry.tags.take(2).map((t) => '#$t').join(' '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-            // More menu
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded, color: AppColors.textMuted, size: 20),
-              color: AppColors.surfaceElevated,
-              itemBuilder: (_) => [
-                const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Text('Delete', style: TextStyle(color: AppColors.error)),
-                ),
-              ],
-              onSelected: (value) {
-                if (value == 'edit') onEdit();
-                if (value == 'delete') onDelete();
-              },
+
+            // Card Footer: Date & Actions
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      entry.isWatching
+                          ? 'Active Session'
+                          : DateFormat('MMM d, yyyy').format(entry.watchedAt),
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.more_vert_rounded, color: AppColors.textMuted, size: 18),
+                    color: AppColors.surfaceElevated,
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Delete', style: TextStyle(color: AppColors.error)),
+                      ),
+                    ],
+                    onSelected: (value) {
+                      if (value == 'edit') onEdit();
+                      if (value == 'delete') onDelete();
+                    },
+                  ),
+                ],
+              ),
             ),
           ],
         ),
