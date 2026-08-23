@@ -244,29 +244,38 @@ class _FeedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSuggestion = entry.isSuggestion || entry.user == null;
-    final displayName = isSuggestion ? 'WatchHive Suggestion' : (entry.user?.displayName ?? entry.user?.username ?? 'User');
-    final subtitleText = isSuggestion ? (entry.suggestionReason ?? '✨ Recommended for You') : '@${entry.user?.username ?? ""}';
+    final displayName = isSuggestion ? 'WatchHive' : (entry.user?.displayName ?? entry.user?.username ?? 'User');
+
+    final actionText = () {
+      if (isSuggestion) return 'recommends';
+      if (entry.isWatching) return 'started watching';
+      if (entry.startedAt != null) return 'completed watching';
+      return entry.review != null && entry.review!.isNotEmpty ? 'reviewed' : 'watched';
+    }();
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isSuggestion ? AppColors.primary.withValues(alpha: 0.4) : AppColors.border),
+        border: Border.all(
+          color: isSuggestion ? AppColors.primary.withValues(alpha: 0.4) : AppColors.border,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Avatar + Username + Time
+          // Header: Avatar + Action Sentence + Suggested By + Compact Header Date
           Padding(
             padding: const EdgeInsets.all(14),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 GestureDetector(
                   onTap: isSuggestion ? null : onUserTap,
                   child: isSuggestion
                       ? Container(
-                          width: 36,
-                          height: 36,
+                          width: 38,
+                          height: 38,
                           decoration: const BoxDecoration(
                             color: AppColors.primary,
                             shape: BoxShape.circle,
@@ -276,40 +285,105 @@ class _FeedCard extends StatelessWidget {
                       : WHAvatar(
                           imageUrl: entry.user?.profilePictureUrl,
                           name: entry.user?.displayName ?? entry.user?.username,
-                          radius: 18,
+                          radius: 19,
                         ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: GestureDetector(
-                    onTap: isSuggestion ? null : onUserTap,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          displayName,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // User Name + Action Sentence
+                      RichText(
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        text: TextSpan(
                           style: const TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
                             color: AppColors.textPrimary,
                           ),
+                          children: [
+                            TextSpan(
+                              text: displayName,
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                            ),
+                            TextSpan(
+                              text: ' $actionText',
+                              style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w400),
+                            ),
+                          ],
                         ),
+                      ),
+
+                      // Subtitle / Username
+                      if (!isSuggestion && entry.user?.username != null) ...[
+                        const SizedBox(height: 2),
                         Text(
-                          subtitleText,
-                          style: TextStyle(
+                          '@${entry.user!.username}',
+                          style: const TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 12,
-                            fontWeight: isSuggestion ? FontWeight.bold : FontWeight.normal,
-                            color: isSuggestion ? AppColors.primary : AppColors.textMuted,
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ] else if (isSuggestion) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          entry.suggestionReason ?? '✨ Recommended for You',
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
                           ),
                         ),
                       ],
-                    ),
+
+                      // Suggested By Row (If applicable)
+                      if (entry.suggestedByUser != null) ...[
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () => context.push('/profile/${entry.suggestedByUser!.id}'),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Suggested by ',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                              WHAvatar(
+                                imageUrl: entry.suggestedByUser!.profilePictureUrl,
+                                name: entry.suggestedByUser!.displayName ?? entry.suggestedByUser!.username,
+                                radius: 7,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '@${entry.suggestedByUser!.username}',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
+
+                const SizedBox(width: 8),
+                // Compact header timestamp (e.g. "2:30 PM" or "Aug 23")
                 Text(
-                  _formatPreciseTimestamp(entry.watchedAt),
+                  _formatCompactHeaderDate(entry.watchedAt),
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11,
@@ -327,19 +401,27 @@ class _FeedCard extends StatelessWidget {
             onTap: onMediaTap,
           ),
 
-          // Timestamp & Status Indicator
+          // Status & Full Precise Timestamp Footer
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             child: Row(
               children: [
                 Icon(
-                  isSuggestion ? Icons.auto_awesome_rounded : (entry.isWatching ? Icons.play_circle_outline_rounded : (entry.startedAt != null ? Icons.check_circle_outline_rounded : Icons.schedule_rounded)),
+                  isSuggestion
+                      ? Icons.auto_awesome_rounded
+                      : (entry.isWatching
+                          ? Icons.play_circle_outline_rounded
+                          : (entry.startedAt != null ? Icons.check_circle_outline_rounded : Icons.schedule_rounded)),
                   size: 14,
                   color: isSuggestion ? AppColors.primary : AppColors.textMuted,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 5),
                 Text(
-                  isSuggestion ? (entry.suggestionReason ?? 'Recommended for You') : (entry.isWatching ? 'Started watching • ' : (entry.startedAt != null ? 'Completed watching • ' : 'Seen • ')),
+                  isSuggestion
+                      ? (entry.suggestionReason ?? 'Recommended for You')
+                      : (entry.isWatching
+                          ? 'Started watching • '
+                          : (entry.startedAt != null ? 'Completed watching • ' : 'Seen • ')),
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 12,
@@ -349,7 +431,7 @@ class _FeedCard extends StatelessWidget {
                 ),
                 if (!isSuggestion)
                   Text(
-                    _formatPreciseTimestamp(entry.watchedAt),
+                    _formatFullTimestamp(entry.watchedAt),
                     style: const TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 12,
@@ -413,7 +495,7 @@ class _FeedCard extends StatelessWidget {
             ),
           ],
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           const Divider(height: 1, color: AppColors.border),
 
           // Action bar
@@ -441,7 +523,15 @@ class _FeedCard extends StatelessWidget {
     );
   }
 
-  String _formatPreciseTimestamp(DateTime date) {
+  String _formatCompactHeaderDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inDays == 0) return DateFormat('h:mm a').format(date.toLocal());
+    if (diff.inDays < 7) return DateFormat('EEE, h:mm a').format(date.toLocal());
+    return DateFormat('MMM d').format(date.toLocal());
+  }
+
+  String _formatFullTimestamp(DateTime date) {
     final localDate = date.toLocal();
     final dateStr = DateFormat('MMM d, yyyy').format(localDate);
     final timeStr = DateFormat('h:mm a').format(localDate);
