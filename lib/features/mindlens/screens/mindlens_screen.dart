@@ -52,9 +52,9 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
       appBar: AppBar(
         title: const Row(
           children: [
-            Icon(Icons.psychology, color: AppColors.primary, size: 22),
+            Icon(Icons.psychology, color: AppColors.primary, size: 24),
             SizedBox(width: 8),
-            Text('MindLens AI'),
+            Text('MindLens', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
           ],
         ),
       ),

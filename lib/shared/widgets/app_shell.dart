@@ -15,7 +15,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   int _currentIndex = 0;
 
   static const List<_NavItem> _navItems = [
-    _NavItem(label: 'Feed', icon: Icons.home_outlined, activeIcon: Icons.home_rounded, route: '/feed'),
+    _NavItem(label: 'Home', icon: Icons.home_outlined, activeIcon: Icons.home_rounded, route: '/feed'),
+    _NavItem(label: 'MindLens', icon: Icons.psychology_outlined, activeIcon: Icons.psychology_rounded, route: '/mindlens'),
     _NavItem(label: 'Entries', icon: Icons.movie_creation_outlined, activeIcon: Icons.movie_creation_rounded, route: '/entries'),
     _NavItem(label: 'Search', icon: Icons.search_outlined, activeIcon: Icons.search_rounded, route: '/search'),
     _NavItem(label: 'Profile', icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, route: '/profile'),

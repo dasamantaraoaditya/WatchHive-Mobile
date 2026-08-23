@@ -135,10 +135,10 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
   late final TabController _tabController;
 
   final _tabs = [
-    (label: '▶ Watching', type: null, isWatching: true, isSuggestions: false, isWatchlist: false),
-    (label: '📜 History', type: null, isWatching: false, isSuggestions: false, isWatchlist: false),
-    (label: '🔖 Watchlist', type: null, isWatching: null, isSuggestions: false, isWatchlist: true),
-    (label: '💡 Suggestions', type: null, isWatching: null, isSuggestions: true, isWatchlist: false),
+    (label: 'Currently Watching', type: null, isWatching: true, isSuggestions: false, isWatchlist: false),
+    (label: 'Watch History', type: null, isWatching: false, isSuggestions: false, isWatchlist: false),
+    (label: 'Watchlist', type: null, isWatching: null, isSuggestions: false, isWatchlist: true),
+    (label: 'Suggestions', type: null, isWatching: null, isSuggestions: true, isWatchlist: false),
   ];
 
   @override
@@ -189,7 +189,7 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('My Watch Hub'),
+        title: const Text('Entries', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),
@@ -208,11 +208,12 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddEntry,
+        tooltip: 'Log Movie or Show',
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.black,
         icon: const Icon(Icons.add_rounded),
         label: const Text(
-          'Log Entry',
+          'Log Movie',
           style: TextStyle(
             fontFamily: 'Inter',
             fontWeight: FontWeight.w700,

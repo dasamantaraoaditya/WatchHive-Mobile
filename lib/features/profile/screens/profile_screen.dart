@@ -120,10 +120,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           : CustomScrollView(
               slivers: [
                 SliverAppBar(
-                  title: Text(user.username),
+                  title: const Text('My Profile', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
                   actions: [
                     IconButton(
                       icon: const Icon(Icons.settings_outlined),
+                      tooltip: 'Edit Profile & Settings',
                       onPressed: () {
                         showDialog(
                           context: context,
@@ -136,6 +137,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.logout_rounded),
+                      tooltip: 'Sign Out',
                       onPressed: () => ref.read(authStateProvider.notifier).logout(),
                     ),
                   ],

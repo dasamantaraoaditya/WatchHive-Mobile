@@ -67,13 +67,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
-      // Shell route with bottom nav
+      // Shell route with bottom nav matching Web App (Home, MindLens, Entries, Search, Profile)
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(
             path: '/feed',
             builder: (context, state) => const FeedScreen(),
+          ),
+          GoRoute(
+            path: '/mindlens',
+            builder: (context, state) => const MindLensScreen(),
           ),
           GoRoute(
             path: '/entries',
@@ -105,10 +109,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => UserProfileScreen(
           userId: state.pathParameters['id']!,
         ),
-      ),
-      GoRoute(
-        path: '/mindlens',
-        builder: (context, state) => const MindLensScreen(),
       ),
       GoRoute(
         path: '/details/:mediaType/:tmdbId',

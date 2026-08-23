@@ -89,7 +89,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
           autofocus: false,
           style: const TextStyle(fontFamily: 'Inter', fontSize: 15, color: AppColors.textPrimary),
           decoration: InputDecoration(
-            hintText: 'Search movies, shows, people...',
+            hintText: 'Search movies, TV shows, and cinephiles...',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted),
             suffixIcon: _query.isNotEmpty

@@ -166,7 +166,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         slivers: [
           SliverAppBar(
             floating: true,
-            title: const Text('WatchHive', style: TextStyle(color: AppColors.primary)),
+            title: const Row(
+              children: [
+                Text('Home', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 22, color: AppColors.primary)),
+              ],
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),
@@ -175,6 +179,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.notifications_outlined),
+                tooltip: 'Notifications',
                 onPressed: () => context.push('/notifications'),
               ),
             ],
