@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/feed_repository.dart';
@@ -318,135 +320,92 @@ class _FeedCard extends StatelessWidget {
             ),
           ),
 
-          // Media info
-          // Media Section: Poster Thumbnail + Movie Metadata
+          // Hero Media Banner (Full Width Movie/Show Poster Image + Badges & Tags)
+          FeedMediaHeroBanner(
+            entry: entry,
+            onTap: onMediaTap,
+          ),
+
+          // Timestamp & Status Indicator
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Left: Movie Poster Thumbnail
-                FeedMediaPoster(
-                  entry: entry,
-                  onTap: onMediaTap,
+                Icon(
+                  entry.isWatching ? Icons.play_circle_outline_rounded : (entry.startedAt != null ? Icons.check_circle_outline_rounded : Icons.schedule_rounded),
+                  size: 14,
+                  color: AppColors.textMuted,
                 ),
-                const SizedBox(width: 14),
-                // Right: Details (Type Tag, Title, Suggested By, Rating)
-                Expanded(
-                  child: GestureDetector(
-                    onTap: onMediaTap,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                entry.type == 'MOVIE' ? '🎬 Movie' : '📺 TV Show',
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                            if (entry.isRewatch) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: AppColors.info.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  '🔁 Rewatch',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.info,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          entry.title,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        if (entry.suggestedByUser != null) ...[
-                          const SizedBox(height: 4),
-                          GestureDetector(
-                            onTap: () => context.push('/profile/${entry.suggestedByUser!.id}'),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text(
-                                  'Suggested by ',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                                WHAvatar(
-                                  imageUrl: entry.suggestedByUser!.profilePictureUrl,
-                                  name: entry.suggestedByUser!.displayName ?? entry.suggestedByUser!.username,
-                                  radius: 8,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '@${entry.suggestedByUser!.username}',
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        if (entry.rating != null) ...[
-                          const SizedBox(height: 6),
-                          WHRatingStars(rating: entry.rating),
-                        ],
-                      ],
-                    ),
+                const SizedBox(width: 4),
+                Text(
+                  entry.isWatching ? 'Started watching ' : (entry.startedAt != null ? 'Completed watching ' : 'Watched '),
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                Text(
+                  _timeAgo(entry.watchedAt),
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
 
+          // Review / MindLens Insight Quote Box
           if (entry.review != null && entry.review!.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Text(
-                entry.review!,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                  height: 1.5,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.psychology_outlined, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Review & Insight',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '"${entry.review!}"',
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13,
+                              fontStyle: FontStyle.italic,
+                              color: AppColors.textPrimary,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -584,11 +543,11 @@ final _tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, (
   }
 });
 
-class FeedMediaPoster extends ConsumerWidget {
+class FeedMediaHeroBanner extends ConsumerWidget {
   final Entry entry;
   final VoidCallback onTap;
 
-  const FeedMediaPoster({
+  const FeedMediaHeroBanner({
     super.key,
     required this.entry,
     required this.onTap,
@@ -596,55 +555,207 @@ class FeedMediaPoster extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (entry.posterPath != null && entry.posterPath!.isNotEmpty) {
-      return GestureDetector(
-        onTap: onTap,
-        child: TMDBPosterImage(
-          posterPath: entry.posterPath,
-          width: 76,
-          height: 114,
-          borderRadius: 10,
-        ),
-      );
-    }
-
-    if (entry.tmdbId <= 0) {
-      return GestureDetector(
-        onTap: onTap,
-        child: const TMDBPosterImage(posterPath: null, width: 76, height: 114, borderRadius: 10),
-      );
-    }
-
     final mediaType = (entry.type == 'TV_SHOW' || entry.type == 'EPISODE') ? 'tv' : 'movie';
-    final detailsAsync = ref.watch(_tmdbMediaDetailsProvider(
-      (tmdbId: entry.tmdbId, mediaType: mediaType),
-    ));
+    final shouldFetch = (entry.posterPath == null || entry.posterPath!.isEmpty) &&
+        (entry.backdropPath == null || entry.backdropPath!.isEmpty) &&
+        entry.tmdbId > 0;
+
+    final detailsAsync = shouldFetch
+        ? ref.watch(_tmdbMediaDetailsProvider((tmdbId: entry.tmdbId, mediaType: mediaType)))
+        : null;
+
+    final posterPath = entry.posterPath ?? detailsAsync?.value?['poster_path'] as String?;
+    final backdropPath = entry.backdropPath ?? detailsAsync?.value?['backdrop_path'] as String?;
+    final imagePath = backdropPath ?? posterPath;
+    final imageUrl = ApiEndpoints.tmdbBackdrop(imagePath);
 
     return GestureDetector(
       onTap: onTap,
-      child: detailsAsync.when(
-        data: (details) {
-          final posterPath = details?['poster_path'] as String?;
-          return TMDBPosterImage(
-            posterPath: posterPath,
-            width: 76,
-            height: 114,
-            borderRadius: 10,
-          );
-        },
-        loading: () => Shimmer.fromColors(
-          baseColor: AppColors.surfaceElevated,
-          highlightColor: AppColors.surfaceHighest,
-          child: Container(
-            width: 76,
-            height: 114,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
+      child: Container(
+        height: 210,
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(14),
         ),
-        error: (_, __) => const TMDBPosterImage(posterPath: null, width: 76, height: 114, borderRadius: 10),
+        child: Stack(
+          children: [
+            // Background Image
+            if (imageUrl.isNotEmpty)
+              Positioned.fill(
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Shimmer.fromColors(
+                    baseColor: AppColors.surfaceElevated,
+                    highlightColor: AppColors.surfaceHighest,
+                    child: Container(color: AppColors.surfaceElevated),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: AppColors.surfaceElevated,
+                    child: const Center(
+                      child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 40),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Positioned.fill(
+                child: Container(
+                  color: AppColors.surfaceElevated,
+                  child: const Center(
+                    child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 40),
+                  ),
+                ),
+              ),
+
+            // Subtle dark gradient overlay for text readability
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.2),
+                      Colors.black.withValues(alpha: 0.8),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Top-Left Badges: Type & Rewatch
+            Positioned(
+              top: 10,
+              left: 10,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      entry.type == 'MOVIE' ? '🎬 Movie' : '📺 TV Show',
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  if (entry.isRewatch) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.info.withValues(alpha: 0.4)),
+                      ),
+                      child: const Text(
+                        '🔁 Rewatch',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.info,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Top-Right Badge: Rating
+            if (entry.rating != null)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.75),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.star_rounded, color: AppColors.primary, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        entry.rating!.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // Bottom-Left Overlay: Movie Title & Tags
+            Positioned(
+              bottom: 12,
+              left: 12,
+              right: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    entry.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(offset: Offset(0, 1), blurRadius: 4, color: Colors.black),
+                      ],
+                    ),
+                  ),
+                  if (entry.tags.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: entry.tags.take(3).map((tag) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
+                        ),
+                        child: Text(
+                          '#$tag',
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      )).toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
