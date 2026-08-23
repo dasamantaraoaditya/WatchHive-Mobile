@@ -297,64 +297,100 @@ class WHEntryGridCard extends ConsumerWidget {
 
             // ── Action & Metadata Footer (Bottom ~25%) ──────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),
               child: Row(
                 children: [
                   // Left info (Date or Action Label)
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Text(
-                        mode == WHEntryCardMode.watching
-                            ? 'Active Session'
-                            : watchedAt != null
-                                ? DateFormat('MMM d, yyyy').format(watchedAt!)
-                                : year ?? 'Saved',
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textMuted,
-                        ),
+                    child: Text(
+                      mode == WHEntryCardMode.watching
+                          ? 'Active Session'
+                          : watchedAt != null
+                              ? DateFormat('MMM d, yyyy').format(watchedAt!)
+                              : year != null
+                                  ? 'Released $year'
+                                  : 'Saved in List',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textMuted,
                       ),
                     ),
                   ),
 
-                  // Right Action Toolbar Icons
-                  if (onMoveToWatching != null)
-                    IconButton(
-                      constraints: const BoxConstraints(),
-                      padding: const EdgeInsets.all(4),
-                      icon: const Icon(Icons.play_arrow_rounded, color: AppColors.info, size: 20),
-                      tooltip: 'Log as Currently Watching',
-                      onPressed: onMoveToWatching,
-                    ),
-
-                  if (onMarkWatched != null)
-                    IconButton(
-                      constraints: const BoxConstraints(),
-                      padding: const EdgeInsets.all(4),
-                      icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 19),
-                      tooltip: 'Mark as Watched',
-                      onPressed: onMarkWatched,
-                    ),
-
-                  if (onEdit != null)
-                    IconButton(
-                      constraints: const BoxConstraints(),
-                      padding: const EdgeInsets.all(4),
-                      icon: const Icon(Icons.edit_outlined, color: AppColors.textSecondary, size: 18),
-                      tooltip: 'Edit Entry',
-                      onPressed: onEdit,
-                    ),
-
-                  if (onDelete != null)
-                    IconButton(
-                      constraints: const BoxConstraints(),
-                      padding: const EdgeInsets.all(4),
-                      icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 18),
-                      tooltip: 'Delete',
-                      onPressed: onDelete,
+                  // Three-Dots Context Menu Button
+                  if (onMoveToWatching != null || onMarkWatched != null || onEdit != null || onDelete != null)
+                    PopupMenuButton<String>(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 160),
+                      icon: const Icon(Icons.more_vert_rounded, color: AppColors.textSecondary, size: 20),
+                      color: AppColors.surfaceElevated,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: AppColors.border),
+                      ),
+                      itemBuilder: (_) => [
+                        if (onMoveToWatching != null)
+                          const PopupMenuItem(
+                            value: 'watching',
+                            child: Row(
+                              children: [
+                                Icon(Icons.play_arrow_rounded, size: 18, color: AppColors.info),
+                                SizedBox(width: 10),
+                                Text('Log as Watching', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                              ],
+                            ),
+                          ),
+                        if (onMarkWatched != null)
+                          const PopupMenuItem(
+                            value: 'mark_watched',
+                            child: Row(
+                              children: [
+                                Icon(Icons.check_circle_outline_rounded, size: 18, color: Colors.greenAccent),
+                                SizedBox(width: 10),
+                                Text('Mark as Watched', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                              ],
+                            ),
+                          ),
+                        if (onEdit != null)
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_outlined, size: 18, color: AppColors.textSecondary),
+                                SizedBox(width: 10),
+                                Text('Edit Entry', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                              ],
+                            ),
+                          ),
+                        if (onDelete != null)
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.error),
+                                const SizedBox(width: 10),
+                                Text(
+                                  mode == WHEntryCardMode.watchlist
+                                      ? 'Remove'
+                                      : mode == WHEntryCardMode.suggestion
+                                          ? 'Delete Suggestion'
+                                          : 'Delete Entry',
+                                  style: const TextStyle(fontSize: 13, color: AppColors.error),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                      onSelected: (value) {
+                        if (value == 'watching') onMoveToWatching?.call();
+                        if (value == 'mark_watched') onMarkWatched?.call();
+                        if (value == 'edit') onEdit?.call();
+                        if (value == 'delete') onDelete?.call();
+                      },
                     ),
                 ],
               ),

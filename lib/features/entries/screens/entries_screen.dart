@@ -263,6 +263,16 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
           watchedAt: entry.watchedAt,
           tags: entry.tags,
           onTap: () => context.push('/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}'),
+          onMarkWatched: entry.isWatching
+              ? () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => AddEntrySheet(editEntry: entry),
+                  );
+                }
+              : null,
           onEdit: () {
             showModalBottomSheet(
               context: context,
