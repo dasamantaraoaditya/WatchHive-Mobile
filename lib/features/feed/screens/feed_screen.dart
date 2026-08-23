@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/feed_repository.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../search/repositories/search_repository.dart';
 
 // Feed state
 class FeedState {
@@ -317,125 +319,120 @@ class _FeedCard extends StatelessWidget {
           ),
 
           // Media info
-          GestureDetector(
-            onTap: onMediaTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      entry.type == 'MOVIE' ? '🎬 Movie' : '📺 TV Show',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                  if (entry.isRewatch)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.info.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        '🔁 Rewatch',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.info,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-
+          // Media Section: Poster Thumbnail + Movie Metadata
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: GestureDetector(
-              onTap: onMediaTap,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    entry.title,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  if (entry.suggestedByUser != null) ...[
-                    const SizedBox(height: 4),
-                    GestureDetector(
-                      onTap: () => context.push('/profile/${entry.suggestedByUser!.id}'),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'Suggested by ',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textMuted,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left: Movie Poster Thumbnail
+                FeedMediaPoster(
+                  entry: entry,
+                  onTap: onMediaTap,
+                ),
+                const SizedBox(width: 14),
+                // Right: Details (Type Tag, Title, Suggested By, Rating)
+                Expanded(
+                  child: GestureDetector(
+                    onTap: onMediaTap,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                entry.type == 'MOVIE' ? '🎬 Movie' : '📺 TV Show',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
                             ),
+                            if (entry.isRewatch) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.info.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  '🔁 Rewatch',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.info,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          entry.title,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
                           ),
-                          CircleAvatar(
-                            radius: 8,
-                            backgroundColor: AppColors.primary,
-                            backgroundImage: entry.suggestedByUser!.profilePictureUrl != null && entry.suggestedByUser!.profilePictureUrl!.isNotEmpty
-                                ? NetworkImage(entry.suggestedByUser!.profilePictureUrl!)
-                                : null,
-                            onBackgroundImageError: entry.suggestedByUser!.profilePictureUrl != null && entry.suggestedByUser!.profilePictureUrl!.isNotEmpty
-                                ? (exception, stackTrace) {}
-                                : null,
-                            child: entry.suggestedByUser!.profilePictureUrl == null || entry.suggestedByUser!.profilePictureUrl!.isEmpty
-                                ? Text(
-                                    (entry.suggestedByUser!.displayName ?? entry.suggestedByUser!.username)[0].toUpperCase(),
-                                    style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '@${entry.suggestedByUser!.username}',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                        ),
+                        if (entry.suggestedByUser != null) ...[
+                          const SizedBox(height: 4),
+                          GestureDetector(
+                            onTap: () => context.push('/profile/${entry.suggestedByUser!.id}'),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'Suggested by ',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                                WHAvatar(
+                                  imageUrl: entry.suggestedByUser!.profilePictureUrl,
+                                  name: entry.suggestedByUser!.displayName ?? entry.suggestedByUser!.username,
+                                  radius: 8,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '@${entry.suggestedByUser!.username}',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
+                        if (entry.rating != null) ...[
+                          const SizedBox(height: 6),
+                          WHRatingStars(rating: entry.rating),
+                        ],
+                      ],
                     ),
-                  ],
-                ],
-              ),
+                  ),
+                ),
+              ],
             ),
           ),
-
-          if (entry.rating != null) ...[
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: WHRatingStars(rating: entry.rating),
-            ),
-          ],
 
           if (entry.review != null && entry.review!.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -568,6 +565,86 @@ class _EmptyFeed extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+final _tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({int tmdbId, String mediaType})>((ref, arg) async {
+  if (arg.tmdbId <= 0) return null;
+  final searchRepo = ref.read(searchRepositoryProvider);
+  try {
+    if (arg.mediaType == 'tv') {
+      return await searchRepo.getTvDetails(arg.tmdbId);
+    } else {
+      return await searchRepo.getMovieDetails(arg.tmdbId);
+    }
+  } catch (e) {
+    return null;
+  }
+});
+
+class FeedMediaPoster extends ConsumerWidget {
+  final Entry entry;
+  final VoidCallback onTap;
+
+  const FeedMediaPoster({
+    super.key,
+    required this.entry,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (entry.posterPath != null && entry.posterPath!.isNotEmpty) {
+      return GestureDetector(
+        onTap: onTap,
+        child: TMDBPosterImage(
+          posterPath: entry.posterPath,
+          width: 76,
+          height: 114,
+          borderRadius: 10,
+        ),
+      );
+    }
+
+    if (entry.tmdbId <= 0) {
+      return GestureDetector(
+        onTap: onTap,
+        child: const TMDBPosterImage(posterPath: null, width: 76, height: 114, borderRadius: 10),
+      );
+    }
+
+    final mediaType = (entry.type == 'TV_SHOW' || entry.type == 'EPISODE') ? 'tv' : 'movie';
+    final detailsAsync = ref.watch(_tmdbMediaDetailsProvider(
+      (tmdbId: entry.tmdbId, mediaType: mediaType),
+    ));
+
+    return GestureDetector(
+      onTap: onTap,
+      child: detailsAsync.when(
+        data: (details) {
+          final posterPath = details?['poster_path'] as String?;
+          return TMDBPosterImage(
+            posterPath: posterPath,
+            width: 76,
+            height: 114,
+            borderRadius: 10,
+          );
+        },
+        loading: () => Shimmer.fromColors(
+          baseColor: AppColors.surfaceElevated,
+          highlightColor: AppColors.surfaceHighest,
+          child: Container(
+            width: 76,
+            height: 114,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+        error: (_, __) => const TMDBPosterImage(posterPath: null, width: 76, height: 114, borderRadius: 10),
       ),
     );
   }

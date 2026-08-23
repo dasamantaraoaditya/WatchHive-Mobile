@@ -21,6 +21,8 @@ class Entry {
   final User? user;
   final int likesCount;
   final int commentsCount;
+  final String? posterPath;
+  final String? backdropPath;
 
   const Entry({
     required this.id,
@@ -43,6 +45,8 @@ class Entry {
     this.user,
     this.likesCount = 0,
     this.commentsCount = 0,
+    this.posterPath,
+    this.backdropPath,
   });
 
   String get typeLabel => switch (type) {
@@ -54,6 +58,8 @@ class Entry {
 
   factory Entry.fromJson(Map<String, dynamic> json) {
     final countData = json['_count'] as Map<String, dynamic>?;
+    final mediaData = json['media'] is Map<String, dynamic> ? json['media'] as Map<String, dynamic> : null;
+
     return Entry(
       id: json['id']?.toString() ?? '',
       userId: json['userId']?.toString() ?? '',
@@ -62,7 +68,7 @@ class Entry {
           ? User.fromJson(json['suggestedByUser'] as Map<String, dynamic>)
           : null,
       tmdbId: json['tmdbId'] is int ? json['tmdbId'] as int : int.tryParse(json['tmdbId']?.toString() ?? '0') ?? 0,
-      title: json['title'] as String? ?? 'Untitled',
+      title: json['title'] as String? ?? json['media_title'] as String? ?? 'Untitled',
       type: json['type'] as String? ?? 'MOVIE',
       watchedAt: json['watchedAt'] != null
           ? DateTime.tryParse(json['watchedAt'].toString()) ?? DateTime.now()
@@ -89,6 +95,8 @@ class Entry {
           : null,
       likesCount: json['likesCount'] as int? ?? countData?['likes'] as int? ?? 0,
       commentsCount: json['commentsCount'] as int? ?? countData?['comments'] as int? ?? 0,
+      posterPath: json['posterPath'] as String? ?? json['poster_path'] as String? ?? mediaData?['poster_path'] as String?,
+      backdropPath: json['backdropPath'] as String? ?? json['backdrop_path'] as String? ?? mediaData?['backdrop_path'] as String?,
     );
   }
 

@@ -2,13 +2,26 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiEndpoints {
   static String get baseUrl =>
-      dotenv.env['WATCHHIVE_API_URL'] ?? 'https://watchhive-api-production.up.railway.app/api/v1';
+      const String.fromEnvironment('WATCHHIVE_API_URL').isNotEmpty
+          ? const String.fromEnvironment('WATCHHIVE_API_URL')
+          : (dotenv.env['WATCHHIVE_API_URL'] ?? 'https://watchhive-api-production.up.railway.app/api/v1');
 
   static String get tmdbImageBase =>
-      dotenv.env['TMDB_IMAGE_BASE_URL'] ?? 'https://image.tmdb.org/t/p/w500';
+      const String.fromEnvironment('TMDB_IMAGE_BASE_URL').isNotEmpty
+          ? const String.fromEnvironment('TMDB_IMAGE_BASE_URL')
+          : (dotenv.env['TMDB_IMAGE_BASE_URL'] ?? 'https://image.tmdb.org/t/p/w500');
 
-  static String tmdbPoster(String? path) =>
-      path != null ? '$tmdbImageBase$path' : '';
+  static String tmdbPoster(String? path) {
+    if (path == null || path.isEmpty) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return '$tmdbImageBase$path';
+  }
+
+  static String tmdbBackdrop(String? path) {
+    if (path == null || path.isEmpty) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return 'https://image.tmdb.org/t/p/w780$path';
+  }
 
   // Auth
   static const String login = '/auth/login';

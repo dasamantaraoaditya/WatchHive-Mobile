@@ -7,8 +7,12 @@ import 'app.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables
-  await dotenv.load(fileName: '.env');
+  // Load environment variables (optional with fallback defaults)
+  try {
+    await dotenv.load(fileName: '.env', isOptional: true);
+  } catch (e) {
+    debugPrint('Dotenv load skipped or unconfigured: $e');
+  }
 
   // Initialize Firebase (safely catch if config not yet provided)
   try {
