@@ -560,11 +560,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                     const SizedBox(height: 16),
                   ],
 
-                  // ── Rating Section with 0.1 Precision & Rating Guide Breakdown ──
+                  // ── Rating Section & Mood Banner ──
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const _SectionLabel('Rate this Cinematic Experience'),
+                      const _SectionLabel('Rate this Movie / Show'),
                       GestureDetector(
                         onTap: () {
                           setState(() {
@@ -580,7 +580,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              _showRatingGuide ? 'Hide Scale' : 'Rating Scale Guide',
+                              _showRatingGuide ? 'Hide Guide' : 'Rating Guide',
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 11,
@@ -595,16 +595,16 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Rating Container Box
+                  // Rating Container Card
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceElevated,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.25),
+                          color: Colors.black.withValues(alpha: 0.2),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -613,41 +613,39 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Star Bar + 0.1 Precision Number Field Box
+                        // Header Row: Interactive 5-Star Bar + Numeric Badge Box
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // 5-Star Row (interactive 0.5 step touch)
-                            Expanded(
-                              child: RatingBar.builder(
-                                initialRating: _rating / 2,
-                                minRating: 0,
-                                maxRating: 5,
-                                allowHalfRating: true,
-                                itemSize: 28,
-                                unratedColor: AppColors.surfaceHighest,
-                                itemBuilder: (_, __) => const Icon(Icons.star_rounded, color: AppColors.primary),
-                                onRatingUpdate: (rating) => setState(() {
-                                  final val = (rating * 20).round() / 10;
-                                  _rating = val;
-                                  _ratingInputController.text = val > 0 ? val.toStringAsFixed(1) : '';
-                                }),
-                              ),
+                            // Interactive Star Bar
+                            RatingBar.builder(
+                              initialRating: _rating / 2,
+                              minRating: 0,
+                              maxRating: 5,
+                              allowHalfRating: true,
+                              itemSize: 32,
+                              unratedColor: AppColors.surfaceHighest,
+                              itemBuilder: (_, __) => const Icon(Icons.star_rounded, color: AppColors.primary),
+                              onRatingUpdate: (rating) => setState(() {
+                                final val = (rating * 20).round() / 10;
+                                _rating = val;
+                                _ratingInputController.text = val > 0 ? val.toStringAsFixed(1) : '';
+                              }),
                             ),
-                            const SizedBox(width: 8),
 
-                            // Direct 0.1 Precision Input Field Box (e.g. 4.6, 8.9, 9.7)
+                            // Score Badge & Decimal Fine-Tuning Box
                             Container(
-                              width: 86,
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: AppColors.cardBg,
+                                color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
+                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
                               ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Expanded(
+                                  SizedBox(
+                                    width: 36,
                                     child: TextField(
                                       controller: _ratingInputController,
                                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -663,7 +661,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                         border: InputBorder.none,
                                         contentPadding: EdgeInsets.zero,
                                         hintText: '0.0',
-                                        hintStyle: TextStyle(color: AppColors.textMuted),
+                                        hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
                                       ),
                                       onChanged: (val) {
                                         final parsed = double.tryParse(val);
@@ -678,7 +676,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                     '/ 10',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.textMuted,
                                     ),
@@ -689,68 +687,91 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                           ],
                         ),
 
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 14),
 
-                        // Smooth 0.1 Precision Slider (0.0 to 10.0)
+                        // Standard 10-Point Score Pills (1 to 10)
                         Row(
-                          children: [
-                            const Text('0', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
-                            Expanded(
-                              child: SliderTheme(
-                                data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 4,
-                                  activeTrackColor: AppColors.primary,
-                                  inactiveTrackColor: AppColors.surfaceHighest,
-                                  thumbColor: AppColors.primary,
-                                  overlayColor: AppColors.primary.withValues(alpha: 0.2),
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                                ),
-                                child: Slider(
-                                  value: _rating.clamp(0.0, 10.0),
-                                  min: 0.0,
-                                  max: 10.0,
-                                  divisions: 100, // 0.1 precision increments!
-                                  label: _rating.toStringAsFixed(1),
-                                  onChanged: (val) {
-                                    final step = (val * 10).round() / 10;
-                                    setState(() {
-                                      _rating = step;
-                                      _ratingInputController.text = step > 0 ? step.toStringAsFixed(1) : '';
-                                    });
-                                  },
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: List.generate(10, (index) {
+                            final score = (index + 1).toDouble();
+                            final isSelected = (_rating.roundToDouble() == score) || (_rating >= score - 0.4 && _rating <= score + 0.4 && _rating > 0);
+                            return Flexible(
+                              child: GestureDetector(
+                                onTap: () => setState(() {
+                                  _rating = score;
+                                  _ratingInputController.text = score.toStringAsFixed(1);
+                                }),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? AppColors.primary : AppColors.surface,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isSelected ? AppColors.primary : AppColors.border,
+                                      width: isSelected ? 1.5 : 1,
+                                    ),
+                                    boxShadow: isSelected
+                                        ? [
+                                            BoxShadow(
+                                              color: AppColors.primary.withValues(alpha: 0.35),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 12,
+                                        fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                                        color: isSelected ? Colors.black : AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                            const Text('10', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
-                          ],
+                            );
+                          }),
                         ),
 
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 14),
 
-                        // Dynamic Mood Banner Box
+                        // Dynamic Mood Banner Box with Crystal-Clear Contrast
                         Builder(builder: (_) {
                           final mood = _getRatingMoodInfo(_rating);
                           return AnimatedContainer(
                             duration: const Duration(milliseconds: 250),
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: AppColors.cardBg,
+                              color: AppColors.surface,
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: mood.color.withValues(alpha: 0.4)),
+                              border: Border.all(color: mood.color.withValues(alpha: 0.5), width: 1.5),
                             ),
                             child: Row(
                               children: [
-                                Icon(mood.icon, color: mood.color, size: 20),
-                                const SizedBox(width: 10),
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: mood.color.withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(mood.icon, color: mood.color, size: 20),
+                                ),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
                                     mood.text,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontFamily: 'Inter',
-                                      fontSize: 12,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w700,
-                                      color: mood.color == AppColors.textMuted ? AppColors.textMuted : Colors.white,
+                                      color: AppColors.textPrimary,
                                     ),
                                   ),
                                 ),
@@ -761,11 +782,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
 
                         // Rating Scale Breakdown Guide (Expandable)
                         if (_showRatingGuide) ...[
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 14),
                           const Divider(height: 1, color: AppColors.border),
                           const SizedBox(height: 12),
                           const Text(
-                            '📜 WatchHive Cinephile Rating Scale Breakdown',
+                            '📜 WatchHive Cinephile Rating Scale',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 11,
