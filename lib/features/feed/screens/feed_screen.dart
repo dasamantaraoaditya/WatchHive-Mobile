@@ -243,15 +243,15 @@ class _FeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSuggestion = entry.user == null;
+    final isSuggestion = entry.isSuggestion || entry.user == null;
     final displayName = isSuggestion ? 'WatchHive Suggestion' : (entry.user?.displayName ?? entry.user?.username ?? 'User');
-    final subtitleText = isSuggestion ? '✨ Recommended for You' : '@${entry.user?.username ?? ""}';
+    final subtitleText = isSuggestion ? (entry.suggestionReason ?? '✨ Recommended for You') : '@${entry.user?.username ?? ""}';
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isSuggestion ? AppColors.primary.withValues(alpha: 0.3) : AppColors.border),
+        border: Border.all(color: isSuggestion ? AppColors.primary.withValues(alpha: 0.4) : AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,10 +309,11 @@ class _FeedCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  _timeAgo(entry.watchedAt),
+                  _formatPreciseTimestamp(entry.watchedAt),
                   style: const TextStyle(
                     fontFamily: 'Inter',
-                    fontSize: 12,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                     color: AppColors.textMuted,
                   ),
                 ),
@@ -332,29 +333,30 @@ class _FeedCard extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  entry.isWatching ? Icons.play_circle_outline_rounded : (entry.startedAt != null ? Icons.check_circle_outline_rounded : Icons.schedule_rounded),
+                  isSuggestion ? Icons.auto_awesome_rounded : (entry.isWatching ? Icons.play_circle_outline_rounded : (entry.startedAt != null ? Icons.check_circle_outline_rounded : Icons.schedule_rounded)),
                   size: 14,
-                  color: AppColors.textMuted,
+                  color: isSuggestion ? AppColors.primary : AppColors.textMuted,
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  entry.isWatching ? 'Started watching ' : (entry.startedAt != null ? 'Completed watching ' : 'Watched '),
-                  style: const TextStyle(
+                  isSuggestion ? (entry.suggestionReason ?? 'Recommended for You') : (entry.isWatching ? 'Started watching • ' : (entry.startedAt != null ? 'Completed watching • ' : 'Seen • ')),
+                  style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
+                    color: isSuggestion ? AppColors.primary : AppColors.textMuted,
                   ),
                 ),
-                Text(
-                  _timeAgo(entry.watchedAt),
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
+                if (!isSuggestion)
+                  Text(
+                    _formatPreciseTimestamp(entry.watchedAt),
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -380,9 +382,9 @@ class _FeedCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Review & Insight',
-                            style: TextStyle(
+                          Text(
+                            isSuggestion ? 'Why you might like this' : 'Review & Insight',
+                            style: const TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -439,13 +441,11 @@ class _FeedCard extends StatelessWidget {
     );
   }
 
-  String _timeAgo(DateTime date) {
-    final diff = DateTime.now().difference(date);
-    if (diff.inDays > 7) return DateFormat('MMM d').format(date);
-    if (diff.inDays > 0) return '${diff.inDays}d ago';
-    if (diff.inHours > 0) return '${diff.inHours}h ago';
-    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
-    return 'now';
+  String _formatPreciseTimestamp(DateTime date) {
+    final localDate = date.toLocal();
+    final dateStr = DateFormat('MMM d, yyyy').format(localDate);
+    final timeStr = DateFormat('h:mm a').format(localDate);
+    return '$dateStr at $timeStr';
   }
 }
 

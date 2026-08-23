@@ -36,15 +36,10 @@ class FeedRepository {
     final entries = <Entry>[];
     for (final item in rawItems) {
       if (item is Map<String, dynamic>) {
-        if (item['type'] == 'ENTRY' && item['data'] is Map<String, dynamic>) {
-          entries.add(Entry.fromJson(item['data'] as Map<String, dynamic>));
-        } else if (item['data'] is Map<String, dynamic>) {
-          final subData = item['data'] as Map<String, dynamic>;
-          if (subData.containsKey('title')) {
-            entries.add(Entry.fromJson(subData));
-          }
-        } else if (item.containsKey('title')) {
+        try {
           entries.add(Entry.fromJson(item));
+        } catch (e) {
+          // Gracefully skip unparseable items
         }
       }
     }

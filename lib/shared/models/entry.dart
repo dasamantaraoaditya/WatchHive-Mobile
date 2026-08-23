@@ -23,6 +23,8 @@ class Entry {
   final int commentsCount;
   final String? posterPath;
   final String? backdropPath;
+  final bool isSuggestion;
+  final String? suggestionReason;
 
   const Entry({
     required this.id,
@@ -47,6 +49,8 @@ class Entry {
     this.commentsCount = 0,
     this.posterPath,
     this.backdropPath,
+    this.isSuggestion = false,
+    this.suggestionReason,
   });
 
   String get typeLabel => switch (type) {
@@ -57,46 +61,67 @@ class Entry {
       };
 
   factory Entry.fromJson(Map<String, dynamic> json) {
-    final countData = json['_count'] as Map<String, dynamic>?;
-    final mediaData = json['media'] is Map<String, dynamic> ? json['media'] as Map<String, dynamic> : null;
+    final isWrapper = json.containsKey('data') && json['data'] is Map<String, dynamic>;
+    final itemType = json['type']?.toString();
+    final isSuggestion = itemType == 'SUGGESTION' || json.containsKey('reason');
+    final reason = json['reason']?.toString() ?? (isSuggestion ? '✨ Recommended for You' : null);
+
+    final Map<String, dynamic> dataMap = isWrapper
+        ? json['data'] as Map<String, dynamic>
+        : json;
+
+    final countData = dataMap['_count'] as Map<String, dynamic>?;
+    final mediaData = dataMap['media'] is Map<String, dynamic> ? dataMap['media'] as Map<String, dynamic> : null;
+
+    final rawTmdbId = dataMap['tmdbId'] ?? dataMap['id'];
+    final parsedTmdbId = rawTmdbId is int
+        ? rawTmdbId
+        : int.tryParse(rawTmdbId?.toString() ?? '0') ?? 0;
+
+    final titleStr = dataMap['title'] as String? ??
+        dataMap['name'] as String? ??
+        dataMap['media_title'] as String? ??
+        'Untitled';
 
     return Entry(
-      id: json['id']?.toString() ?? '',
-      userId: json['userId']?.toString() ?? '',
-      suggestedByUserId: json['suggestedByUserId']?.toString(),
-      suggestedByUser: json['suggestedByUser'] != null
-          ? User.fromJson(json['suggestedByUser'] as Map<String, dynamic>)
+      id: json['id']?.toString() ?? dataMap['id']?.toString() ?? '',
+      userId: dataMap['userId']?.toString() ?? '',
+      suggestedByUserId: dataMap['suggestedByUserId']?.toString(),
+      suggestedByUser: dataMap['suggestedByUser'] != null
+          ? User.fromJson(dataMap['suggestedByUser'] as Map<String, dynamic>)
           : null,
-      tmdbId: json['tmdbId'] is int ? json['tmdbId'] as int : int.tryParse(json['tmdbId']?.toString() ?? '0') ?? 0,
-      title: json['title'] as String? ?? json['media_title'] as String? ?? 'Untitled',
-      type: json['type'] as String? ?? 'MOVIE',
-      watchedAt: json['watchedAt'] != null
-          ? DateTime.tryParse(json['watchedAt'].toString()) ?? DateTime.now()
+      tmdbId: parsedTmdbId,
+      title: titleStr,
+      type: dataMap['type'] as String? ?? (dataMap['media_type']?.toString().toUpperCase() == 'TV' ? 'TV_SHOW' : 'MOVIE'),
+      watchedAt: dataMap['watchedAt'] != null
+          ? DateTime.tryParse(dataMap['watchedAt'].toString()) ?? DateTime.now()
+          : (json['timestamp'] != null ? DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now() : DateTime.now()),
+      rating: dataMap['rating'] != null
+          ? double.tryParse(dataMap['rating'].toString())
+          : (dataMap['vote_average'] != null ? double.tryParse(dataMap['vote_average'].toString()) : null),
+      review: dataMap['review'] as String? ?? (isSuggestion && dataMap['overview'] != null ? dataMap['overview'].toString() : null),
+      tags: (dataMap['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      isRewatch: dataMap['isRewatch'] as bool? ?? false,
+      isWatching: dataMap['isWatching'] as bool? ?? false,
+      startedAt: dataMap['startedAt'] != null
+          ? DateTime.tryParse(dataMap['startedAt'].toString())
+          : null,
+      completedAt: dataMap['completedAt'] != null
+          ? DateTime.tryParse(dataMap['completedAt'].toString())
+          : null,
+      watchLocation: dataMap['watchLocation'] as String?,
+      createdAt: dataMap['createdAt'] != null
+          ? DateTime.tryParse(dataMap['createdAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
-      rating: json['rating'] != null
-          ? double.tryParse(json['rating'].toString())
+      user: dataMap['user'] != null
+          ? User.fromJson(dataMap['user'] as Map<String, dynamic>)
           : null,
-      review: json['review'] as String?,
-      tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
-      isRewatch: json['isRewatch'] as bool? ?? false,
-      isWatching: json['isWatching'] as bool? ?? false,
-      startedAt: json['startedAt'] != null
-          ? DateTime.tryParse(json['startedAt'].toString())
-          : null,
-      completedAt: json['completedAt'] != null
-          ? DateTime.tryParse(json['completedAt'].toString())
-          : null,
-      watchLocation: json['watchLocation'] as String?,
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
-          : DateTime.now(),
-      user: json['user'] != null
-          ? User.fromJson(json['user'] as Map<String, dynamic>)
-          : null,
-      likesCount: json['likesCount'] as int? ?? countData?['likes'] as int? ?? 0,
-      commentsCount: json['commentsCount'] as int? ?? countData?['comments'] as int? ?? 0,
-      posterPath: json['posterPath'] as String? ?? json['poster_path'] as String? ?? mediaData?['poster_path'] as String?,
-      backdropPath: json['backdropPath'] as String? ?? json['backdrop_path'] as String? ?? mediaData?['backdrop_path'] as String?,
+      likesCount: dataMap['likesCount'] as int? ?? countData?['likes'] as int? ?? 0,
+      commentsCount: dataMap['commentsCount'] as int? ?? countData?['comments'] as int? ?? 0,
+      posterPath: dataMap['posterPath'] as String? ?? dataMap['poster_path'] as String? ?? mediaData?['poster_path'] as String?,
+      backdropPath: dataMap['backdropPath'] as String? ?? dataMap['backdrop_path'] as String? ?? mediaData?['backdrop_path'] as String?,
+      isSuggestion: isSuggestion,
+      suggestionReason: reason,
     );
   }
 
