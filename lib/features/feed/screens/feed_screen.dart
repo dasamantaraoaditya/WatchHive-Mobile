@@ -12,6 +12,8 @@ import '../repositories/feed_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../search/repositories/search_repository.dart';
 
+import '../../../shared/widgets/wh_brand_logo.dart';
+
 // Feed state
 class FeedState {
   final List<Entry> entries;
@@ -166,11 +168,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         slivers: [
           SliverAppBar(
             floating: true,
-            title: const Row(
-              children: [
-                Text('Home', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 22, color: AppColors.primary)),
-              ],
-            ),
+            title: const WHBrandLogo(logoSize: 30, fontSize: 21),
             actions: [
               IconButton(
                 icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),

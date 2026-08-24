@@ -8,6 +8,7 @@ import 'add_entry_sheet.dart';
 import '../widgets/suggestions_tab.dart';
 import '../widgets/watchlist_tab.dart';
 import '../widgets/wh_entry_grid_card.dart';
+import '../../../shared/widgets/wh_brand_logo.dart';
 
 // ─── Providers ───────────────────────────────────────────────────────────────
 
@@ -188,7 +189,7 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Entries', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
+        title: const WHBrandLogo(logoSize: 28, fontSize: 20),
         actions: [
           IconButton(
             icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),

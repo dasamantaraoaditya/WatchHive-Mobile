@@ -18,12 +18,24 @@ class WHLogoHeader extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.15),
+                color: AppColors.surfaceElevated,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: const Center(
-                child: Text('🎬', style: TextStyle(fontSize: 22)),
+              padding: const EdgeInsets.all(6),
+              child: Image.asset(
+                'assets/images/watchhive-logo.png',
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Text('🐝', style: TextStyle(fontSize: 22)),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -31,9 +43,10 @@ class WHLogoHeader extends StatelessWidget {
               'WatchHive',
               style: TextStyle(
                 fontFamily: 'Inter',
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
                 color: AppColors.primary,
+                letterSpacing: -0.3,
               ),
             ),
           ],

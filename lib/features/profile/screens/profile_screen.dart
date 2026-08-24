@@ -11,6 +11,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../entries/repositories/entries_repository.dart';
 import 'edit_profile_dialog.dart';
 import '../widgets/user_rankings_tab.dart';
+import '../../../shared/widgets/wh_brand_logo.dart';
 
 // ─── Profile Repository ───────────────────────────────────────────────────────
 
@@ -120,7 +121,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           : CustomScrollView(
               slivers: [
                 SliverAppBar(
-                  title: const Text('My Profile', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
+                  title: const WHBrandLogo(logoSize: 28, fontSize: 20),
                   actions: [
                     IconButton(
                       icon: const Icon(Icons.settings_outlined),
