@@ -7,7 +7,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/models/user.dart';
-import '../../../shared/models/suggestion.dart';
 import '../repositories/entries_repository.dart';
 import '../repositories/suggestions_repository.dart';
 import 'entries_screen.dart';

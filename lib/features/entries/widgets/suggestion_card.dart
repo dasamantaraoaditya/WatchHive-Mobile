@@ -4,7 +4,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/suggestion.dart';
 import '../repositories/entries_repository.dart';
 import '../repositories/suggestions_repository.dart';
-import '../repositories/watchlist_repository.dart';
 import '../screens/add_entry_sheet.dart';
 import '../../search/repositories/search_repository.dart';
 import 'wh_entry_grid_card.dart';
