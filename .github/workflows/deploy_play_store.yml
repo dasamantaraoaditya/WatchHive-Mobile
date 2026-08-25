@@ -48,14 +48,24 @@ jobs:
       - name: Decode & Verify Android Keystore
         env:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            python3 -c "import os, base64; raw=os.environ['ANDROID_KEYSTORE_BASE64'].replace('\n','').replace('\r','').replace(' ','').strip(); raw+='='*(-len(raw)%4); open('android/upload-keystore.jks', 'wb').write(base64.b64decode(raw))"
-            if keytool -list -keystore android/upload-keystore.jks -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1; then
+            python3 -c "import os, base64; raw=os.environ['ANDROID_KEYSTORE_BASE64'].replace('\n','').replace('\r','').replace(' ','').strip(); raw+='='*(-len(raw)%4); data=base64.b64decode(raw); open('android/upload-keystore.jks', 'wb').write(data); open('android/app/upload-keystore.jks', 'wb').write(data)"
+            
+            cat <<EOF > android/key.properties
+storePassword=$KEYSTORE_PASSWORD
+keyPassword=$KEY_PASSWORD
+keyAlias=$KEY_ALIAS
+storeFile=upload-keystore.jks
+EOF
+
+            if keytool -list -keystore android/app/upload-keystore.jks -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1; then
               echo "Android Keystore verified successfully."
             else
               echo "Keystore validation failed. Removing invalid keystore file to fallback to debug bundle."
-              rm -f android/upload-keystore.jks
+              rm -f android/upload-keystore.jks android/app/upload-keystore.jks
             fi
           else
             echo "No ANDROID_KEYSTORE_BASE64 secret provided. Skipping release keystore decoding."
@@ -72,20 +82,18 @@ jobs:
 
       - name: Build Android Release APK & App Bundle (.aab)
         env:
-          KEYSTORE_FILE: "../upload-keystore.jks"
+          KEYSTORE_FILE: "upload-keystore.jks"
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -f "android/upload-keystore.jks" ]; then
-            echo "Building Release APK and App Bundle (.aab)..."
-            flutter build apk --release
-            flutter build appbundle --release
+          if [ -f "android/app/upload-keystore.jks" ]; then
+            echo "Building Production-Signed Release APK and App Bundle (.aab)..."
           else
-            echo "Building Debug APK and App Bundle (.aab)..."
-            flutter build apk --debug
-            flutter build appbundle --debug
+            echo "Keystore not provided. Building AOT-compiled Release APK and App Bundle..."
           fi
+          flutter build apk --release
+          flutter build appbundle --release
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
