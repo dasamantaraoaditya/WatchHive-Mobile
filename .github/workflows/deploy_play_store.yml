@@ -1,4 +1,4 @@
-name: WatchHive Mobile - Google Play Store CI/CD Deployment
+name: WatchHive Mobile - Build, Release & Google Play Deployment
 
 on:
   push:
@@ -7,9 +7,12 @@ on:
       - 'v*.*.*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
-    name: Build & Publish Android App Bundle (.aab)
+    name: Build & Release Android APK & App Bundle
     runs-on: ubuntu-latest
     env:
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -67,7 +70,7 @@ jobs:
             echo "No PLAY_STORE_JSON_KEY_BASE64 secret provided. Skipping Play Store JSON key decoding."
           fi
 
-      - name: Build Android App Bundle (.aab)
+      - name: Build Android Release APK & App Bundle (.aab)
         env:
           KEYSTORE_FILE: "../upload-keystore.jks"
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -75,19 +78,39 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -f "android/upload-keystore.jks" ]; then
-            echo "Building Release App Bundle (.aab)..."
+            echo "Building Release APK and App Bundle (.aab)..."
+            flutter build apk --release
             flutter build appbundle --release
           else
-            echo "Building Debug App Bundle (.aab)..."
+            echo "Building Debug APK and App Bundle (.aab)..."
+            flutter build apk --debug
             flutter build appbundle --debug
           fi
 
-      - name: Upload Build Artifact (.aab)
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: watchhive-apk
+          path: build/app/outputs/flutter-apk/*.apk
+          retention-days: 14
+
+      - name: Upload App Bundle Artifact (.aab)
         uses: actions/upload-artifact@v4
         with:
           name: watchhive-appbundle
           path: build/app/outputs/bundle/*/*.aab
           retention-days: 14
+
+      - name: Create GitHub Release with APK & AAB
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/bundle/*/*.aab
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy to Google Play Store (Internal Track)
         run: |
@@ -98,3 +121,4 @@ jobs:
           else
             echo "No valid pc-api-key.json configured. Skipping Fastlane Play Store deployment."
           fi
+
