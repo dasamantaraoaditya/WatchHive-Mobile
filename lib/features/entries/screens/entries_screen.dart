@@ -232,21 +232,6 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
           tabs: _tabs.map((t) => Tab(text: t)).toList(),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddEntry,
-        tooltip: 'Log Movie or Show',
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.black,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text(
-          'Log Movie',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
-          ),
-        ),
-      ),
       body: TabBarView(
         controller: _tabController,
         children: [
