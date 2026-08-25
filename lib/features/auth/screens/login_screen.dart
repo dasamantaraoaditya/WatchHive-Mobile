@@ -4,10 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/auth_provider.dart';
-import '../../../shared/widgets/wh_text_field.dart';
-import '../../../shared/widgets/wh_button.dart';
-import '../../../shared/widgets/wh_logo_header.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -31,7 +29,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
+      WHAlert.showWarning(context, 'Please enter both your email and password');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -44,12 +46,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_parseError(e.toString())),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        WHAlert.showError(context, _parseError(e.toString()));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -77,13 +74,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (idToken == null || idToken.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Google Sign-In failed: No ID Token returned. Ensure GOOGLE_WEB_CLIENT_ID is set in .env',
-              ),
-              backgroundColor: AppColors.error,
-            ),
+          WHAlert.showError(
+            context,
+            'Google Sign-In failed: No ID Token returned. Ensure GOOGLE_WEB_CLIENT_ID is set in .env',
           );
         }
         return;
@@ -96,13 +89,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       debugPrint('Google Sign-In Error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_formatGoogleError(e)),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        WHAlert.showError(context, _formatGoogleError(e));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

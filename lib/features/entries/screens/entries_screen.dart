@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/entry.dart';
+import '../../../shared/widgets/shared_widgets.dart';
+import '../../../shared/widgets/wh_brand_logo.dart';
 import '../repositories/entries_repository.dart';
 import 'add_entry_sheet.dart';
 import '../widgets/suggestions_tab.dart';
 import '../widgets/watchlist_tab.dart';
 import '../widgets/wh_entry_grid_card.dart';
-import '../../../shared/widgets/wh_brand_logo.dart';
 
 // ─── Providers ───────────────────────────────────────────────────────────────
 
@@ -18,7 +19,7 @@ class EntriesState {
   final bool isLoadingMore;
   final bool hasMore;
   final String? typeFilter;
-  final bool? isWatchingFilter;
+  final bool isWatching;
   final String? error;
 
   const EntriesState({
@@ -27,7 +28,7 @@ class EntriesState {
     this.isLoadingMore = false,
     this.hasMore = true,
     this.typeFilter,
-    this.isWatchingFilter,
+    required this.isWatching,
     this.error,
   });
 
@@ -37,8 +38,9 @@ class EntriesState {
     bool? isLoadingMore,
     bool? hasMore,
     String? typeFilter,
-    bool? isWatchingFilter,
+    bool? isWatching,
     String? error,
+    bool clearError = false,
   }) =>
       EntriesState(
         entries: entries ?? this.entries,
@@ -46,25 +48,28 @@ class EntriesState {
         isLoadingMore: isLoadingMore ?? this.isLoadingMore,
         hasMore: hasMore ?? this.hasMore,
         typeFilter: typeFilter ?? this.typeFilter,
-        isWatchingFilter: isWatchingFilter ?? this.isWatchingFilter,
-        error: error,
+        isWatching: isWatching ?? this.isWatching,
+        error: clearError ? null : (error ?? this.error),
       );
 }
 
-final entriesProvider = StateNotifierProvider<EntriesNotifier, EntriesState>((ref) {
-  return EntriesNotifier(ref.read(entriesRepositoryProvider));
+final entriesProvider =
+    StateNotifierProvider.family<EntriesNotifier, EntriesState, bool>((ref, isWatching) {
+  return EntriesNotifier(ref.read(entriesRepositoryProvider), isWatching: isWatching);
 });
 
 class EntriesNotifier extends StateNotifier<EntriesState> {
   final EntriesRepository _repo;
+  final bool isWatching;
   static const _pageSize = 20;
 
-  EntriesNotifier(this._repo) : super(const EntriesState()) {
+  EntriesNotifier(this._repo, {required this.isWatching})
+      : super(EntriesState(isWatching: isWatching)) {
     loadEntries();
   }
 
-  Future<void> loadEntries({String? type, bool? isWatching}) async {
-    state = state.copyWith(isLoading: true, error: null, typeFilter: type, isWatchingFilter: isWatching);
+  Future<void> loadEntries({String? type}) async {
+    state = state.copyWith(isLoading: true, clearError: true, typeFilter: type);
     try {
       final result = await _repo.getEntries(
         type: type,
@@ -76,19 +81,39 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
         entries: result.entries,
         isLoading: false,
         hasMore: result.pagination.hasMore,
+        clearError: true,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
+  Future<void> refresh() async {
+    try {
+      final result = await _repo.getEntries(
+        type: state.typeFilter,
+        isWatching: isWatching,
+        limit: _pageSize,
+        offset: 0,
+      );
+      state = state.copyWith(
+        entries: result.entries,
+        isLoading: false,
+        hasMore: result.pagination.hasMore,
+        clearError: true,
+      );
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
   Future<void> loadMore() async {
-    if (!state.hasMore || state.isLoadingMore) return;
+    if (!state.hasMore || state.isLoadingMore || state.isLoading) return;
     state = state.copyWith(isLoadingMore: true);
     try {
       final result = await _repo.getEntries(
         type: state.typeFilter,
-        isWatching: state.isWatchingFilter,
+        isWatching: isWatching,
         limit: _pageSize,
         offset: state.entries.length,
       );
@@ -109,14 +134,38 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
     );
   }
 
+  void removeEntry(String id) {
+    state = state.copyWith(
+      entries: state.entries.where((e) => e.id != id).toList(),
+    );
+  }
+
   void addEntry(Entry entry) {
-    state = state.copyWith(entries: [entry, ...state.entries]);
+    if (entry.isWatching == isWatching) {
+      final filtered = state.entries.where((e) => e.id != entry.id).toList();
+      state = state.copyWith(entries: [entry, ...filtered]);
+    } else {
+      state = state.copyWith(
+        entries: state.entries.where((e) => e.id != entry.id).toList(),
+      );
+    }
   }
 
   void updateEntry(Entry updated) {
-    state = state.copyWith(
-      entries: state.entries.map((e) => e.id == updated.id ? updated : e).toList(),
-    );
+    if (updated.isWatching == isWatching) {
+      final exists = state.entries.any((e) => e.id == updated.id);
+      if (exists) {
+        state = state.copyWith(
+          entries: state.entries.map((e) => e.id == updated.id ? updated : e).toList(),
+        );
+      } else {
+        state = state.copyWith(entries: [updated, ...state.entries]);
+      }
+    } else {
+      state = state.copyWith(
+        entries: state.entries.where((e) => e.id != updated.id).toList(),
+      );
+    }
   }
 }
 
@@ -131,45 +180,24 @@ class EntriesScreen extends ConsumerStatefulWidget {
 
 class _EntriesScreenState extends ConsumerState<EntriesScreen>
     with SingleTickerProviderStateMixin {
-  final _scrollController = ScrollController();
   late final TabController _tabController;
 
-  final _tabs = [
-    (label: 'Currently Watching', type: null, isWatching: true, isSuggestions: false, isWatchlist: false),
-    (label: 'Watch History', type: null, isWatching: false, isSuggestions: false, isWatchlist: false),
-    (label: 'Watchlist', type: null, isWatching: null, isSuggestions: false, isWatchlist: true),
-    (label: 'Suggestions', type: null, isWatching: null, isSuggestions: true, isWatchlist: false),
+  static const _tabs = [
+    'Currently Watching',
+    'Watch History',
+    'Watchlist',
+    'Suggestions',
   ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() {});
-        final tab = _tabs[_tabController.index];
-        if (!tab.isSuggestions && !tab.isWatchlist) {
-          ref.read(entriesProvider.notifier).loadEntries(
-                type: tab.type,
-                isWatching: tab.isWatching,
-              );
-        }
-      }
-    });
-    _scrollController.addListener(_onScroll);
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 300) {
-      ref.read(entriesProvider.notifier).loadMore();
-    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -184,8 +212,6 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(entriesProvider);
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -203,7 +229,7 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
           indicatorColor: AppColors.primary,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textMuted,
-          tabs: _tabs.map((t) => Tab(text: t.label)).toList(),
+          tabs: _tabs.map((t) => Tab(text: t)).toList(),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -224,8 +250,8 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildEntriesList(state),
-          _buildEntriesList(state),
+          const _EntriesListTab(isWatching: true),
+          const _EntriesListTab(isWatching: false),
           const WatchlistTab(),
           SuggestionsTab(
             onTapMedia: (tmdbId, type) => context.push('/details/$type/$tmdbId'),
@@ -234,92 +260,220 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
       ),
     );
   }
+}
 
-  Widget _buildEntriesList(EntriesState state) {
+class _EntriesListTab extends ConsumerStatefulWidget {
+  final bool isWatching;
+
+  const _EntriesListTab({required this.isWatching});
+
+  @override
+  ConsumerState<_EntriesListTab> createState() => _EntriesListTabState();
+}
+
+class _EntriesListTabState extends ConsumerState<_EntriesListTab>
+    with AutomaticKeepAliveClientMixin {
+  final _scrollController = ScrollController();
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 300) {
+      ref.read(entriesProvider(widget.isWatching).notifier).loadMore();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final state = ref.watch(entriesProvider(widget.isWatching));
+
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
     }
+
+    if (state.error != null && state.entries.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
+              const SizedBox(height: 12),
+              Text(
+                'Failed to load entries: ${state.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => ref
+                    .read(entriesProvider(widget.isWatching).notifier)
+                    .loadEntries(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.black,
+                ),
+                child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (state.entries.isEmpty) {
-      return const _EmptyEntries();
+      return RefreshIndicator(
+        onRefresh: () =>
+            ref.read(entriesProvider(widget.isWatching).notifier).refresh(),
+        color: AppColors.primary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.all(32),
+            height: MediaQuery.of(context).size.height * 0.65,
+            child: _EmptyEntries(isWatching: widget.isWatching),
+          ),
+        ),
+      );
     }
-    return GridView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 14,
-        crossAxisSpacing: 14,
-        childAspectRatio: 0.63,
-      ),
-      itemCount: state.entries.length,
-      itemBuilder: (context, index) {
-        final entry = state.entries[index];
-        return WHEntryGridCard(
-          tmdbId: entry.tmdbId,
-          title: entry.title,
-          initialPosterPath: entry.posterPath,
-          mediaType: entry.type,
-          mode: entry.isWatching ? WHEntryCardMode.watching : WHEntryCardMode.history,
-          rating: entry.rating,
-          watchedAt: entry.watchedAt,
-          tags: entry.tags,
-          onTap: () => context.push('/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}'),
-          onMarkWatched: entry.isWatching
-              ? () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => AddEntrySheet(editEntry: entry),
-                  );
+
+    return RefreshIndicator(
+      onRefresh: () =>
+          ref.read(entriesProvider(widget.isWatching).notifier).refresh(),
+      color: AppColors.primary,
+      child: GridView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 14,
+          crossAxisSpacing: 14,
+          childAspectRatio: 0.63,
+        ),
+        itemCount: state.entries.length,
+        itemBuilder: (context, index) {
+          final entry = state.entries[index];
+          return WHEntryGridCard(
+            tmdbId: entry.tmdbId,
+            title: entry.title,
+            initialPosterPath: entry.posterPath,
+            mediaType: entry.type,
+            mode: entry.isWatching
+                ? WHEntryCardMode.watching
+                : WHEntryCardMode.history,
+            rating: entry.rating,
+            watchedAt: entry.watchedAt,
+            tags: entry.tags,
+            onTap: () => context.push(
+                '/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}'),
+            onMarkWatched: entry.isWatching
+                ? () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => AddEntrySheet(
+                        editEntry: entry,
+                        prefillIsWatching: false,
+                      ),
+                    );
+                  }
+                : null,
+            onEdit: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => AddEntrySheet(editEntry: entry),
+              );
+            },
+            onDelete: () async {
+              final confirm = await WHAlert.confirm(
+                context,
+                title:
+                    entry.isWatching ? 'Delete Session' : 'Delete Watch Entry',
+                message: entry.isWatching
+                    ? 'Are you sure you want to delete this currently watching session for "${entry.title}"?'
+                    : 'Are you sure you want to delete your logged entry for "${entry.title}"? This action cannot be undone.',
+                confirmText: 'Delete',
+                severity: WHAlertSeverity.danger,
+                icon: Icons.delete_outline_rounded,
+              );
+              if (confirm && context.mounted) {
+                try {
+                  await ref
+                      .read(entriesProvider(widget.isWatching).notifier)
+                      .deleteEntry(entry.id);
+                  ref
+                      .read(entriesProvider(!widget.isWatching).notifier)
+                      .removeEntry(entry.id);
+                  if (context.mounted) {
+                    WHAlert.showSuccess(context, 'Deleted "${entry.title}"');
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    WHAlert.showError(context, 'Failed to delete entry: $e');
+                  }
                 }
-              : null,
-          onEdit: () {
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (_) => AddEntrySheet(editEntry: entry),
-            );
-          },
-          onDelete: () => ref.read(entriesProvider.notifier).deleteEntry(entry.id),
-        );
-      },
+              }
+            },
+          );
+        },
+      ),
     );
   }
 }
 
 class _EmptyEntries extends StatelessWidget {
-  const _EmptyEntries();
+  final bool isWatching;
+
+  const _EmptyEntries({required this.isWatching});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('📋', style: TextStyle(fontSize: 56)),
-            SizedBox(height: 20),
-            Text(
-              'No entries yet',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Log your first movie or show!',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-            ),
-          ],
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(isWatching ? '🎬' : '🍿', style: const TextStyle(fontSize: 56)),
+        const SizedBox(height: 20),
+        Text(
+          isWatching ? 'No active sessions' : 'No watch history yet',
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
         ),
-      ),
+        const SizedBox(height: 8),
+        Text(
+          isWatching
+              ? 'Start watching a movie or TV show to track your progress!'
+              : 'Log your completed movies and TV shows to build your Hive!',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        ),
+      ],
     );
   }
 }

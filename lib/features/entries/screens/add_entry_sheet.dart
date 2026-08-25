@@ -7,10 +7,12 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/models/user.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
 import '../repositories/suggestions_repository.dart';
 import 'entries_screen.dart';
 import '../../search/repositories/search_repository.dart';
+
 
 class _LocationPreset {
   final String label;
@@ -41,6 +43,7 @@ class AddEntrySheet extends ConsumerStatefulWidget {
   final String? prefillType;
   final User? prefillSuggestor;
   final String? prefillSuggestedByUserId;
+  final bool? prefillIsWatching;
   final VoidCallback? onSuccess;
 
   const AddEntrySheet({
@@ -50,6 +53,7 @@ class AddEntrySheet extends ConsumerStatefulWidget {
     this.prefillType,
     this.prefillSuggestor,
     this.prefillSuggestedByUserId,
+    this.prefillIsWatching,
     this.onSuccess,
   });
 
@@ -109,12 +113,15 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         _ratingInputController.text = _rating.toStringAsFixed(1);
       }
       _isRewatch = e.isRewatch;
-      _isWatching = e.isWatching;
+      _isWatching = widget.prefillIsWatching ?? e.isWatching;
       _watchLocation = e.watchLocation ?? '';
       _locationController.text = _watchLocation;
       _tags = List<String>.from(e.tags);
       if (_tmdbId > 0) _loadMediaDetails(_tmdbId, _type);
     } else {
+      if (widget.prefillIsWatching != null) {
+        _isWatching = widget.prefillIsWatching!;
+      }
       if (widget.prefillTmdbId != null) {
         _tmdbId = widget.prefillTmdbId!;
       }
@@ -293,9 +300,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   Future<void> _save() async {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter or select a title'), backgroundColor: AppColors.error),
-      );
+      WHAlert.showWarning(context, 'Please enter or select a movie/show title');
       return;
     }
 
@@ -318,26 +323,35 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
 
       if (isEditing) {
         final updated = await ref.read(entriesRepositoryProvider).updateEntry(widget.editEntry!.id, data);
-        ref.read(entriesProvider.notifier).updateEntry(updated);
+        ref.read(entriesProvider(true).notifier).updateEntry(updated);
+        ref.read(entriesProvider(false).notifier).updateEntry(updated);
       } else {
         final entry = await ref.read(entriesRepositoryProvider).createEntry(data);
-        ref.read(entriesProvider.notifier).addEntry(entry);
+        ref.read(entriesProvider(true).notifier).addEntry(entry);
+        ref.read(entriesProvider(false).notifier).addEntry(entry);
       }
 
       if (mounted) {
         widget.onSuccess?.call();
         Navigator.of(context).pop();
+        WHAlert.showSuccess(
+          context,
+          isEditing
+              ? 'Updated "$title" in your Hive! ✨'
+              : (_isWatching
+                  ? 'Started watching "$title"! 🎬'
+                  : 'Logged "$title" to your Hive! 🐝🎬'),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e'), backgroundColor: AppColors.error),
-        );
+        WHAlert.showError(context, 'Failed to save: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

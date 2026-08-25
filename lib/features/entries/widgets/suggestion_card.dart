@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/suggestion.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
 import '../repositories/suggestions_repository.dart';
 import '../screens/add_entry_sheet.dart';
+import '../screens/entries_screen.dart';
 import '../../search/repositories/search_repository.dart';
 import 'wh_entry_grid_card.dart';
+
 
 class SuggestionCard extends ConsumerStatefulWidget {
   final GroupedSuggestion group;
@@ -28,31 +31,20 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
 
   Future<void> _handleAddToWatching(String title) async {
     final firstSuggestor = widget.group.suggestors.isNotEmpty ? widget.group.suggestors.first : null;
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardBg,
-        title: const Text('Log as Currently Watching'),
-        content: Text('Move "$title" to your Currently Watching log?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Add', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+    final confirm = await WHAlert.confirm(
+      context,
+      title: 'Move to Currently Watching',
+      message: 'Would you like to move "$title" to your Currently Watching log?',
+      confirmText: 'Move to Watching',
+      severity: WHAlertSeverity.primary,
+      icon: Icons.play_circle_outline_rounded,
     );
-    if (confirm != true) return;
+    if (!confirm) return;
 
     try {
       final repo = ref.read(entriesRepositoryProvider);
       final suggRepo = ref.read(suggestionsRepositoryProvider);
-      await repo.createEntry({
+      final entry = await repo.createEntry({
         'tmdbId': widget.group.tmdbId,
         'title': title,
         'type': widget.group.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
@@ -61,18 +53,16 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
         if (firstSuggestor != null) 'suggestedByUserId': firstSuggestor.id,
       });
 
+      ref.read(entriesProvider(true).notifier).addEntry(entry);
+
       await Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('"$title" added to Currently Watching!')),
-        );
+        WHAlert.showSuccess(context, 'Moved "$title" to Currently Watching! 🎬');
         widget.onRefresh();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add to currently watching: $e')),
-        );
+        WHAlert.showError(context, 'Failed to add to currently watching: $e');
       }
     }
   }
@@ -98,39 +88,30 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
   }
 
   Future<void> _handleDelete(String title) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardBg,
-        title: const Text('Delete Suggestion'),
-        content: Text('Delete recommendations for "$title"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+    final confirm = await WHAlert.confirm(
+      context,
+      title: 'Dismiss Suggestion',
+      message: 'Dismiss recommendation for "$title"?',
+      confirmText: 'Dismiss',
+      severity: WHAlertSeverity.danger,
+      icon: Icons.delete_outline_rounded,
     );
-    if (confirm != true) return;
+    if (!confirm) return;
 
     try {
       final suggRepo = ref.read(suggestionsRepositoryProvider);
       await Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)));
-      if (mounted) widget.onRefresh();
+      if (mounted) {
+        WHAlert.showSuccess(context, 'Dismissed recommendation for "$title"');
+        widget.onRefresh();
+      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete suggestion: $e')),
-        );
+        WHAlert.showError(context, 'Failed to delete suggestion: $e');
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

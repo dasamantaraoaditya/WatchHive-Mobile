@@ -1,25 +1,52 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/api/api_endpoints.dart';
+import '../../../shared/models/models.dart';
 import '../../../shared/models/user.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 import '../../profile/repositories/user_repository.dart';
+import '../../search/repositories/search_repository.dart';
 import '../repositories/suggestions_repository.dart';
 
 class SuggestMovieModal extends ConsumerStatefulWidget {
-  final int tmdbId;
-  final String title;
+  final int? tmdbId;
+  final String? title;
   final String? mediaType;
   final String? initialToUserId;
   final String? initialToUserName;
 
   const SuggestMovieModal({
     super.key,
-    required this.tmdbId,
-    required this.title,
+    this.tmdbId,
+    this.title,
     this.mediaType,
     this.initialToUserId,
     this.initialToUserName,
   });
+
+  static Future<void> show(
+    BuildContext context, {
+    int? tmdbId,
+    String? title,
+    String? mediaType,
+    String? initialToUserId,
+    String? initialToUserName,
+  }) {
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => SuggestMovieModal(
+        tmdbId: tmdbId,
+        title: title,
+        mediaType: mediaType,
+        initialToUserId: initialToUserId,
+        initialToUserName: initialToUserName,
+      ),
+    );
+  }
 
   @override
   ConsumerState<SuggestMovieModal> createState() => _SuggestMovieModalState();
@@ -28,9 +55,20 @@ class SuggestMovieModal extends ConsumerStatefulWidget {
 class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   final Set<String> _selectedUserIds = {};
   List<User> _friends = [];
-  bool _isLoading = true;
+  List<User> _searchedUsers = [];
+  bool _isLoadingFriends = true;
+  bool _isSearchingUsers = false;
   bool _isSending = false;
-  String _searchQuery = '';
+
+  // For movie search when no tmdbId is passed
+  MediaResult? _selectedMedia;
+  List<MediaResult> _searchResults = [];
+  bool _isSearchingMedia = false;
+  Timer? _debounce;
+  Timer? _friendDebounce;
+  final _movieSearchController = TextEditingController();
+
+  String _friendSearchQuery = '';
   final _messageController = TextEditingController();
 
   @override
@@ -44,6 +82,9 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _friendDebounce?.cancel();
+    _movieSearchController.dispose();
     _messageController.dispose();
     super.dispose();
   }
@@ -51,24 +92,104 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   Future<void> _loadFriends() async {
     try {
       final userRepo = ref.read(userRepositoryProvider);
+      final searchRepo = ref.read(searchRepositoryProvider);
       final me = await userRepo.getCurrentUser();
-      final following = await userRepo.getFollowing(me.id);
+      
+      final results = await Future.wait([
+        userRepo.getFollowing(me.id).catchError((_) => <User>[]),
+        userRepo.getFollowers(me.id).catchError((_) => <User>[]),
+        searchRepo.getSuggestedUsers().catchError((_) => <User>[]),
+      ]);
+
+      final following = results[0];
+      final followers = results[1];
+      final suggested = results[2];
+
+      final friendMap = <String, User>{};
+      for (final u in [...following, ...followers, ...suggested]) {
+        if (u.id != me.id) {
+          friendMap[u.id] = u;
+        }
+      }
+
       if (mounted) {
         setState(() {
-          _friends = following;
-          _isLoading = false;
+          _friends = friendMap.values.toList();
+          _isLoadingFriends = false;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoadingFriends = false);
     }
   }
 
+  void _onFriendSearchChanged(String query) {
+    setState(() => _friendSearchQuery = query.trim());
+    _friendDebounce?.cancel();
+
+    if (query.trim().length < 2) {
+      setState(() {
+        _searchedUsers = [];
+        _isSearchingUsers = false;
+      });
+      return;
+    }
+
+    _friendDebounce = Timer(const Duration(milliseconds: 300), () async {
+      setState(() => _isSearchingUsers = true);
+      try {
+        final users = await ref.read(searchRepositoryProvider).searchUsers(query.trim());
+        if (mounted) {
+          setState(() {
+            _searchedUsers = users;
+            _isSearchingUsers = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _isSearchingUsers = false);
+      }
+    });
+  }
+
+  void _onSearchChanged(String query) {
+    _debounce?.cancel();
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _isSearchingMedia = false;
+      });
+      return;
+    }
+
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      setState(() => _isSearchingMedia = true);
+      try {
+        final results = await ref.read(searchRepositoryProvider).searchMedia(query.trim());
+        if (mounted) {
+          setState(() {
+            _searchResults = results;
+            _isSearchingMedia = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _isSearchingMedia = false);
+      }
+    });
+  }
+
+
   Future<void> _handleSend() async {
+    final int? tmdbId = widget.tmdbId ?? _selectedMedia?.id;
+    final String? title = widget.title ?? _selectedMedia?.title;
+    final String mediaType = widget.mediaType ?? _selectedMedia?.mediaType ?? 'movie';
+
+    if (tmdbId == null || title == null) {
+      WHAlert.showWarning(context, 'Please select a movie or show to suggest.');
+      return;
+    }
+
     if (_selectedUserIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one friend.')),
-      );
+      WHAlert.showWarning(context, 'Please select at least one recipient.');
       return;
     }
 
@@ -77,188 +198,340 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
       final suggRepo = ref.read(suggestionsRepositoryProvider);
       await suggRepo.sendSuggestion(
         toUserIds: _selectedUserIds.toList(),
-        tmdbId: widget.tmdbId,
-        title: widget.title,
-        mediaType: widget.mediaType ?? 'movie',
+        tmdbId: tmdbId,
+        title: title,
+        mediaType: mediaType,
         message: _messageController.text.trim().isNotEmpty ? _messageController.text.trim() : null,
       );
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Suggestion sent successfully! ✨')),
-        );
+        final recipientDesc = widget.initialToUserName != null
+            ? '@${widget.initialToUserName}'
+            : '${_selectedUserIds.length} friend${_selectedUserIds.length > 1 ? "s" : ""}';
+        WHAlert.showSuccess(context, 'Suggestion for "$title" sent to $recipientDesc! ✨');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send suggestion: $e')),
-        );
+        WHAlert.showError(context, 'Failed to send suggestion: $e');
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
+
   }
 
   @override
   Widget build(BuildContext context) {
-    final filteredFriends = _friends.where((f) {
-      if (_searchQuery.isEmpty) return true;
-      final full = '${f.displayName ?? ''} ${f.username}'.toLowerCase();
-      return full.contains(_searchQuery.toLowerCase());
-    }).toList();
+    final targetTitle = widget.title ?? _selectedMedia?.title;
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      padding: const EdgeInsets.all(20),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Drag handle
           Center(
             child: Container(
+              margin: const EdgeInsets.only(bottom: 12),
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+
+          // Header
           Row(
             children: [
-              const Icon(Icons.auto_awesome, color: AppColors.primary, size: 22),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Suggest "${widget.title}"',
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                child: const Icon(Icons.auto_awesome_rounded, color: AppColors.primaryDark, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.initialToUserName != null
+                          ? 'Suggest to @${widget.initialToUserName}'
+                          : 'Suggest to Hive Friends',
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (targetTitle != null)
+                      Text(
+                        targetTitle,
+                        style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, color: AppColors.textMuted),
+                onPressed: () => Navigator.pop(context),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          TextField(
-            onChanged: (v) => setState(() => _searchQuery = v.trim()),
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-            decoration: InputDecoration(
-              hintText: 'Search friends...',
-              hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-              prefixIcon: const Icon(Icons.search, color: AppColors.textMuted, size: 20),
-              filled: true,
-              fillColor: AppColors.cardBg,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: 12),
+
+          // Movie Selection if no initial title
+          if (widget.tmdbId == null) ...[
+            if (_selectedMedia == null) ...[
+              const Text(
+                '1. CHOOSE MOVIE OR TV SHOW',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.textMuted, letterSpacing: 1.0),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _movieSearchController,
+                onChanged: _onSearchChanged,
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Search TMDB for a title...',
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 20),
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+                ),
+              ),
+              if (_isSearchingMedia)
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2)),
+                )
+              else if (_searchResults.isNotEmpty)
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 180),
+                  margin: const EdgeInsets.only(top: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _searchResults.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
+                    itemBuilder: (ctx, i) {
+                      final item = _searchResults[i];
+                      return ListTile(
+                        dense: true,
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: item.posterPath != null
+                              ? Image.network(
+                                  ApiEndpoints.tmdbPoster(item.posterPath),
+                                  width: 28,
+                                  height: 42,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(width: 28, height: 42, color: AppColors.surfaceHighest),
+                        ),
+                        title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
+                        subtitle: Text('${item.mediaType.toUpperCase()} · ${item.year}', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                        trailing: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary),
+                        onTap: () => setState(() => _selectedMedia = item),
+                      );
+                    },
+                  ),
+                ),
+            ] else ...[
+              // Selected Movie Chip
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.primary, width: 1.5),
+                ),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: _selectedMedia!.posterPath != null
+                          ? Image.network(
+                              ApiEndpoints.tmdbPoster(_selectedMedia!.posterPath),
+                              width: 36,
+                              height: 52,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(width: 36, height: 52, color: AppColors.surfaceHighest),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _selectedMedia!.title,
+                            style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+                          ),
+                          Text(
+                            '${_selectedMedia!.mediaType.toUpperCase()} · ${_selectedMedia!.year}',
+                            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
+                      onPressed: () => setState(() => _selectedMedia = null),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+          ],
+
+          // Friends List (if not fixed to 1 user or to pick friends)
+          if (widget.initialToUserId == null) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '2. SELECT RECIPIENTS',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.textMuted, letterSpacing: 1.0),
+                ),
+                if (_friends.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      final currentDisplayList = _getDisplayUsers();
+                      setState(() {
+                        if (_selectedUserIds.length >= currentDisplayList.length && currentDisplayList.isNotEmpty) {
+                          _selectedUserIds.clear();
+                        } else {
+                          _selectedUserIds.addAll(currentDisplayList.map((u) => u.id));
+                        }
+                      });
+                    },
+                    child: Text(
+                      _selectedUserIds.isNotEmpty && _selectedUserIds.length >= _getDisplayUsers().length
+                          ? 'CLEAR ALL'
+                          : 'SELECT ALL',
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              onChanged: _onFriendSearchChanged,
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Search friends or cinephiles...',
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 18),
+                suffixIcon: _isSearchingUsers
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                      )
+                    : null,
+                filled: true,
+                fillColor: AppColors.surface,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 8),
+          ],
+
+          // Recipient List View
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                : filteredFriends.isEmpty
-                    ? const Center(
-                        child: Text('No friends found', style: TextStyle(color: AppColors.textMuted)),
-                      )
-                    : ListView.builder(
-                        itemCount: filteredFriends.length,
-                        itemBuilder: (ctx, i) {
-                          final friend = filteredFriends[i];
-                          final isSelected = _selectedUserIds.contains(friend.id);
-                          return CheckboxListTile(
-                            activeColor: AppColors.primary,
-                            checkColor: Colors.white,
-                            value: isSelected,
-                            onChanged: (val) {
-                              setState(() {
-                                if (val == true) {
-                                  _selectedUserIds.add(friend.id);
-                                } else {
-                                  _selectedUserIds.remove(friend.id);
-                                }
-                              });
-                            },
-                            secondary: CircleAvatar(
-                              radius: 16,
-                              backgroundColor: AppColors.primary,
-                              backgroundImage: friend.profilePictureUrl != null && friend.profilePictureUrl!.isNotEmpty
-                                  ? NetworkImage(friend.profilePictureUrl!)
-                                  : null,
-                              onBackgroundImageError: friend.profilePictureUrl != null && friend.profilePictureUrl!.isNotEmpty
-                                  ? (_, __) {}
-                                  : null,
-                              child: friend.profilePictureUrl == null || friend.profilePictureUrl!.isEmpty
-                                  ? Text(
-                                      (friend.displayName ?? friend.username)[0].toUpperCase(),
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                    )
-                                  : null,
-                            ),
-                            title: Text(
-                              friend.displayName ?? friend.username,
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '@${friend.username}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-                            ),
-                          );
-                        },
+            child: widget.initialToUserId != null
+                ? Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
                       ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.person_rounded, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Recipient: @${widget.initialToUserName ?? widget.initialToUserId}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : _isLoadingFriends
+                    ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                    : _buildFriendsList(),
           ),
           const SizedBox(height: 12),
+
+          // Optional Note
           TextField(
             controller: _messageController,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
             decoration: InputDecoration(
-              hintText: 'Add an optional note...',
-              hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+              hintText: 'Add an optional note ("You gotta watch this!")...',
               filled: true,
-              fillColor: AppColors.cardBg,
+              fillColor: AppColors.surface,
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
             ),
           ),
           const SizedBox(height: 14),
+
+          // Send Button
           SizedBox(
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
+                foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               onPressed: _isSending ? null : _handleSend,
               child: _isSending
-                  ? const CircularProgressIndicator(color: Colors.white)
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
                   : Text(
                       'Send Suggestion (${_selectedUserIds.length})',
                       style: const TextStyle(
                         fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
                       ),
                     ),
             ),
@@ -267,4 +540,125 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
       ),
     );
   }
+
+  List<User> _getDisplayUsers() {
+    final map = <String, User>{};
+    for (final u in _friends) {
+      if (_friendSearchQuery.isEmpty) {
+        map[u.id] = u;
+      } else {
+        final full = '${u.displayName ?? ''} ${u.username}'.toLowerCase();
+        if (full.contains(_friendSearchQuery.toLowerCase())) {
+          map[u.id] = u;
+        }
+      }
+    }
+    for (final u in _searchedUsers) {
+      map[u.id] = u;
+    }
+    return map.values.toList();
+  }
+
+  Widget _buildFriendsList() {
+    final displayList = _getDisplayUsers();
+
+    if (displayList.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.people_outline_rounded, size: 36, color: AppColors.textMuted),
+            const SizedBox(height: 8),
+            Text(
+              _friendSearchQuery.isNotEmpty ? 'No users found matching "$_friendSearchQuery"' : 'No friends connected yet',
+              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: displayList.length,
+      itemBuilder: (ctx, i) {
+        final user = displayList[i];
+        final isSelected = _selectedUserIds.contains(user.id);
+
+        return InkWell(
+          onTap: () {
+            setState(() {
+              if (isSelected) {
+                _selectedUserIds.remove(user.id);
+              } else {
+                _selectedUserIds.add(user.id);
+              }
+            });
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.primary.withOpacity(0.08) : Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isSelected ? AppColors.primary.withOpacity(0.3) : Colors.transparent,
+              ),
+            ),
+            child: Row(
+              children: [
+                WHAvatar(
+                  imageUrl: user.profilePictureUrl,
+                  name: user.name,
+                  radius: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user.name,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        '@${user.username}',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.border,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: isSelected
+                      ? const Icon(Icons.check_rounded, size: 16, color: Colors.black)
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
+
+

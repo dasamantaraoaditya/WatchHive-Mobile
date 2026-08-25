@@ -31,6 +31,7 @@ class ApiEndpoints {
   static const String logout = '/auth/logout';
   static const String forgotPassword = '/auth/forgot-password';
   static const String resetPassword = '/auth/reset-password';
+  static const String setPassword = '/auth/set-password';
 
   // Entries
   static const String entries = '/entries';
@@ -45,21 +46,32 @@ class ApiEndpoints {
   static const String me = '/users/me';
   static String user(String id) => '/users/$id';
   static const String searchUsers = '/users/search';
+  static const String suggestedUsers = '/users/suggested';
+  static const String myAvatar = '/users/me/avatar';
   static String updateAvatar(String id) => '/users/$id/avatar';
   static String updateProfile(String id) => '/users/$id';
+  static String userWatchlist(String id) => '/users/$id/watchlist';
+
 
   // TMDB
   static const String tmdbSearch = '/tmdb/search/multi';
   static String tmdbMovie(int id) => '/tmdb/movie/$id';
   static String tmdbTv(int id) => '/tmdb/tv/$id';
-  static const String tmdbTrending = '/tmdb/trending';
+  static String tmdbTrending({String mediaType = 'all', String timeWindow = 'week'}) =>
+      '/tmdb/trending/$mediaType/$timeWindow';
   static const String tmdbPopular = '/tmdb/popular';
+  static const String tmdbPopularTv = '/tmdb/popular/tv';
+  static const String feedTrending = '/feed/trending';
+
 
   // Follows
   static const String follows = '/follows';
   static String followUser(String id) => '/follows/$id';
   static String followers(String id) => '/follows/$id/followers';
   static String following(String id) => '/follows/$id/following';
+  static String acceptFollowRequest(String id) => '/follows/requests/$id/accept';
+  static String rejectFollowRequest(String id) => '/follows/requests/$id/reject';
+  static const String pendingFollowRequests = '/follows/requests/pending';
 
   // Likes
   static String likeEntry(String id) => '/likes/$id';
@@ -76,13 +88,19 @@ class ApiEndpoints {
   // Suggestions
   static const String suggestions = '/suggestions';
 
-  // Lists (Watchlist)
+  // Lists (Watchlist & Rankings)
   static const String lists = '/lists';
   static String list(String id) => '/lists/$id';
   static String listItems(String id) => '/lists/$id/items';
+  static String userRankings(String userId) => '/lists/user/$userId/rankings';
 
   // Stats
   static const String stats = '/stats';
+  static const String detailedStats = '/stats/detailed';
+
+  // Data management
+  static const String dataExport = '/data/export';
+  static const String dataImport = '/data/import';
 
   // Push Notifications
   static const String pushSubscribe = '/push/subscribe';

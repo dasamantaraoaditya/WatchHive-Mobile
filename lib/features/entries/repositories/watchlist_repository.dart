@@ -5,6 +5,11 @@ final watchlistRepositoryProvider = Provider<WatchlistRepository>((ref) {
   return WatchlistRepository(ref.read(apiClientProvider));
 });
 
+final isInWatchlistProvider = FutureProvider.family<bool, int>((ref, tmdbId) async {
+  final repo = ref.read(watchlistRepositoryProvider);
+  return await repo.isInWatchlist(tmdbId);
+});
+
 class WatchlistRepository {
   final ApiClient _api;
 
@@ -13,6 +18,19 @@ class WatchlistRepository {
   Future<Map<String, dynamic>> getWatchlist() async {
     final response = await _api.get('/lists/watchlist');
     return response.data as Map<String, dynamic>;
+  }
+
+  Future<bool> isInWatchlist(int tmdbId) async {
+    try {
+      final data = await getWatchlist();
+      final items = data['items'] as List<dynamic>? ?? [];
+      return items.any((item) {
+        final id = item['tmdbId'];
+        return id == tmdbId || id == tmdbId.toString();
+      });
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> addToWatchlist({
@@ -39,4 +57,16 @@ class WatchlistRepository {
   Future<void> removeFromWatchlist(String itemId) async {
     await _api.delete('/lists/items/$itemId');
   }
+
+  Future<void> removeFromWatchlistByTmdbId(int tmdbId) async {
+    final watchlistData = await getWatchlist();
+    final listId = watchlistData['id'] as String;
+    await _api.delete('/lists/$listId/items/$tmdbId');
+  }
+
+  Future<void> removeWatchlistItemById(String itemId) async {
+    await _api.delete('/lists/items/$itemId');
+  }
 }
+
+

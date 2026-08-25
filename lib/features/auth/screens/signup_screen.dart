@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/auth_provider.dart';
 import '../../../shared/widgets/wh_text_field.dart';
 import '../../../shared/widgets/wh_button.dart';
@@ -31,6 +32,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _register() async {
+
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
@@ -42,20 +44,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           );
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
         context.go('/feed');
+        WHAlert.showSuccess(context, 'Welcome to WatchHive! 🐝✨');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_parseError(e.toString())),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        WHAlert.showError(context, _parseError(e.toString()));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
 
   String _parseError(String error) {
     if (error.contains('409') || error.contains('already')) return 'Email or username already taken.';

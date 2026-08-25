@@ -16,6 +16,7 @@ import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/entries/screens/movie_details_screen.dart';
 import '../../features/mindlens/screens/mindlens_screen.dart';
 import '../../features/profile/screens/compare_history_screen.dart';
+import '../../shared/models/user.dart';
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -102,6 +103,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/compare/:id',
         builder: (context, state) => CompareHistoryScreen(
           userId: state.pathParameters['id']!,
+          initialUser: state.extra as User?,
         ),
       ),
       GoRoute(

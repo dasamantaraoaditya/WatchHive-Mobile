@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
@@ -10,8 +12,14 @@ final searchRepositoryProvider = Provider<SearchRepository>((ref) {
 
 class SearchRepository {
   final ApiClient _api;
+  final FlutterSecureStorage _storage;
+  static const String _recentSearchesKey = 'watchhive_recent_searches';
 
-  SearchRepository(this._api);
+  SearchRepository(this._api, [FlutterSecureStorage? storage])
+      : _storage = storage ??
+            const FlutterSecureStorage(
+              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+            );
 
   Future<List<MediaResult>> searchMedia(String query, {String? type}) async {
     final response = await _api.get(
@@ -30,13 +38,39 @@ class SearchRepository {
   }
 
   Future<List<User>> searchUsers(String query) async {
-    final response = await _api.get(
-      ApiEndpoints.searchUsers,
-      queryParameters: {'query': query},
-    );
-    final data = response.data as Map<String, dynamic>;
-    final users = data['users'] as List<dynamic>? ?? [];
-    return users.map((u) => User.fromJson(u as Map<String, dynamic>)).toList();
+    if (query.trim().isEmpty) return [];
+    try {
+      final response = await _api.get(
+        ApiEndpoints.searchUsers,
+        queryParameters: {'q': query.trim()},
+      );
+      final data = response.data;
+      List<dynamic> users = [];
+      if (data is Map<String, dynamic> && data['users'] is List) {
+        users = data['users'] as List;
+      } else if (data is List) {
+        users = data;
+      }
+      return users.map((u) => User.fromJson(u as Map<String, dynamic>)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<User>> getSuggestedUsers() async {
+    try {
+      final response = await _api.get(ApiEndpoints.suggestedUsers);
+      final data = response.data;
+      List<dynamic> users = [];
+      if (data is Map<String, dynamic> && data['users'] is List) {
+        users = data['users'] as List;
+      } else if (data is List) {
+        users = data;
+      }
+      return users.map((u) => User.fromJson(u as Map<String, dynamic>)).toList();
+    } catch (e) {
+      return [];
+    }
   }
 
   Future<Map<String, dynamic>> getMovieDetails(int tmdbId) async {
@@ -49,27 +83,113 @@ class SearchRepository {
     return response.data as Map<String, dynamic>;
   }
 
-  Future<List<MediaResult>> getTrending() async {
-    final response = await _api.get(ApiEndpoints.tmdbTrending);
-    final data = response.data as Map<String, dynamic>;
-    final results = data['results'] as List<dynamic>? ?? [];
-    return results
-        .map((e) => MediaResult.fromJson(e as Map<String, dynamic>))
-        .where((r) => r.mediaType == 'movie' || r.mediaType == 'tv')
-        .take(10)
-        .toList();
+  Future<Map<String, dynamic>> getTvSeasonDetails(int tvId, int seasonNumber) async {
+    final response = await _api.get('/tmdb/tv/$tvId/season/$seasonNumber');
+    return response.data as Map<String, dynamic>;
   }
 
-  Future<List<MediaResult>> getPopular() async {
-    final response = await _api.get(ApiEndpoints.tmdbPopular);
-    final data = response.data as Map<String, dynamic>;
-    final results = data['results'] as List<dynamic>? ?? [];
-    return results
-        .map((e) => MediaResult.fromJson(e as Map<String, dynamic>))
-        .take(10)
-        .toList();
+  Future<List<MediaResult>> getRecommendations(String mediaType, int tmdbId) async {
+    try {
+      final endpoint = mediaType == 'tv' ? '/tmdb/tv/$tmdbId/recommendations' : '/tmdb/movie/$tmdbId/recommendations';
+      final response = await _api.get(endpoint);
+      final data = response.data as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results
+          .map((e) => MediaResult.fromJson({
+                ...e as Map<String, dynamic>,
+                'media_type': mediaType,
+              }))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+
+  Future<List<MediaResult>> getTrending({String mediaType = 'all', String timeWindow = 'week'}) async {
+    try {
+      final response = await _api.get(ApiEndpoints.tmdbTrending(mediaType: mediaType, timeWindow: timeWindow));
+      final data = response.data as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results
+          .map((e) => MediaResult.fromJson(e as Map<String, dynamic>))
+          .where((r) => r.mediaType == 'movie' || r.mediaType == 'tv')
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<MediaResult>> getPopular({String type = 'movie'}) async {
+    try {
+      final endpoint = type == 'tv' ? ApiEndpoints.tmdbPopularTv : ApiEndpoints.tmdbPopular;
+      final response = await _api.get(endpoint);
+      final data = response.data as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results
+          .map((e) => MediaResult.fromJson({
+                ...e as Map<String, dynamic>,
+                'media_type': type,
+              }))
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getCommunityTrending() async {
+    try {
+      final response = await _api.get(ApiEndpoints.feedTrending);
+      final data = response.data as Map<String, dynamic>;
+      final list = data['trending'] as List<dynamic>? ?? [];
+      return list.map((item) => item as Map<String, dynamic>).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // Local Recent Search History
+  Future<List<String>> getRecentSearches() async {
+    try {
+      final raw = await _storage.read(key: _recentSearchesKey);
+      if (raw == null || raw.isEmpty) return [];
+      final list = jsonDecode(raw);
+      if (list is List) {
+        return list.map((e) => e.toString()).toList();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> addRecentSearch(String query) async {
+    final clean = query.trim();
+    if (clean.isEmpty) return;
+    try {
+      final current = await getRecentSearches();
+      current.removeWhere((item) => item.toLowerCase() == clean.toLowerCase());
+      current.insert(0, clean);
+      final trimmed = current.take(8).toList();
+      await _storage.write(key: _recentSearchesKey, value: jsonEncode(trimmed));
+    } catch (_) {}
+  }
+
+  Future<void> removeRecentSearch(String query) async {
+    try {
+      final current = await getRecentSearches();
+      current.removeWhere((item) => item.toLowerCase() == query.trim().toLowerCase());
+      await _storage.write(key: _recentSearchesKey, value: jsonEncode(current));
+    } catch (_) {}
+  }
+
+  Future<void> clearRecentSearches() async {
+    try {
+      await _storage.delete(key: _recentSearchesKey);
+    } catch (_) {}
   }
 }
+
 
 final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({int tmdbId, String mediaType})>((ref, arg) async {
   if (arg.tmdbId <= 0) return null;

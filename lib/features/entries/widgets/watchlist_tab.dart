@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/watchlist_repository.dart';
 import '../repositories/entries_repository.dart';
 import '../screens/add_entry_sheet.dart';
+import '../screens/entries_screen.dart';
 import 'wh_entry_grid_card.dart';
+
 
 class WatchlistTab extends ConsumerStatefulWidget {
   const WatchlistTab({super.key});
@@ -49,22 +52,29 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     }
   }
 
-  Future<void> _removeItem(String itemId) async {
+  Future<void> _removeItem(String itemId, String title) async {
+    final confirm = await WHAlert.confirm(
+      context,
+      title: 'Remove from Watchlist',
+      message: 'Are you sure you want to remove "$title" from your watchlist?',
+      confirmText: 'Remove',
+      severity: WHAlertSeverity.danger,
+      icon: Icons.bookmark_remove_rounded,
+    );
+
+    if (!confirm) return;
+
     try {
       await ref.read(watchlistRepositoryProvider).removeFromWatchlist(itemId);
       setState(() {
         _items.removeWhere((item) => item['id'] == itemId);
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Removed from Watchlist')),
-        );
+        WHAlert.showSuccess(context, 'Removed "$title" from Watchlist');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to remove item: $e')),
-        );
+        WHAlert.showError(context, 'Failed to remove item: $e');
       }
     }
   }
@@ -86,7 +96,12 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
         prefillSuggestedByUserId: suggestedByUserId,
         onSuccess: () {
           if (itemId != null) {
-            _removeItem(itemId);
+            final title = item['title'] as String? ?? 'this title';
+            ref.read(watchlistRepositoryProvider).removeFromWatchlist(itemId);
+            setState(() {
+              _items.removeWhere((item) => item['id'] == itemId);
+            });
+            WHAlert.showSuccess(context, 'Logged and removed "$title" from Watchlist! ✨');
           }
         },
       ),
@@ -95,26 +110,16 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
 
   Future<void> _addToCurrentlyWatching(Map<String, dynamic> item) async {
     final title = item['title'] as String? ?? 'this title';
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardBg,
-        title: const Text('Log as Currently Watching'),
-        content: Text('Move "$title" to your Currently Watching log?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Move to Watching', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+    final confirm = await WHAlert.confirm(
+      context,
+      title: 'Move to Currently Watching',
+      message: 'Would you like to move "$title" to your Currently Watching log?',
+      confirmText: 'Move to Watching',
+      severity: WHAlertSeverity.primary,
+      icon: Icons.play_circle_outline_rounded,
     );
-    if (confirm != true) return;
+
+    if (!confirm) return;
 
     try {
       final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
@@ -123,7 +128,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
       final suggestedByUserId = item['suggestedByUserId'] as String? ?? suggestedByUser?['id'] as String?;
 
-      await ref.read(entriesRepositoryProvider).createEntry({
+      final entry = await ref.read(entriesRepositoryProvider).createEntry({
         'tmdbId': tmdbId,
         'title': title,
         'type': mediaType,
@@ -132,23 +137,25 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
       });
 
+      ref.read(entriesProvider(true).notifier).addEntry(entry);
+
       if (itemId != null) {
-        await _removeItem(itemId);
+        await ref.read(watchlistRepositoryProvider).removeFromWatchlist(itemId);
+        setState(() {
+          _items.removeWhere((it) => it['id'] == itemId);
+        });
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('"$title" added to Currently Watching!')),
-        );
+        WHAlert.showSuccess(context, 'Moved "$title" to Currently Watching! 🎬');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add to currently watching: $e')),
-        );
+        WHAlert.showError(context, 'Failed to add to currently watching: $e');
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -228,8 +235,9 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
             },
             onMoveToWatching: () => _addToCurrentlyWatching(item),
             onMarkWatched: () => _logWatchlistItem(item),
-            onDelete: () => _removeItem(itemId),
+            onDelete: () => _removeItem(itemId, title),
           );
+
         },
       ),
     );

@@ -45,8 +45,8 @@ class MediaResult {
   });
 
   factory MediaResult.fromJson(Map<String, dynamic> json) => MediaResult(
-        id: json['id'] as int,
-        title: (json['title'] ?? json['name']) as String,
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        title: (json['title'] ?? json['name'] ?? 'Untitled').toString(),
         posterPath: json['poster_path'] as String?,
         releaseDate:
             (json['release_date'] ?? json['first_air_date']) as String?,
@@ -54,6 +54,7 @@ class MediaResult {
         mediaType: json['media_type'] as String? ?? 'movie',
         voteAverage: (json['vote_average'] as num?)?.toDouble(),
       );
+
 
   String get year {
     if (releaseDate == null || releaseDate!.isEmpty) return '';

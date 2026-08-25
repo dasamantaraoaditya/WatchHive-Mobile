@@ -9,6 +9,7 @@ import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/feed_repository.dart';
+import '../widgets/comments_sheet.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../search/repositories/search_repository.dart';
 
@@ -66,8 +67,10 @@ class FeedNotifier extends StateNotifier<FeedState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final result = await _repo.getFeed(limit: _pageSize, offset: 0);
+      final initialLiked = result.entries.where((e) => e.isLiked).map((e) => e.id).toSet();
       state = state.copyWith(
         entries: result.entries,
+        likedEntryIds: initialLiked,
         isLoading: false,
         hasMore: result.pagination.hasMore,
       );
@@ -83,8 +86,10 @@ class FeedNotifier extends StateNotifier<FeedState> {
     state = state.copyWith(isLoadingMore: true);
     try {
       final result = await _repo.getFeed(limit: _pageSize, offset: state.entries.length);
+      final moreLiked = result.entries.where((e) => e.isLiked).map((e) => e.id);
       state = state.copyWith(
         entries: [...state.entries, ...result.entries],
+        likedEntryIds: {...state.likedEntryIds, ...moreLiked},
         isLoadingMore: false,
         hasMore: result.pagination.hasMore,
       );
@@ -94,23 +99,57 @@ class FeedNotifier extends StateNotifier<FeedState> {
   }
 
   Future<void> toggleLike(String entryId) async {
-    final isLiked = state.likedEntryIds.contains(entryId);
+    final targetIndex = state.entries.indexWhere((e) => e.id == entryId);
+    if (targetIndex == -1) return;
+
+    final targetEntry = state.entries[targetIndex];
+    final wasLiked = state.likedEntryIds.contains(entryId) || targetEntry.isLiked;
+    final newIsLiked = !wasLiked;
+    final newLikesCount = newIsLiked
+        ? targetEntry.likesCount + (targetEntry.isLiked ? 0 : 1)
+        : (targetEntry.likesCount > 0 ? targetEntry.likesCount - (targetEntry.isLiked ? 1 : 0) : 0);
+
+    final updatedEntries = [...state.entries];
+    updatedEntries[targetIndex] = targetEntry.copyWith(
+      isLiked: newIsLiked,
+      likesCount: newLikesCount,
+    );
+
     final newLiked = Set<String>.from(state.likedEntryIds);
-    if (isLiked) {
-      newLiked.remove(entryId);
-    } else {
+    if (newIsLiked) {
       newLiked.add(entryId);
+    } else {
+      newLiked.remove(entryId);
     }
-    state = state.copyWith(likedEntryIds: newLiked);
+
+    state = state.copyWith(entries: updatedEntries, likedEntryIds: newLiked);
+
     try {
-      if (isLiked) {
+      if (wasLiked) {
         await _repo.unlikeEntry(entryId);
       } else {
         await _repo.likeEntry(entryId);
       }
     } catch (_) {
       // Revert on failure
-      state = state.copyWith(likedEntryIds: Set<String>.from(state.likedEntryIds)..toggle(entryId));
+      final revertedEntries = [...state.entries];
+      revertedEntries[targetIndex] = targetEntry;
+      state = state.copyWith(
+        entries: revertedEntries,
+        likedEntryIds: Set<String>.from(state.likedEntryIds)..toggle(entryId),
+      );
+    }
+  }
+
+  void updateCommentsCount(String entryId, int newCount) {
+    final targetIndex = state.entries.indexWhere((e) => e.id == entryId);
+    if (targetIndex != -1) {
+      final updatedEntries = [...state.entries];
+      updatedEntries[targetIndex] = updatedEntries[targetIndex].copyWith(
+        commentsCount: newCount,
+        isCommented: newCount > 0,
+      );
+      state = state.copyWith(entries: updatedEntries);
     }
   }
 }
@@ -136,6 +175,7 @@ class FeedScreen extends ConsumerStatefulWidget {
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
   final _scrollController = ScrollController();
+
 
   @override
   void initState() {
@@ -203,7 +243,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                     );
                   }
                   final entry = feedState.entries[index];
-                  final isLiked = feedState.likedEntryIds.contains(entry.id);
+                  final isLiked = feedState.likedEntryIds.contains(entry.id) || entry.isLiked;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _FeedCard(
@@ -211,6 +251,13 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       isLiked: isLiked,
                       isOwnEntry: currentUser?.id == entry.userId,
                       onLike: () => ref.read(feedProvider.notifier).toggleLike(entry.id),
+                      onCommentTap: () => CommentsSheet.show(
+                        context,
+                        entryId: entry.id,
+                        entryTitle: entry.title,
+                        entryAuthorId: entry.userId,
+                        onCommentCountChanged: (count) => ref.read(feedProvider.notifier).updateCommentsCount(entry.id, count),
+                      ),
                       onUserTap: () => context.push('/profile/${entry.user?.id}'),
                       onMediaTap: () => context.push(
                         '/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}',
@@ -232,6 +279,7 @@ class _FeedCard extends StatelessWidget {
   final bool isLiked;
   final bool isOwnEntry;
   final VoidCallback onLike;
+  final VoidCallback? onCommentTap;
   final VoidCallback onUserTap;
   final VoidCallback onMediaTap;
 
@@ -240,6 +288,7 @@ class _FeedCard extends StatelessWidget {
     required this.isLiked,
     required this.isOwnEntry,
     required this.onLike,
+    this.onCommentTap,
     required this.onUserTap,
     required this.onMediaTap,
   });
@@ -498,32 +547,39 @@ class _FeedCard extends StatelessWidget {
             ),
           ],
 
-          const SizedBox(height: 10),
-          const Divider(height: 1, color: AppColors.border),
+          if (!isSuggestion) ...[
+            const SizedBox(height: 10),
+            const Divider(height: 1, color: AppColors.border),
 
-          // Action bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            child: Row(
-              children: [
-                _ActionButton(
-                  icon: isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  label: '${entry.likesCount + (isLiked ? 1 : 0)}',
-                  color: isLiked ? AppColors.error : AppColors.textMuted,
-                  onTap: onLike,
-                ),
-                _ActionButton(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  label: '${entry.commentsCount}',
-                  color: AppColors.textMuted,
-                  onTap: () {},
-                ),
-              ],
+            // Action bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Row(
+                children: [
+                  _ActionButton(
+                    icon: isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    label: '${entry.likesCount}',
+                    color: isLiked ? AppColors.error : AppColors.textMuted,
+                    onTap: onLike,
+                  ),
+                  _ActionButton(
+                    icon: (entry.isCommented || entry.commentsCount > 0)
+                        ? Icons.chat_bubble_rounded
+                        : Icons.chat_bubble_outline_rounded,
+                    label: '${entry.commentsCount}',
+                    color: (entry.isCommented || entry.commentsCount > 0)
+                        ? AppColors.primaryDark
+                        : AppColors.textMuted,
+                    onTap: onCommentTap ?? () {},
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
+
   }
 
   String _formatCompactHeaderDate(DateTime date) {
