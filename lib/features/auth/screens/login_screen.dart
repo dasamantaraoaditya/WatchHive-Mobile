@@ -56,10 +56,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _googleSignIn() async {
     setState(() => _isLoading = true);
     try {
-      final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID'];
+      final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
+      final effectiveClientId = (webClientId != null &&
+              webClientId.isNotEmpty &&
+              !webClientId.contains('your_google_web_client_id'))
+          ? webClientId
+          : '357857516251-f4gpp8f1j70lu1dcnh405ac0t6lch9tf.apps.googleusercontent.com';
 
       final googleSignIn = GoogleSignIn(
-        serverClientId: webClientId,
+        serverClientId: effectiveClientId,
         scopes: const ['email', 'profile'],
       );
 

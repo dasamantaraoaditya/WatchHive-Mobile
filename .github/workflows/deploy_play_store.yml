@@ -56,7 +56,7 @@ jobs:
             if keytool -list -keystore android/app/upload-keystore.jks -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1; then
               echo "Android Keystore verified successfully."
             else
-              echo "Keystore validation failed. Removing invalid keystore file to fallback to debug bundle."
+              echo "Keystore validation failed. Removing invalid keystore file to use default signing."
               rm -f android/upload-keystore.jks android/app/upload-keystore.jks
             fi
           else
