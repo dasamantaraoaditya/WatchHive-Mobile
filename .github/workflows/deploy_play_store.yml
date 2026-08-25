@@ -52,15 +52,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            python3 -c "import os, base64; raw=os.environ['ANDROID_KEYSTORE_BASE64'].replace('\n','').replace('\r','').replace(' ','').strip(); raw+='='*(-len(raw)%4); data=base64.b64decode(raw); open('android/upload-keystore.jks', 'wb').write(data); open('android/app/upload-keystore.jks', 'wb').write(data)"
-            
-            cat <<EOF > android/key.properties
-storePassword=$KEYSTORE_PASSWORD
-keyPassword=$KEY_PASSWORD
-keyAlias=$KEY_ALIAS
-storeFile=upload-keystore.jks
-EOF
-
+            python3 -c "import os, base64; raw=os.environ['ANDROID_KEYSTORE_BASE64'].replace('\n','').replace('\r','').replace(' ','').strip(); raw+='='*(-len(raw)%4); data=base64.b64decode(raw); open('android/upload-keystore.jks', 'wb').write(data); open('android/app/upload-keystore.jks', 'wb').write(data); open('android/key.properties', 'w').write(f'storePassword={os.environ.get(\"KEYSTORE_PASSWORD\", \"\")}\nkeyPassword={os.environ.get(\"KEY_PASSWORD\", \"\")}\nkeyAlias={os.environ.get(\"KEY_ALIAS\", \"\")}\nstoreFile=upload-keystore.jks\n')"
             if keytool -list -keystore android/app/upload-keystore.jks -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1; then
               echo "Android Keystore verified successfully."
             else
