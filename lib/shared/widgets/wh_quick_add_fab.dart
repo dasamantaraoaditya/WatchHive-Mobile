@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../features/entries/screens/add_entry_sheet.dart';
 import '../../features/entries/widgets/quick_currently_watching_sheet.dart';
@@ -42,6 +43,7 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
   }
 
   void _toggle() {
+    HapticFeedback.lightImpact();
     setState(() {
       _isOpen = !_isOpen;
       if (_isOpen) {
@@ -60,6 +62,7 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
   }
 
   void _onAction(VoidCallback action) {
+    HapticFeedback.mediumImpact();
     _close();
     Future.delayed(const Duration(milliseconds: 150), action);
   }
@@ -105,35 +108,34 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
     ];
 
     return Positioned.fill(
-      child: IgnorePointer(
-        ignoring: !_isOpen,
-        child: Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            // Backdrop overlay when open
-            if (_isOpen)
-              Positioned.fill(
-                child: GestureDetector(
-                  onTap: _close,
-                  behavior: HitTestBehavior.opaque,
-                  child: AnimatedBuilder(
-                    animation: _expandAnimation,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: _expandAnimation.value,
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-                          child: Container(
-                            color: Colors.black.withOpacity(0.55),
-                          ),
+      child: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          // Backdrop overlay when open
+          if (_isOpen)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _close,
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedBuilder(
+                  animation: _expandAnimation,
+                  builder: (context, child) {
+                    return Opacity(
+                      opacity: _expandAnimation.value,
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                        child: Container(
+                          color: Colors.black.withOpacity(0.55),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
               ),
+            ),
 
-            // Action Items Column
+          // Action Items Column
+          if (_isOpen || _controller.isAnimating)
             Positioned(
               bottom: 84,
               right: 16,
@@ -222,48 +224,44 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
               ),
             ),
 
-            // Main FAB Button
-            Positioned(
-              bottom: 16,
-              right: 16,
-              child: IgnorePointer(
-                ignoring: false,
-                child: GestureDetector(
-                  onTap: _toggle,
-                  child: Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isOpen ? Colors.white : AppColors.primary,
-                      border: Border.all(
-                        color: _isOpen ? AppColors.primary : Colors.white,
-                        width: 3,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withOpacity(_isOpen ? 0.2 : 0.45),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
+          // Main FAB Button
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: GestureDetector(
+              onTap: _toggle,
+              child: Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _isOpen ? Colors.white : AppColors.primary,
+                  border: Border.all(
+                    color: _isOpen ? AppColors.primary : Colors.white,
+                    width: 3,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(_isOpen ? 0.2 : 0.45),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
-                    child: Center(
-                      child: RotationTransition(
-                        turns: _rotateAnimation,
-                        child: Icon(
-                          Icons.add_rounded,
-                          size: 32,
-                          color: _isOpen ? AppColors.primary : Colors.black,
-                        ),
-                      ),
+                  ],
+                ),
+                child: Center(
+                  child: RotationTransition(
+                    turns: _rotateAnimation,
+                    child: Icon(
+                      Icons.add_rounded,
+                      size: 32,
+                      color: _isOpen ? AppColors.primary : Colors.black,
                     ),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
