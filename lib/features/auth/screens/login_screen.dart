@@ -54,6 +54,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _googleSignIn() async {
+    if (_isLoading) return;
     setState(() => _isLoading = true);
     try {
       final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
@@ -103,10 +104,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   String _formatGoogleError(dynamic e) {
     final str = e.toString();
-    if (str.contains('10:')) {
+    if (str.contains('7:')) {
+      return 'Google Sign-In error (7): Network error. Please ensure a Google account is logged into the device Settings > Accounts and internet is connected.';
+    } else if (str.contains('10:')) {
       return 'Google Sign-In error (10): SHA-1 fingerprint or Web Client ID mismatch in Google Cloud Console.';
     } else if (str.contains('12500')) {
       return 'Google Sign-In error (12500): Check Google Play Services and OAuth configuration.';
+    } else if (str.contains('Concurrent')) {
+      return 'Google Sign-In is already in progress. Please wait a moment.';
     }
     return _parseError(str);
   }

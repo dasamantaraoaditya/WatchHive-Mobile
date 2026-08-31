@@ -56,6 +56,9 @@ android {
         release {
             signingConfig = if (hasSigningConfig) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
+        debug {
+            signingConfig = if (hasSigningConfig) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+        }
     }
 }
 
