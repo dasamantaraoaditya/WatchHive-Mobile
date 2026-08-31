@@ -8,6 +8,8 @@ export 'wh_button.dart';
 export 'wh_text_field.dart';
 export 'wh_logo_header.dart';
 export 'wh_brand_logo.dart';
+export 'wh_rating_picker.dart';
+export 'wh_quick_add_fab.dart';
 
 
 class TMDBPosterImage extends StatelessWidget {
