@@ -16,6 +16,7 @@ import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/entries/screens/movie_details_screen.dart';
 import '../../features/mindlens/screens/mindlens_screen.dart';
 import '../../features/profile/screens/compare_history_screen.dart';
+import '../../features/rankings/screens/rankings_screen.dart';
 import '../../shared/models/user.dart';
 
 class RouterNotifier extends ChangeNotifier {
@@ -117,6 +118,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => MovieDetailsScreen(
           mediaType: state.pathParameters['mediaType']!,
           tmdbId: int.parse(state.pathParameters['tmdbId']!),
+        ),
+      ),
+      GoRoute(
+        path: '/rankings',
+        builder: (context, state) => RankingsScreen(
+          initialStackId: state.extra as String?,
         ),
       ),
     ],

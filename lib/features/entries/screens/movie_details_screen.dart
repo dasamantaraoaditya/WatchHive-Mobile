@@ -16,6 +16,7 @@ import '../../entries/screens/entries_screen.dart';
 import '../../entries/repositories/entries_repository.dart';
 import '../widgets/suggest_movie_modal.dart';
 import '../repositories/watchlist_repository.dart';
+import '../../rankings/widgets/add_to_stack_sheet.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -683,6 +684,33 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                 icon: const Icon(Icons.send_rounded, size: 15, color: AppColors.primary),
                                 label: const Text(
                                   'Suggest',
+                                  style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 11),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Rank in Stack
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.textPrimary,
+                                  side: const BorderSide(color: AppColors.border),
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                ),
+                                onPressed: () {
+                                  AddToStackSheet.show(
+                                    context,
+                                    tmdbId: widget.tmdbId,
+                                    title: title,
+                                    posterPath: posterPath,
+                                    mediaType: widget.mediaType,
+                                  );
+                                },
+                                icon: const Icon(Icons.format_list_numbered_rounded, size: 15, color: AppColors.primary),
+                                label: const Text(
+                                  'Rank 🏆',
                                   style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 11),
                                 ),
                               ),

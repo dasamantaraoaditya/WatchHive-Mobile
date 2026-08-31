@@ -210,6 +210,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
               title: const WHBrandLogo(logoSize: 26, fontSize: 19),
               actions: [
                 IconButton(
+                  icon: const Icon(Icons.format_list_numbered_rounded, color: AppColors.primary),
+                  tooltip: 'Rankings & Stacks 🏆',
+                  onPressed: () async {
+                    await context.push('/rankings');
+                    _loadProfileData();
+                  },
+                ),
+                IconButton(
                   icon: const Icon(Icons.compare_arrows_rounded, color: AppColors.primaryDark),
                   tooltip: 'Compare Taste with Friends',
                   onPressed: () => ComparePickerModal.show(context),
