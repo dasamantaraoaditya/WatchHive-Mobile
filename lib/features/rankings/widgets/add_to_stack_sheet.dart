@@ -5,6 +5,7 @@ import '../../../core/api/api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../models/ranking_stack.dart';
+import '../repositories/rankings_repository.dart';
 import '../providers/rankings_provider.dart';
 
 class AddToStackSheet extends ConsumerStatefulWidget {
@@ -30,7 +31,7 @@ class AddToStackSheet extends ConsumerStatefulWidget {
   }) {
     return showModalBottomSheet(
       context: context,
-      isScrollable: true,
+      isScrollControlled: true,
       backgroundColor: AppColors.background,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => AddToStackSheet(

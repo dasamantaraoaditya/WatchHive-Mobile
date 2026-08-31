@@ -6,6 +6,7 @@ import '../../../core/api/api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../rankings/models/ranking_stack.dart';
+import '../../rankings/repositories/rankings_repository.dart';
 import '../../rankings/providers/rankings_provider.dart';
 
 class UserRankingsTab extends ConsumerStatefulWidget {
@@ -35,7 +36,7 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
     });
     try {
       final repo = ref.read(rankingsRepositoryProvider);
-      final isCurrentUser = ref.read(currentUserProvider)?.id == widget.userId;
+      final isCurrentUser = ref.read(authStateProvider).value?.user?.id == widget.userId;
 
       final stacks = isCurrentUser
           ? await repo.getMyRankingStacks()
@@ -59,7 +60,7 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = ref.watch(currentUserProvider)?.id;
+    final currentUserId = ref.watch(authStateProvider).value?.user?.id;
     final isCurrentUser = currentUserId == widget.userId;
 
     if (_isLoading) {

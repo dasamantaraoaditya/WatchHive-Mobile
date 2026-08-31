@@ -58,7 +58,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
 
     showModalBottomSheet(
       context: context,
-      isScrollable: true,
+      isScrollControlled: true,
       backgroundColor: AppColors.background,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) {
@@ -217,7 +217,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
   void _openSearchAddModal(String stackId) {
     showModalBottomSheet(
       context: context,
-      isScrollable: true,
+      isScrollControlled: true,
       backgroundColor: AppColors.background,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => _SearchAddModal(
