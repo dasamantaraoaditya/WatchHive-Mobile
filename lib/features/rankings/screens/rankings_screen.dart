@@ -143,7 +143,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                       ),
                       Switch.adaptive(
                         value: isPublic,
-                        activeColor: AppColors.primary,
+                        activeTrackColor: AppColors.primary,
                         onChanged: (v) => setModalState(() => isPublic = v),
                       ),
                     ],

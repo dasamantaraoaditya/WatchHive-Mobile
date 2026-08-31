@@ -8,18 +8,41 @@ final rankingsRepositoryProvider = Provider<RankingsRepository>((ref) {
 
 class RankingsRepository {
   final ApiClient _api;
+  static final Map<String, ({String title, String? posterPath, String? releaseDate, double? voteAverage})> _tmdbCache = {};
 
   RankingsRepository(this._api);
 
-  Future<List<RankingStack>> getMyRankingStacks() async {
+  Future<List<RankingStack>> getMyRankingStacks([String? userId]) async {
+    if (userId != null && userId.isNotEmpty) {
+      try {
+        final enriched = await getUserRankings(userId);
+        if (enriched.isNotEmpty) return enriched;
+      } catch (_) {}
+    }
+
     final response = await _api.get('/lists');
     final data = response.data;
     if (data is! List) return [];
     
-    return data
+    final rawStacks = data
         .where((e) => e is Map<String, dynamic> && e['type'] == 'RANKING_STACK')
         .map((e) => RankingStack.fromJson(e as Map<String, dynamic>))
         .toList();
+
+    // If items are empty in list summary, fetch each stack's ranked items
+    final enrichedStacks = await Future.wait(
+      rawStacks.map((stack) async {
+        if (stack.items.isNotEmpty) return stack;
+        try {
+          final res = await getRankedStack(stack.id);
+          return stack.copyWith(items: res.items);
+        } catch (_) {
+          return stack;
+        }
+      }),
+    );
+
+    return enrichedStacks;
   }
 
   Future<({RankingStack stack, List<RankedItem> items})> getRankedStack(String listId, {String? genre}) async {
@@ -42,8 +65,59 @@ class RankingsRepository {
       }
     }
 
-    final stack = RankingStack.fromJson(listJson).copyWith(items: uniqueItems);
-    return (stack: stack, items: uniqueItems);
+    // Enrich missing TMDB data (posters, titles, release dates)
+    final enrichedItems = await Future.wait(
+      uniqueItems.map((item) async {
+        if (item.title != null &&
+            item.title!.isNotEmpty &&
+            !item.title!.startsWith('Movie #') &&
+            !item.title!.startsWith('Media #') &&
+            item.posterPath != null &&
+            item.posterPath!.isNotEmpty) {
+          return item;
+        }
+
+        final cacheKey = '${item.mediaType}_${item.tmdbId}';
+        if (_tmdbCache.containsKey(cacheKey)) {
+          final cached = _tmdbCache[cacheKey]!;
+          return item.copyWith(
+            title: item.title?.isNotEmpty == true && !item.title!.startsWith('Movie #') ? item.title : cached.title,
+            posterPath: item.posterPath ?? cached.posterPath,
+            releaseDate: item.releaseDate ?? cached.releaseDate,
+            voteAverage: item.voteAverage ?? cached.voteAverage,
+          );
+        }
+
+        try {
+          final type = item.mediaType == 'tv' ? 'tv' : 'movie';
+          final res = await _api.get('/tmdb/$type/${item.tmdbId}');
+          final tmdb = res.data as Map<String, dynamic>? ?? {};
+          final title = tmdb['title'] as String? ?? tmdb['name'] as String? ?? 'Media #${item.tmdbId}';
+          final posterPath = tmdb['poster_path'] as String?;
+          final releaseDate = tmdb['release_date'] as String? ?? tmdb['first_air_date'] as String?;
+          final voteAverage = (tmdb['vote_average'] as num?)?.toDouble();
+
+          _tmdbCache[cacheKey] = (
+            title: title,
+            posterPath: posterPath,
+            releaseDate: releaseDate,
+            voteAverage: voteAverage,
+          );
+
+          return item.copyWith(
+            title: (item.title?.isNotEmpty == true && !item.title!.startsWith('Movie #')) ? item.title : title,
+            posterPath: item.posterPath ?? posterPath,
+            releaseDate: item.releaseDate ?? releaseDate,
+            voteAverage: item.voteAverage ?? voteAverage,
+          );
+        } catch (_) {
+          return item;
+        }
+      }),
+    );
+
+    final stack = RankingStack.fromJson(listJson).copyWith(items: enrichedItems);
+    return (stack: stack, items: enrichedItems);
   }
 
   Future<RankingStack> createRankingStack({
@@ -124,6 +198,63 @@ class RankingsRepository {
     final response = await _api.get('/lists/user/$userId/rankings');
     final data = response.data;
     if (data is! List) return [];
-    return data.map((e) => RankingStack.fromJson(e as Map<String, dynamic>)).toList();
+    final stacks = data.map((e) => RankingStack.fromJson(e as Map<String, dynamic>)).toList();
+
+    // Ensure all items in stacks have TMDB posters and titles
+    final enrichedStacks = await Future.wait(
+      stacks.map((stack) async {
+        final enrichedItems = await Future.wait(
+          stack.items.map((item) async {
+            if (item.title != null &&
+                item.title!.isNotEmpty &&
+                !item.title!.startsWith('Movie #') &&
+                !item.title!.startsWith('Media #') &&
+                item.posterPath != null &&
+                item.posterPath!.isNotEmpty) {
+              return item;
+            }
+            final cacheKey = '${item.mediaType}_${item.tmdbId}';
+            if (_tmdbCache.containsKey(cacheKey)) {
+              final cached = _tmdbCache[cacheKey]!;
+              return item.copyWith(
+                title: item.title?.isNotEmpty == true && !item.title!.startsWith('Movie #') ? item.title : cached.title,
+                posterPath: item.posterPath ?? cached.posterPath,
+                releaseDate: item.releaseDate ?? cached.releaseDate,
+                voteAverage: item.voteAverage ?? cached.voteAverage,
+              );
+            }
+            try {
+              final type = item.mediaType == 'tv' ? 'tv' : 'movie';
+              final res = await _api.get('/tmdb/$type/${item.tmdbId}');
+              final tmdb = res.data as Map<String, dynamic>? ?? {};
+              final title = tmdb['title'] as String? ?? tmdb['name'] as String? ?? 'Media #${item.tmdbId}';
+              final posterPath = tmdb['poster_path'] as String?;
+              final releaseDate = tmdb['release_date'] as String? ?? tmdb['first_air_date'] as String?;
+              final voteAverage = (tmdb['vote_average'] as num?)?.toDouble();
+
+              _tmdbCache[cacheKey] = (
+                title: title,
+                posterPath: posterPath,
+                releaseDate: releaseDate,
+                voteAverage: voteAverage,
+              );
+
+              return item.copyWith(
+                title: (item.title?.isNotEmpty == true && !item.title!.startsWith('Movie #')) ? item.title : title,
+                posterPath: item.posterPath ?? posterPath,
+                releaseDate: item.releaseDate ?? releaseDate,
+                voteAverage: item.voteAverage ?? voteAverage,
+              );
+            } catch (_) {
+              return item;
+            }
+          }),
+        );
+        return stack.copyWith(items: enrichedItems);
+      }),
+    );
+
+    return enrichedStacks;
   }
 }
+

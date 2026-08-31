@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/ranking_stack.dart';
 import '../repositories/rankings_repository.dart';
 
@@ -28,15 +29,16 @@ class MyRankingsState {
 
 class MyRankingsNotifier extends StateNotifier<MyRankingsState> {
   final RankingsRepository _repo;
+  final String? _userId;
 
-  MyRankingsNotifier(this._repo) : super(const MyRankingsState(isLoading: true)) {
+  MyRankingsNotifier(this._repo, [this._userId]) : super(const MyRankingsState(isLoading: true)) {
     loadStacks();
   }
 
   Future<void> loadStacks() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final stacks = await _repo.getMyRankingStacks();
+      final stacks = await _repo.getMyRankingStacks(_userId);
       state = state.copyWith(stacks: stacks, isLoading: false);
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);
@@ -96,7 +98,8 @@ class MyRankingsNotifier extends StateNotifier<MyRankingsState> {
 }
 
 final myRankingsProvider = StateNotifierProvider<MyRankingsNotifier, MyRankingsState>((ref) {
-  return MyRankingsNotifier(ref.read(rankingsRepositoryProvider));
+  final userId = ref.watch(authStateProvider).value?.user?.id;
+  return MyRankingsNotifier(ref.read(rankingsRepositoryProvider), userId);
 });
 
 // State for an Active Stack & its Items

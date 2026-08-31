@@ -7,7 +7,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../rankings/models/ranking_stack.dart';
 import '../../rankings/repositories/rankings_repository.dart';
-import '../../rankings/providers/rankings_provider.dart';
 
 class UserRankingsTab extends ConsumerStatefulWidget {
   final String userId;
@@ -38,9 +37,10 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
       final repo = ref.read(rankingsRepositoryProvider);
       final isCurrentUser = ref.read(authStateProvider).value?.user?.id == widget.userId;
 
-      final stacks = isCurrentUser
-          ? await repo.getMyRankingStacks()
-          : await repo.getUserRankings(widget.userId);
+      var stacks = await repo.getUserRankings(widget.userId);
+      if (stacks.isEmpty && isCurrentUser) {
+        stacks = await repo.getMyRankingStacks(widget.userId);
+      }
 
       if (mounted) {
         setState(() {
