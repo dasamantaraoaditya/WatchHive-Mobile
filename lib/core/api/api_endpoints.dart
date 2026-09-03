@@ -14,13 +14,18 @@ class ApiEndpoints {
   static String tmdbPoster(String? path) {
     if (path == null || path.isEmpty) return '';
     if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    return '$tmdbImageBase$path';
+    final base = tmdbImageBase.endsWith('/')
+        ? tmdbImageBase.substring(0, tmdbImageBase.length - 1)
+        : tmdbImageBase;
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    return '$base$cleanPath';
   }
 
   static String tmdbBackdrop(String? path) {
     if (path == null || path.isEmpty) return '';
     if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    return 'https://image.tmdb.org/t/p/w780$path';
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    return 'https://image.tmdb.org/t/p/w780$cleanPath';
   }
 
   // Auth
@@ -69,6 +74,7 @@ class ApiEndpoints {
   static String followUser(String id) => '/follows/$id';
   static String followers(String id) => '/follows/$id/followers';
   static String following(String id) => '/follows/$id/following';
+  static String followStats(String id) => '/follows/stats/$id';
   static String acceptFollowRequest(String id) => '/follows/requests/$id/accept';
   static String rejectFollowRequest(String id) => '/follows/requests/$id/reject';
   static const String pendingFollowRequests = '/follows/requests/pending';

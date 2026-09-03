@@ -58,8 +58,17 @@ class User {
 
   String get name => (displayName != null && displayName!.trim().isNotEmpty) ? displayName! : username;
 
+  static int _parseInt(dynamic val) {
+    if (val == null) return 0;
+    if (val is num) return val.toInt();
+    if (val is String) {
+      return int.tryParse(val) ?? (double.tryParse(val)?.toInt() ?? 0);
+    }
+    return 0;
+  }
+
   factory User.fromJson(Map<String, dynamic> json) {
-    final countData = json['_count'] as Map<String, dynamic>?;
+    final countData = json['_count'] is Map ? json['_count'] as Map : null;
 
     return User(
       id: json['id']?.toString() ?? '',
@@ -75,18 +84,18 @@ class User {
       showCurrentlyWatching: json['showCurrentlyWatching'] as bool? ?? true,
       showWatchlist: json['showWatchlist'] as bool? ?? true,
       showRankings: json['showRankings'] as bool? ?? true,
-      xp: (json['xp'] as num?)?.toInt() ?? 0,
-      level: (json['level'] as num?)?.toInt() ?? 1,
+      xp: _parseInt(json['xp']),
+      level: _parseInt(json['level']) > 0 ? _parseInt(json['level']) : 1,
       badges: json['badges'] as List<dynamic>? ?? [],
-      entriesCount: (countData?['entries'] as num?)?.toInt() ??
-          (json['entriesCount'] as num?)?.toInt() ??
-          0,
-      followersCount: (countData?['followers'] as num?)?.toInt() ??
-          (json['followersCount'] as num?)?.toInt() ??
-          0,
-      followingCount: (countData?['following'] as num?)?.toInt() ??
-          (json['followingCount'] as num?)?.toInt() ??
-          0,
+      entriesCount: _parseInt(
+        countData?['entries'] ?? countData?['entriesCount'] ?? json['entriesCount'] ?? json['entries'],
+      ),
+      followersCount: _parseInt(
+        countData?['followers'] ?? countData?['followersCount'] ?? json['followersCount'] ?? json['followers'],
+      ),
+      followingCount: _parseInt(
+        countData?['following'] ?? countData?['followingCount'] ?? json['followingCount'] ?? json['following'],
+      ),
       isFollowing: json['isFollowing'] as bool? ?? false,
       isRequested: json['isRequested'] as bool? ?? false,
       isIncomingRequest: json['isIncomingRequest'] as bool? ?? false,
@@ -116,6 +125,9 @@ class User {
         'xp': xp,
         'level': level,
         'badges': badges,
+        'entriesCount': entriesCount,
+        'followersCount': followersCount,
+        'followingCount': followingCount,
         'createdAt': createdAt.toIso8601String(),
       };
 

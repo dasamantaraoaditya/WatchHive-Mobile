@@ -52,7 +52,8 @@ class WHEntryGridCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final normalizedType = (mediaType.toLowerCase() == 'tv' || mediaType == 'TV_SHOW') ? 'tv' : 'movie';
+    final isTv = mediaType.toLowerCase().contains('tv') || mediaType.toLowerCase().contains('episode');
+    final normalizedType = isTv ? 'tv' : 'movie';
     final shouldFetch = (initialPosterPath == null || initialPosterPath!.isEmpty) && tmdbId > 0;
 
     final detailsAsync = shouldFetch
@@ -106,12 +107,18 @@ class WHEntryGridCard extends ConsumerWidget {
                               ),
                             ),
                           )
-                        : Container(
-                            color: AppColors.surfaceElevated,
-                            child: const Center(
-                              child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
-                            ),
-                          ),
+                        : (detailsAsync != null && detailsAsync.isLoading)
+                            ? Shimmer.fromColors(
+                                baseColor: AppColors.surfaceElevated,
+                                highlightColor: AppColors.surfaceHighest,
+                                child: Container(color: AppColors.surfaceElevated),
+                              )
+                            : Container(
+                                color: AppColors.surfaceElevated,
+                                child: const Center(
+                                  child: Icon(Icons.movie_outlined, color: AppColors.textMuted, size: 36),
+                                ),
+                              ),
                   ),
 
                   // Dark gradient overlay for text readability

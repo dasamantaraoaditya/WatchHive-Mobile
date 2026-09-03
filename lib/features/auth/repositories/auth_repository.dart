@@ -71,6 +71,30 @@ class AuthRepository {
   Future<User> getMe() async {
     final response = await _api.get(ApiEndpoints.me);
     final data = response.data as Map<String, dynamic>;
-    return User.fromJson(data['user'] as Map<String, dynamic>);
+    final userJson = data.containsKey('user') ? data['user'] as Map<String, dynamic> : data;
+    var user = User.fromJson(userJson);
+
+    // /users/me backend endpoint hardcodes followers and following to 0.
+    // Fetch live follow stats to provide accurate counts.
+    if (user.id.isNotEmpty) {
+      try {
+        final statsRes = await _api.get(ApiEndpoints.followStats(user.id));
+        if (statsRes.data is Map<String, dynamic>) {
+          final s = statsRes.data as Map<String, dynamic>;
+          int parseInt(dynamic v) {
+            if (v == null) return 0;
+            if (v is num) return v.toInt();
+            if (v is String) return int.tryParse(v) ?? 0;
+            return 0;
+          }
+
+          user = user.copyWith(
+            followersCount: parseInt(s['followersCount'] ?? s['followers']),
+            followingCount: parseInt(s['followingCount'] ?? s['following']),
+          );
+        }
+      } catch (_) {}
+    }
+    return user;
   }
 }

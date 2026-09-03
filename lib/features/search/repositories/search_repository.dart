@@ -196,11 +196,32 @@ final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({
   final searchRepo = ref.read(searchRepositoryProvider);
   try {
     if (arg.mediaType == 'tv') {
-      return await searchRepo.getTvDetails(arg.tmdbId);
+      final res = await searchRepo.getTvDetails(arg.tmdbId);
+      if (res['poster_path'] != null) return res;
+      try {
+        return await searchRepo.getMovieDetails(arg.tmdbId);
+      } catch (_) {
+        return res;
+      }
     } else {
-      return await searchRepo.getMovieDetails(arg.tmdbId);
+      final res = await searchRepo.getMovieDetails(arg.tmdbId);
+      if (res['poster_path'] != null) return res;
+      try {
+        return await searchRepo.getTvDetails(arg.tmdbId);
+      } catch (_) {
+        return res;
+      }
     }
-  } catch (e) {
-    return null;
+  } catch (_) {
+    // Fallback: if initial type call failed, try the alternate media type
+    try {
+      if (arg.mediaType == 'tv') {
+        return await searchRepo.getMovieDetails(arg.tmdbId);
+      } else {
+        return await searchRepo.getTvDetails(arg.tmdbId);
+      }
+    } catch (_) {
+      return null;
+    }
   }
 });

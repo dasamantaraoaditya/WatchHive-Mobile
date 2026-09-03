@@ -70,11 +70,20 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       }
 
       final repo = ref.read(userRepositoryProvider);
-      final user = await repo.getUserProfile(widget.userId);
+      final results = await Future.wait([
+        repo.getUserProfile(widget.userId),
+        repo.getFollowStats(widget.userId),
+      ]);
+      final user = results[0] as User;
+      final stats = results[1] as ({int followersCount, int followingCount});
+      final userWithStats = user.copyWith(
+        followersCount: stats.followersCount > 0 ? stats.followersCount : user.followersCount,
+        followingCount: stats.followingCount > 0 ? stats.followingCount : user.followingCount,
+      );
 
       if (mounted) {
         setState(() {
-          _user = user;
+          _user = userWithStats;
           _isFollowing = user.isFollowing;
           _isRequested = user.isRequested;
           _isIncomingRequest = user.isIncomingRequest;
@@ -92,6 +101,20 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         });
       }
     }
+  }
+
+  Future<void> _refreshStats() async {
+    try {
+      final stats = await ref.read(userRepositoryProvider).getFollowStats(widget.userId);
+      if (_user != null && mounted) {
+        setState(() {
+          _user = _user!.copyWith(
+            followersCount: stats.followersCount,
+            followingCount: stats.followingCount,
+          );
+        });
+      }
+    } catch (_) {}
   }
 
   void _setupTabsAndLoadData() {
@@ -120,7 +143,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
       final results = await Future.wait([
         if (_user!.showWatchEntries)
-          entriesRepo.getEntries(userId: widget.userId, limit: 50)
+          entriesRepo.getEntries(userId: widget.userId, isWatching: false, limit: 50)
         else
           Future.value((entries: <Entry>[], pagination: null)),
         if (_user!.showCurrentlyWatching)
@@ -172,6 +195,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
     try {
       final repo = ref.read(userRepositoryProvider);
+      final currentUser = ref.read(authStateProvider).value?.user;
       if (origFollowing || origRequested) {
         await repo.unfollowUser(_user!.id);
         setState(() {
@@ -181,6 +205,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
             followersCount: _user!.followersCount > 0 ? _user!.followersCount - 1 : 0,
           );
         });
+        if (currentUser != null && origFollowing) {
+          ref.read(authStateProvider.notifier).updateUser(
+            currentUser.copyWith(
+              followingCount: currentUser.followingCount > 0 ? currentUser.followingCount - 1 : 0,
+            ),
+          );
+        }
         if (mounted) {
           WHAlert.showInfo(context, origRequested ? 'Follow request cancelled' : 'Unfollowed @${_user!.username}');
         }
@@ -195,6 +226,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
             _user = _user!.copyWith(followersCount: _user!.followersCount + 1);
           }
         });
+        if (currentUser != null && !isPrivate) {
+          ref.read(authStateProvider.notifier).updateUser(
+            currentUser.copyWith(
+              followingCount: currentUser.followingCount + 1,
+            ),
+          );
+        }
         if (mounted) {
           WHAlert.showSuccess(
             context,
@@ -206,6 +244,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       }
 
       _setupTabsAndLoadData();
+      _refreshStats();
     } catch (e) {
       setState(() {
         _isFollowing = origFollowing;
@@ -517,12 +556,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 child: _buildUserStatChip(
                   count: user.followersCount,
                   label: 'Followers',
-                  onTap: () => FollowListSheet.show(
-                    context,
-                    userId: user.id,
-                    title: 'Followers',
-                    isFollowers: true,
-                  ),
+                  onTap: () async {
+                    await FollowListSheet.show(
+                      context,
+                      userId: user.id,
+                      title: 'Followers',
+                      isFollowers: true,
+                    );
+                    _refreshStats();
+                  },
                 ),
               ),
               const SizedBox(width: 8),
@@ -530,12 +572,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 child: _buildUserStatChip(
                   count: user.followingCount,
                   label: 'Following',
-                  onTap: () => FollowListSheet.show(
-                    context,
-                    userId: user.id,
-                    title: 'Following',
-                    isFollowers: false,
-                  ),
+                  onTap: () async {
+                    await FollowListSheet.show(
+                      context,
+                      userId: user.id,
+                      title: 'Following',
+                      isFollowers: false,
+                    );
+                    _refreshStats();
+                  },
                 ),
               ),
             ],
@@ -794,13 +839,33 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       );
     }
 
-    return ListView.separated(
+    return GridView.builder(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        childAspectRatio: 0.63,
+      ),
       itemCount: _historyEntries.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (ctx, index) {
         final entry = _historyEntries[index];
-        return _buildEntryItem(entry);
+        final mediaType = entry.type.toLowerCase().contains('tv') ? 'tv' : 'movie';
+        return WHEntryGridCard(
+          tmdbId: entry.tmdbId,
+          title: entry.title,
+          initialPosterPath: entry.posterPath,
+          mediaType: entry.type,
+          mode: WHEntryCardMode.history,
+          rating: entry.rating,
+          watchedAt: entry.watchedAt,
+          tags: entry.tags,
+          onTap: () {
+            if (entry.tmdbId > 0) {
+              context.push('/details/$mediaType/${entry.tmdbId}');
+            }
+          },
+        );
       },
     );
   }
@@ -815,13 +880,33 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       );
     }
 
-    return ListView.separated(
+    return GridView.builder(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        childAspectRatio: 0.63,
+      ),
       itemCount: _watchingEntries.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (ctx, index) {
         final entry = _watchingEntries[index];
-        return _buildEntryItem(entry);
+        final mediaType = entry.type.toLowerCase().contains('tv') ? 'tv' : 'movie';
+        return WHEntryGridCard(
+          tmdbId: entry.tmdbId,
+          title: entry.title,
+          initialPosterPath: entry.posterPath,
+          mediaType: entry.type,
+          mode: WHEntryCardMode.history,
+          rating: entry.rating,
+          watchedAt: entry.watchedAt,
+          tags: entry.tags,
+          onTap: () {
+            if (entry.tmdbId > 0) {
+              context.push('/details/$mediaType/${entry.tmdbId}');
+            }
+          },
+        );
       },
     );
   }
@@ -863,119 +948,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           },
         );
       },
-    );
-  }
-
-  Widget _buildEntryItem(Entry entry) {
-    final mediaType = entry.type == 'TV_SHOW' ? 'tv' : 'movie';
-
-    return GestureDetector(
-      onTap: () {
-        if (entry.tmdbId > 0) {
-          context.push('/details/$mediaType/${entry.tmdbId}');
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: entry.posterPath != null
-                  ? Image.network(
-                      ApiEndpoints.tmdbPoster(entry.posterPath),
-                      width: 54,
-                      height: 80,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(width: 54, height: 80, color: AppColors.surfaceHighest),
-                    )
-                  : Container(
-                      width: 54,
-                      height: 80,
-                      color: AppColors.surfaceHighest,
-                      child: const Icon(Icons.movie_outlined, color: AppColors.textMuted),
-                    ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          entry.title,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (entry.rating != null && entry.rating! > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.star_rounded, size: 13, color: Colors.amber),
-                              const SizedBox(width: 2),
-                              Text(
-                                entry.rating!.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.amber,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        entry.typeLabel,
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textMuted),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '· ${DateFormat.yMMMd().format(entry.watchedAt)}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                      ),
-                    ],
-                  ),
-                  if (entry.review != null && entry.review!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      entry.review!,
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.3),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

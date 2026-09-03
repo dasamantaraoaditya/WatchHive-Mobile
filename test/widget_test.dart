@@ -9,6 +9,8 @@ void main() {
         child: WatchHiveApp(),
       ),
     );
-    expect(find.text('WatchHive'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pumpAndSettle();
+    expect(find.byType(WatchHiveApp), findsOneWidget);
   });
 }

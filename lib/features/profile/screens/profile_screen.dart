@@ -12,6 +12,9 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../../../shared/widgets/wh_brand_logo.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../entries/repositories/entries_repository.dart';
+import '../../entries/screens/add_entry_sheet.dart';
+import '../../entries/screens/entries_screen.dart';
+import '../../entries/widgets/wh_entry_grid_card.dart';
 import '../../entries/widgets/watchlist_tab.dart';
 import '../repositories/user_repository.dart';
 import '../widgets/follow_list_sheet.dart';
@@ -63,9 +66,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       _bioTextController.text = user.bio ?? '';
 
       final results = await Future.wait([
-        entriesRepo.getEntries(limit: 50),
+        entriesRepo.getEntries(isWatching: false, limit: 50),
         entriesRepo.getEntries(isWatching: true, limit: 50),
+        userRepo.getFollowStats(user.id),
       ]);
+
+      final followStats = results[2] as ({int followersCount, int followingCount});
+      final updatedUser = user.copyWith(
+        followersCount: followStats.followersCount,
+        followingCount: followStats.followingCount,
+      );
+      ref.read(authStateProvider.notifier).updateUser(updatedUser);
 
       if (mounted) {
         setState(() {
@@ -76,6 +87,56 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       }
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _refreshFollowStats(String userId) async {
+    try {
+      final stats = await ref.read(userRepositoryProvider).getFollowStats(userId);
+      final currentUser = ref.read(authStateProvider).value?.user;
+      if (currentUser != null && mounted) {
+        ref.read(authStateProvider.notifier).updateUser(
+          currentUser.copyWith(
+            followersCount: stats.followersCount,
+            followingCount: stats.followingCount,
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _deleteEntry(Entry entry) async {
+    final confirm = await WHAlert.confirm(
+      context,
+      title: entry.isWatching ? 'Delete Session' : 'Delete Watch Entry',
+      message: entry.isWatching
+          ? 'Are you sure you want to delete this currently watching session for "${entry.title}"?'
+          : 'Are you sure you want to delete your logged entry for "${entry.title}"? This action cannot be undone.',
+      confirmText: 'Delete',
+      severity: WHAlertSeverity.danger,
+      icon: Icons.delete_outline_rounded,
+    );
+    if (!confirm || !mounted) return;
+
+    try {
+      await ref.read(entriesRepositoryProvider).deleteEntry(entry.id);
+      try {
+        ref.read(entriesProvider(entry.isWatching).notifier).deleteEntry(entry.id);
+      } catch (_) {}
+      if (mounted) {
+        setState(() {
+          if (entry.isWatching) {
+            _watchingEntries.removeWhere((e) => e.id == entry.id);
+          } else {
+            _historyEntries.removeWhere((e) => e.id == entry.id);
+          }
+        });
+        WHAlert.showSuccess(context, 'Entry deleted');
+      }
+    } catch (e) {
+      if (mounted) {
+        WHAlert.showError(context, 'Failed to delete entry: $e');
+      }
     }
   }
 
@@ -546,12 +607,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                 child: _buildStatChip(
                   count: user.followersCount,
                   label: 'Followers',
-                  onTap: () => FollowListSheet.show(
-                    context,
-                    userId: user.id,
-                    title: 'Followers',
-                    isFollowers: true,
-                  ),
+                  onTap: () async {
+                    await FollowListSheet.show(
+                      context,
+                      userId: user.id,
+                      title: 'Followers',
+                      isFollowers: true,
+                    );
+                    _refreshFollowStats(user.id);
+                  },
                 ),
               ),
               const SizedBox(width: 8),
@@ -559,12 +623,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                 child: _buildStatChip(
                   count: user.followingCount,
                   label: 'Following',
-                  onTap: () => FollowListSheet.show(
-                    context,
-                    userId: user.id,
-                    title: 'Following',
-                    isFollowers: false,
-                  ),
+                  onTap: () async {
+                    await FollowListSheet.show(
+                      context,
+                      userId: user.id,
+                      title: 'Following',
+                      isFollowers: false,
+                    );
+                    _refreshFollowStats(user.id);
+                  },
                 ),
               ),
             ],
@@ -689,7 +756,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
+                  color: AppColors.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.movie_outlined, size: 30, color: AppColors.primary),
@@ -719,13 +786,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
     return RefreshIndicator(
       onRefresh: _loadProfileData,
       color: AppColors.primary,
-      child: ListView.separated(
+      child: GridView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 14,
+          crossAxisSpacing: 14,
+          childAspectRatio: 0.63,
+        ),
         itemCount: _historyEntries.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (ctx, index) {
           final entry = _historyEntries[index];
-          return _buildEntryItem(entry);
+          final mediaType = entry.type.toLowerCase().contains('tv') ? 'tv' : 'movie';
+          return WHEntryGridCard(
+            tmdbId: entry.tmdbId,
+            title: entry.title,
+            initialPosterPath: entry.posterPath,
+            mediaType: entry.type,
+            mode: WHEntryCardMode.history,
+            rating: entry.rating,
+            watchedAt: entry.watchedAt,
+            tags: entry.tags,
+            onTap: () {
+              if (entry.tmdbId > 0) {
+                context.push('/details/$mediaType/${entry.tmdbId}');
+              }
+            },
+            onEdit: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => AddEntrySheet(
+                  editEntry: entry,
+                  onSuccess: _loadProfileData,
+                ),
+              );
+            },
+            onDelete: () => _deleteEntry(entry),
+          );
         },
       ),
     );
@@ -743,7 +843,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
+                  color: AppColors.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.visibility_outlined, size: 30, color: AppColors.primary),
@@ -773,149 +873,59 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
     return RefreshIndicator(
       onRefresh: _loadProfileData,
       color: AppColors.primary,
-      child: ListView.separated(
+      child: GridView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 14,
+          crossAxisSpacing: 14,
+          childAspectRatio: 0.63,
+        ),
         itemCount: _watchingEntries.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (ctx, index) {
           final entry = _watchingEntries[index];
-          return _buildEntryItem(entry);
+          final mediaType = entry.type.toLowerCase().contains('tv') ? 'tv' : 'movie';
+          return WHEntryGridCard(
+            tmdbId: entry.tmdbId,
+            title: entry.title,
+            initialPosterPath: entry.posterPath,
+            mediaType: entry.type,
+            mode: WHEntryCardMode.watching,
+            rating: entry.rating,
+            watchedAt: entry.watchedAt,
+            tags: entry.tags,
+            onTap: () {
+              if (entry.tmdbId > 0) {
+                context.push('/details/$mediaType/${entry.tmdbId}');
+              }
+            },
+            onMarkWatched: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => AddEntrySheet(
+                  editEntry: entry,
+                  prefillIsWatching: false,
+                  onSuccess: _loadProfileData,
+                ),
+              );
+            },
+            onEdit: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => AddEntrySheet(
+                  editEntry: entry,
+                  onSuccess: _loadProfileData,
+                ),
+              );
+            },
+            onDelete: () => _deleteEntry(entry),
+          );
         },
-      ),
-    );
-  }
-
-  Widget _buildEntryItem(Entry entry) {
-    final mediaType = entry.type == 'TV_SHOW' ? 'tv' : 'movie';
-
-    return GestureDetector(
-      onTap: () {
-        if (entry.tmdbId > 0) {
-          context.push('/details/$mediaType/${entry.tmdbId}');
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Poster
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: entry.posterPath != null
-                  ? Image.network(
-                      ApiEndpoints.tmdbPoster(entry.posterPath),
-                      width: 54,
-                      height: 80,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(width: 54, height: 80, color: AppColors.surfaceHighest),
-                    )
-                  : Container(
-                      width: 54,
-                      height: 80,
-                      color: AppColors.surfaceHighest,
-                      child: const Icon(Icons.movie_outlined, color: AppColors.textMuted),
-                    ),
-            ),
-            const SizedBox(width: 14),
-
-            // Details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          entry.title,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (entry.rating != null && entry.rating! > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.star_rounded, size: 13, color: Colors.amber),
-                              const SizedBox(width: 2),
-                              Text(
-                                entry.rating!.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.amber,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        entry.typeLabel,
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textMuted),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '· ${DateFormat.yMMMd().format(entry.watchedAt)}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                      ),
-                    ],
-                  ),
-                  if (entry.review != null && entry.review!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      entry.review!,
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.3),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  if (entry.tags.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 4,
-                      children: entry.tags.take(3).map((tag) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceHighest,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '#$tag',
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

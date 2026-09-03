@@ -14,12 +14,25 @@ class UserRepository {
 
   UserRepository(this._api);
 
-  /// Fetch authenticated current user profile
+  /// Fetch authenticated current user profile with live follower/following counts
   Future<User> getCurrentUser() async {
     final response = await _api.get(ApiEndpoints.me);
     final data = response.data as Map<String, dynamic>;
     final userJson = data.containsKey('user') ? data['user'] as Map<String, dynamic> : data;
-    return User.fromJson(userJson);
+    var user = User.fromJson(userJson);
+
+    // /users/me backend endpoint returns placeholder followers: 0, following: 0.
+    // Fetch live follow stats (same as web app) to ensure accurate counts.
+    if (user.id.isNotEmpty) {
+      try {
+        final stats = await getFollowStats(user.id);
+        user = user.copyWith(
+          followersCount: stats.followersCount,
+          followingCount: stats.followingCount,
+        );
+      } catch (_) {}
+    }
+    return user;
   }
 
   /// Fetch public/follower profile for another user
@@ -27,7 +40,21 @@ class UserRepository {
     final response = await _api.get(ApiEndpoints.user(userId));
     final data = response.data as Map<String, dynamic>;
     final userJson = data.containsKey('user') ? data['user'] as Map<String, dynamic> : data;
-    return User.fromJson(userJson);
+    var user = User.fromJson(userJson);
+
+    // If counts are 0, also query /follows/stats/:userId to guarantee accurate numbers
+    if (user.followersCount == 0 && user.followingCount == 0) {
+      try {
+        final stats = await getFollowStats(userId);
+        if (stats.followersCount > 0 || stats.followingCount > 0) {
+          user = user.copyWith(
+            followersCount: stats.followersCount,
+            followingCount: stats.followingCount,
+          );
+        }
+      } catch (_) {}
+    }
+    return user;
   }
 
   /// Update user profile data & privacy preferences with multi-endpoint fallback
@@ -76,38 +103,144 @@ class UserRepository {
     return User.fromJson(userJson);
   }
 
+  static final Map<String, String?> _tmdbPosterCache = {};
+
+  /// Fetch TMDB poster for movie or TV show
+  Future<String?> getTmdbPoster(int tmdbId, String type) async {
+    final key = '${type.toLowerCase()}_$tmdbId';
+    if (_tmdbPosterCache.containsKey(key)) {
+      return _tmdbPosterCache[key];
+    }
+    try {
+      final endpoint = type.toUpperCase() == 'TV_SHOW' || type.toLowerCase() == 'tv' ? 'tv' : 'movie';
+      final res = await _api.get('/tmdb/$endpoint/$tmdbId');
+      final data = res.data is Map<String, dynamic> ? res.data as Map<String, dynamic> : null;
+      final posterPath = data?['poster_path'] as String?;
+      _tmdbPosterCache[key] = posterPath;
+      return posterPath;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Compare taste and watch history with another user
   Future<Map<String, dynamic>> compareWithUser(String userId) async {
-    dynamic resData;
-    DioException? lastError;
-
-    final attempts = [
-      () => _api.get(ApiEndpoints.compareEntries(userId)),
-      () => _api.get('/entries/compare', queryParameters: {'userId': userId}),
-      () => _api.get('/users/$userId/compare'),
-    ];
-
-    for (final attempt in attempts) {
-      try {
-        final response = await attempt();
-        resData = response.data;
-        break;
-      } on DioException catch (e) {
-        lastError = e;
-        if (e.response?.statusCode == 404 || e.response?.statusCode == 405) {
-          continue;
-        }
-        final errorMsg = _extractErrorMessage(e);
-        throw Exception(errorMsg);
+    try {
+      final response = await _api.get(ApiEndpoints.compareEntries(userId));
+      final resData = response.data;
+      if (resData is Map<String, dynamic>) {
+        return resData;
       }
+    } on DioException catch (e) {
+      // 403 Forbidden is a privacy restriction from backend (user hidden entries or followers only)
+      if (e.response?.statusCode == 403) {
+        final msg = _extractErrorMessage(e);
+        throw Exception('PRIVACY_RESTRICTED:$msg');
+      }
+
+      // If backend compare endpoint fails with 500 or 404, run client-side fallback
+      try {
+        final responses = await Future.wait([
+          _api.get('/entries', queryParameters: {'userId': userId, 'limit': 100}),
+          _api.get('/entries', queryParameters: {'limit': 100}),
+        ]);
+
+        final targetEntriesRes = responses[0].data as Map<String, dynamic>? ?? {};
+        final userEntriesRes = responses[1].data as Map<String, dynamic>? ?? {};
+
+        final userBEntries = (targetEntriesRes['entries'] as List<dynamic>?) ?? [];
+        final userAEntries = (userEntriesRes['entries'] as List<dynamic>?) ?? [];
+
+        final userAMap = <int, Map<String, dynamic>>{};
+        for (final item in userAEntries) {
+          if (item is Map<String, dynamic> && item['tmdbId'] != null) {
+            userAMap[(item['tmdbId'] as num).toInt()] = item;
+          }
+        }
+
+        final userBMap = <int, Map<String, dynamic>>{};
+        for (final item in userBEntries) {
+          if (item is Map<String, dynamic> && item['tmdbId'] != null) {
+            userBMap[(item['tmdbId'] as num).toInt()] = item;
+          }
+        }
+
+        final allTmdbIds = {...userAMap.keys, ...userBMap.keys}.toList();
+        final commonItems = <Map<String, dynamic>>[];
+        final userAOnlyItems = <Map<String, dynamic>>[];
+        final userBOnlyItems = <Map<String, dynamic>>[];
+
+        for (final tmdbId in allTmdbIds) {
+          final entryA = userAMap[tmdbId];
+          final entryB = userBMap[tmdbId];
+
+          if (entryA != null && entryB != null) {
+            commonItems.add({
+              'tmdbId': tmdbId,
+              'title': entryA['title'] ?? entryB['title'] ?? 'Title #$tmdbId',
+              'type': entryA['type'] ?? entryB['type'] ?? 'MOVIE',
+              'posterPath': entryA['posterPath'] ?? entryB['posterPath'],
+              'entryA': {
+                'id': entryA['id'],
+                'rating': entryA['rating'],
+                'review': entryA['review'],
+                'watchedAt': entryA['watchedAt'],
+              },
+              'entryB': {
+                'id': entryB['id'],
+                'rating': entryB['rating'],
+                'review': entryB['review'],
+                'watchedAt': entryB['watchedAt'],
+              },
+            });
+          } else if (entryA != null) {
+            userAOnlyItems.add({
+              'tmdbId': tmdbId,
+              'title': entryA['title'] ?? 'Title #$tmdbId',
+              'type': entryA['type'] ?? 'MOVIE',
+              'rating': entryA['rating'],
+              'watchedAt': entryA['watchedAt'],
+              'posterPath': entryA['posterPath'],
+            });
+          } else if (entryB != null) {
+            userBOnlyItems.add({
+              'tmdbId': tmdbId,
+              'title': entryB['title'] ?? 'Title #$tmdbId',
+              'type': entryB['type'] ?? 'MOVIE',
+              'rating': entryB['rating'],
+              'watchedAt': entryB['watchedAt'],
+              'posterPath': entryB['posterPath'],
+            });
+          }
+        }
+
+        final matchPercentage = allTmdbIds.isNotEmpty
+            ? ((commonItems.length / allTmdbIds.length) * 100).round()
+            : 0;
+
+        return {
+          'userA': {'id': 'me', 'username': 'you', 'displayName': 'You'},
+          'userB': {'id': userId, 'username': 'friend', 'displayName': 'Friend'},
+          'stats': {
+            'matchPercentage': matchPercentage,
+            'totalCommon': commonItems.length,
+            'totalUserAOnly': userAOnlyItems.length,
+            'totalUserBOnly': userBOnlyItems.length,
+            'totalUnique': allTmdbIds.length,
+          },
+          'commonItems': commonItems,
+          'userAOnlyItems': userAOnlyItems,
+          'userBOnlyItems': userBOnlyItems,
+        };
+      } catch (_) {
+        throw Exception(_extractErrorMessage(e));
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to compare watch histories: $e');
     }
 
-    if (resData == null) {
-      final errorMsg = lastError != null ? _extractErrorMessage(lastError) : 'Failed to compare taste data';
-      throw Exception(errorMsg);
-    }
-
-    return resData is Map<String, dynamic> ? resData : <String, dynamic>{};
+    return <String, dynamic>{};
   }
 
   static String _extractErrorMessage(DioException e) {
@@ -191,6 +324,37 @@ class UserRepository {
           : item;
       return User.fromJson(userJson as Map<String, dynamic>);
     }).toList();
+  }
+
+  /// Fetch follow statistics (followersCount, followingCount) for any user
+  Future<({int followersCount, int followingCount})> getFollowStats(String userId) async {
+    try {
+      final response = await _api.get(ApiEndpoints.followStats(userId));
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        int parseInt(dynamic v) {
+          if (v == null) return 0;
+          if (v is num) return v.toInt();
+          if (v is String) return int.tryParse(v) ?? 0;
+          return 0;
+        }
+
+        final followers = parseInt(data['followersCount'] ?? data['followers']);
+        final following = parseInt(data['followingCount'] ?? data['following']);
+        return (followersCount: followers, followingCount: following);
+      }
+    } catch (_) {}
+
+    // Fallback: fetch user details which calculates _count in parallel
+    try {
+      final response = await _api.get(ApiEndpoints.user(userId));
+      final data = response.data as Map<String, dynamic>;
+      final userJson = data.containsKey('user') ? data['user'] as Map<String, dynamic> : data;
+      final u = User.fromJson(userJson);
+      return (followersCount: u.followersCount, followingCount: u.followingCount);
+    } catch (_) {}
+
+    return (followersCount: 0, followingCount: 0);
   }
 
 
