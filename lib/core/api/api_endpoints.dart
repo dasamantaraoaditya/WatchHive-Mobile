@@ -28,6 +28,15 @@ class ApiEndpoints {
     return 'https://image.tmdb.org/t/p/w780$cleanPath';
   }
 
+  static String resolveAvatarUrl(String? path) {
+    if (path == null || path.isEmpty) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    final cleanBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final rootOrigin = cleanBase.contains('/api/v1') ? cleanBase.replaceAll('/api/v1', '') : cleanBase;
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    return '$rootOrigin$cleanPath';
+  }
+
   // Auth
   static const String login = '/auth/login';
   static const String register = '/auth/register';

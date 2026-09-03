@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../profile/widgets/profile_stats_view.dart';
 import '../repositories/mindlens_repository.dart';
 import '../widgets/watch_frequency_chart.dart';
@@ -1018,7 +1019,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                                   radius: 14,
                                   backgroundColor: AppColors.primary,
                                   backgroundImage: (avatar != null && avatar.isNotEmpty)
-                                      ? CachedNetworkImageProvider(avatar)
+                                      ? CachedNetworkImageProvider(ApiEndpoints.resolveAvatarUrl(avatar))
                                       : null,
                                   child: (avatar == null || avatar.isEmpty)
                                       ? Text(

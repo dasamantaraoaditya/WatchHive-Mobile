@@ -76,10 +76,11 @@ class WHAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (_isValidUrl(imageUrl)) {
+    final resolvedUrl = ApiEndpoints.resolveAvatarUrl(imageUrl);
+    if (resolvedUrl.isNotEmpty) {
       return CircleAvatar(
         radius: radius,
-        backgroundImage: CachedNetworkImageProvider(imageUrl!),
+        backgroundImage: CachedNetworkImageProvider(resolvedUrl),
         backgroundColor: AppColors.surfaceElevated,
       );
     }
