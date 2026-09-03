@@ -54,18 +54,45 @@ class WatchlistRepository {
     });
   }
 
-  Future<void> removeFromWatchlist(String itemId) async {
-    await _api.delete('/lists/items/$itemId');
-  }
+  Future<void> removeFromWatchlist(dynamic target, {String? listId}) async {
+    int? tmdbId;
+    String? itemId;
 
-  Future<void> removeFromWatchlistByTmdbId(int tmdbId) async {
+    if (target is int) {
+      tmdbId = target;
+    } else if (target is String) {
+      final parsed = int.tryParse(target);
+      if (parsed != null) {
+        tmdbId = parsed;
+      } else {
+        itemId = target;
+      }
+    }
+
     final watchlistData = await getWatchlist();
-    final listId = watchlistData['id'] as String;
-    await _api.delete('/lists/$listId/items/$tmdbId');
+    final effectiveListId = listId ?? (watchlistData['id'] as String);
+
+    if (tmdbId == null && itemId != null) {
+      final items = watchlistData['items'] as List<dynamic>? ?? [];
+      for (final it in items) {
+        if (it is Map && it['id']?.toString() == itemId) {
+          tmdbId = (it['tmdbId'] as num?)?.toInt() ?? int.tryParse(it['tmdbId']?.toString() ?? '');
+          break;
+        }
+      }
+    }
+
+    if (tmdbId != null) {
+      await _api.delete('/lists/$effectiveListId/items/$tmdbId');
+    }
   }
 
-  Future<void> removeWatchlistItemById(String itemId) async {
-    await _api.delete('/lists/items/$itemId');
+  Future<void> removeFromWatchlistByTmdbId(int tmdbId, [String? listId]) async {
+    await removeFromWatchlist(tmdbId, listId: listId);
+  }
+
+  Future<void> removeWatchlistItemById(String itemId, [String? listId]) async {
+    await removeFromWatchlist(itemId, listId: listId);
   }
 }
 

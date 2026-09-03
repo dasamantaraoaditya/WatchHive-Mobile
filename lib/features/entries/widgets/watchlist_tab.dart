@@ -10,6 +10,8 @@ import '../screens/entries_screen.dart';
 import 'wh_entry_grid_card.dart';
 
 
+import '../../search/repositories/search_repository.dart';
+
 class WatchlistTab extends ConsumerStatefulWidget {
   const WatchlistTab({super.key});
 
@@ -18,6 +20,7 @@ class WatchlistTab extends ConsumerStatefulWidget {
 }
 
 class _WatchlistTabState extends ConsumerState<WatchlistTab> {
+  String? _watchlistId;
   List<dynamic> _items = [];
   bool _isLoading = true;
   String? _error;
@@ -37,10 +40,13 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       final repo = ref.read(watchlistRepositoryProvider);
       final data = await repo.getWatchlist();
       if (mounted) {
+        final items = (data['items'] as List<dynamic>?) ?? [];
         setState(() {
-          _items = (data['items'] as List<dynamic>?) ?? [];
+          _watchlistId = data['id'] as String?;
+          _items = items;
           _isLoading = false;
         });
+        _enrichItems(items);
       }
     } catch (e) {
       if (mounted) {
@@ -52,11 +58,51 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     }
   }
 
-  Future<void> _removeItem(String itemId, String title) async {
+  Future<void> _enrichItems(List<dynamic> rawItems) async {
+    final searchRepo = ref.read(searchRepositoryProvider);
+    final updated = List<Map<String, dynamic>>.from(rawItems.map((e) => Map<String, dynamic>.from(e as Map)));
+    bool anyChanged = false;
+
+    for (int i = 0; i < updated.length; i++) {
+      final item = updated[i];
+      final currentTitle = item['title'] as String?;
+      final currentPoster = item['posterPath'] as String?;
+      final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
+      final isTv = (item['mediaType'] as String? ?? 'movie').toLowerCase().contains('tv');
+
+      if ((currentTitle == null || currentTitle.isEmpty || currentTitle == 'Untitled') && tmdbId > 0) {
+        try {
+          final details = isTv
+              ? await searchRepo.getTvDetails(tmdbId)
+              : await searchRepo.getMovieDetails(tmdbId);
+          final realTitle = (details['title'] as String?) ?? (details['name'] as String?);
+          final realPoster = details['poster_path'] as String?;
+
+          if (realTitle != null && realTitle.isNotEmpty) {
+            item['title'] = realTitle;
+            anyChanged = true;
+          }
+          if (realPoster != null && realPoster.isNotEmpty && (currentPoster == null || currentPoster.isEmpty)) {
+            item['posterPath'] = realPoster;
+            anyChanged = true;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (anyChanged && mounted) {
+      setState(() {
+        _items = updated;
+      });
+    }
+  }
+
+  Future<void> _removeItem({required int tmdbId, required String title, String? itemId}) async {
+    final cleanTitle = title.trim().isNotEmpty && title != 'Untitled' ? title : 'this title';
     final confirm = await WHAlert.confirm(
       context,
-      title: 'Remove from Watchlist',
-      message: 'Are you sure you want to remove "$title" from your watchlist?',
+      title: 'Remove "$cleanTitle"?',
+      message: 'Are you sure you want to remove "$cleanTitle" from your watchlist?',
       confirmText: 'Remove',
       severity: WHAlertSeverity.danger,
       icon: Icons.bookmark_remove_rounded,
@@ -65,23 +111,28 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     if (!confirm) return;
 
     try {
-      await ref.read(watchlistRepositoryProvider).removeFromWatchlist(itemId);
-      setState(() {
-        _items.removeWhere((item) => item['id'] == itemId);
-      });
+      await ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+        tmdbId > 0 ? tmdbId : itemId,
+        listId: _watchlistId,
+      );
       if (mounted) {
-        WHAlert.showSuccess(context, 'Removed "$title" from Watchlist');
+        setState(() {
+          _items.removeWhere((item) =>
+              (tmdbId > 0 && (item['tmdbId'] as num?)?.toInt() == tmdbId) ||
+              (itemId != null && item['id'] == itemId));
+        });
+        WHAlert.showSuccess(context, 'Removed "$cleanTitle" from Watchlist');
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to remove item: $e');
+        WHAlert.showError(context, 'Failed to remove "$cleanTitle": $e');
       }
     }
   }
 
   void _logWatchlistItem(Map<String, dynamic> item) {
     final itemId = item['id'] as String?;
-    final tmdbId = (item['tmdbId'] as num?)?.toInt();
+    final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
     final mediaType = item['mediaType'] == 'tv' ? 'TV_SHOW' : 'MOVIE';
     final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
     final suggestedByUserId = item['suggestedByUserId'] as String? ?? suggestedByUser?['id'] as String?;
@@ -91,15 +142,20 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => AddEntrySheet(
-        prefillTmdbId: tmdbId,
+        prefillTmdbId: tmdbId > 0 ? tmdbId : null,
         prefillType: mediaType,
         prefillSuggestedByUserId: suggestedByUserId,
         onSuccess: () {
-          if (itemId != null) {
-            final title = item['title'] as String? ?? 'this title';
-            ref.read(watchlistRepositoryProvider).removeFromWatchlist(itemId);
+          final title = item['title'] as String? ?? 'this title';
+          ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+            tmdbId > 0 ? tmdbId : itemId,
+            listId: _watchlistId,
+          );
+          if (mounted) {
             setState(() {
-              _items.removeWhere((item) => item['id'] == itemId);
+              _items.removeWhere((it) =>
+                  (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
+                  (itemId != null && it['id'] == itemId));
             });
             WHAlert.showSuccess(context, 'Logged and removed "$title" from Watchlist! ✨');
           }
@@ -139,14 +195,16 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
 
       ref.read(entriesProvider(true).notifier).addEntry(entry);
 
-      if (itemId != null) {
-        await ref.read(watchlistRepositoryProvider).removeFromWatchlist(itemId);
-        setState(() {
-          _items.removeWhere((it) => it['id'] == itemId);
-        });
-      }
-
+      await ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+        tmdbId > 0 ? tmdbId : itemId,
+        listId: _watchlistId,
+      );
       if (mounted) {
+        setState(() {
+          _items.removeWhere((it) =>
+              (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
+              (itemId != null && it['id'] == itemId));
+        });
         WHAlert.showSuccess(context, 'Moved "$title" to Currently Watching! 🎬');
       }
     } catch (e) {
@@ -222,6 +280,10 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
           final mediaType = item['mediaType'] == 'tv' ? 'tv' : 'movie';
           final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
           final suggestorUsername = suggestedByUser?['username'] as String? ?? item['suggestedByUsername'] as String?;
+          final addedAtRaw = item['addedAt'] ?? item['createdAt'] ?? item['updatedAt'];
+          final addedAt = addedAtRaw is DateTime
+              ? addedAtRaw
+              : (addedAtRaw is String && addedAtRaw.isNotEmpty ? DateTime.tryParse(addedAtRaw) : null);
 
           return WHEntryGridCard(
             tmdbId: tmdbId,
@@ -229,13 +291,23 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
             initialPosterPath: posterPath,
             mediaType: mediaType,
             mode: WHEntryCardMode.watchlist,
+            addedAt: addedAt,
             suggestedByUsername: suggestorUsername,
             onTap: () {
               if (tmdbId > 0) context.push('/details/$mediaType/$tmdbId');
             },
             onMoveToWatching: () => _addToCurrentlyWatching(item),
             onMarkWatched: () => _logWatchlistItem(item),
-            onDelete: () => _removeItem(itemId, title),
+            onDeleteWithTitle: (resolvedTitle) => _removeItem(
+              tmdbId: tmdbId,
+              title: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+              itemId: itemId,
+            ),
+            onDelete: () => _removeItem(
+              tmdbId: tmdbId,
+              title: title,
+              itemId: itemId,
+            ),
           );
 
         },

@@ -9,11 +9,13 @@ import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../entries/repositories/entries_repository.dart';
+import '../../entries/repositories/watchlist_repository.dart';
 import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../entries/widgets/wh_entry_grid_card.dart';
 import '../repositories/user_repository.dart';
 import '../widgets/follow_list_sheet.dart';
 import '../widgets/user_rankings_tab.dart';
+import 'edit_profile_dialog.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -22,6 +24,12 @@ class UserProfileScreen extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<UserProfileScreen> createState() => _UserProfileScreenState();
+}
+
+class _ProfileTabConfig {
+  final String label;
+  final Widget view;
+  const _ProfileTabConfig({required this.label, required this.view});
 }
 
 class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with SingleTickerProviderStateMixin {
@@ -62,13 +70,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     });
 
     try {
-      final currentUserId = ref.read(authStateProvider).value?.user?.id;
-      if (currentUserId == widget.userId) {
-        // Navigating to own profile
-        if (mounted) context.go('/profile');
-        return;
-      }
-
       final repo = ref.read(userRepositoryProvider);
       final results = await Future.wait([
         repo.getUserProfile(widget.userId),
@@ -103,6 +104,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     }
   }
 
+  bool get _isMe {
+    final currentUserId = ref.read(authStateProvider).value?.user?.id;
+    return currentUserId != null && currentUserId == widget.userId;
+  }
+
   Future<void> _refreshStats() async {
     try {
       final stats = await ref.read(userRepositoryProvider).getFollowStats(widget.userId);
@@ -117,19 +123,55 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     } catch (_) {}
   }
 
+  List<_ProfileTabConfig> _getVisibleTabs() {
+    if (_user == null) return [];
+    final list = <_ProfileTabConfig>[];
+    if (_user!.showWatchEntries) {
+      list.add(_ProfileTabConfig(
+        label: 'Watches (${_historyEntries.length})',
+        view: _buildUserHistoryTab(),
+      ));
+    }
+    if (_user!.showCurrentlyWatching) {
+      list.add(_ProfileTabConfig(
+        label: 'Watching (${_watchingEntries.length})',
+        view: _buildUserWatchingTab(),
+      ));
+    }
+    if (_user!.showWatchlist) {
+      list.add(_ProfileTabConfig(
+        label: 'Watchlist (${_watchlistItems.length})',
+        view: _buildUserWatchlistTab(),
+      ));
+    }
+    if (_user!.showRankings) {
+      list.add(_ProfileTabConfig(
+        label: 'Rankings',
+        view: UserRankingsTab(userId: _user!.id),
+      ));
+    }
+    return list;
+  }
+
   void _setupTabsAndLoadData() {
     if (_user == null) return;
     final canView = _canViewContent();
 
     if (canView) {
+      final tabs = _getVisibleTabs();
       _tabController?.dispose();
-      _tabController = TabController(length: 4, vsync: this);
+      if (tabs.isNotEmpty) {
+        _tabController = TabController(length: tabs.length, vsync: this);
+      } else {
+        _tabController = null;
+      }
       _loadTabContents();
     }
   }
 
   bool _canViewContent() {
     if (_user == null) return false;
+    if (_isMe) return true; // Owner can preview what their settings allow
     if (_user!.privacyLevel == 'PUBLIC') return true;
     if (_user!.privacyLevel == 'FOLLOWERS_ONLY' && _isFollowing) return true;
     return false;
@@ -341,6 +383,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     }
 
     final canView = _canViewContent();
+    final visibleTabs = _getVisibleTabs();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -352,7 +395,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
               pinned: true,
               backgroundColor: AppColors.background,
               title: Text(
-                _user!.name,
+                _isMe ? 'My Public Profile' : _user!.name,
                 style: const TextStyle(
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.w800,
@@ -360,14 +403,67 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                   color: AppColors.textPrimary,
                 ),
               ),
+              actions: [
+                if (_isMe)
+                  IconButton(
+                    icon: const Icon(Icons.tune_rounded, color: AppColors.primaryDark),
+                    tooltip: 'Adjust Privacy Settings',
+                    onPressed: () {
+                      EditProfileDialog.show(
+                        context,
+                        user: _user!,
+                        onSaved: _fetchProfile,
+                      );
+                    },
+                  ),
+              ],
             ),
+            if (_isMe)
+              SliverToBoxAdapter(
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.remove_red_eye_outlined, size: 20, color: AppColors.primaryDark),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Profile Preview Mode',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'This is how other users view your profile based on your privacy permissions.',
+                              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: _buildUserHeroCard(_user!),
               ),
             ),
-            if (canView && _tabController != null)
+            if (canView && visibleTabs.isNotEmpty && _tabController != null)
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _StickyTabBarDelegate(
@@ -388,27 +484,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
-                    tabs: const [
-                      Tab(text: 'Watch History'),
-                      Tab(text: 'Watching'),
-                      Tab(text: 'Watchlist'),
-                      Tab(text: 'Rankings'),
-                    ],
+                    tabs: visibleTabs.map((t) => Tab(text: t.label)).toList(),
                   ),
                 ),
               ),
           ];
         },
-        body: canView && _tabController != null
-            ? TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildUserHistoryTab(),
-                  _buildUserWatchingTab(),
-                  _buildUserWatchlistTab(),
-                  UserRankingsTab(userId: _user!.id),
-                ],
-              )
+        body: canView
+            ? (visibleTabs.isNotEmpty && _tabController != null
+                ? TabBarView(
+                    controller: _tabController,
+                    children: visibleTabs.map((t) => t.view).toList(),
+                  )
+                : _buildNoPublicSectionsView())
             : _buildPrivateLockView(_user!),
       ),
     );
@@ -638,88 +726,180 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
             const SizedBox(height: 12),
           ],
 
-          // Action Buttons: Follow + Compare + Suggest
-          Row(
-            children: [
-              // Follow / Following / Requested Button
-              Expanded(
-                flex: 3,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isFollowing
-                        ? AppColors.surfaceHighest
-                        : _isRequested
-                            ? Colors.amber.shade100
-                            : AppColors.primary,
-                    foregroundColor: _isFollowing
-                        ? AppColors.textPrimary
-                        : _isRequested
-                            ? Colors.amber.shade900
-                            : Colors.black,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: _isActionLoading ? null : _handleFollowToggle,
-                  icon: Icon(
-                    _isFollowing
-                        ? Icons.person_remove_outlined
-                        : _isRequested
-                            ? Icons.hourglass_top_rounded
-                            : Icons.person_add_rounded,
-                    size: 16,
-                  ),
-                  label: Text(
-                    _isFollowing
-                        ? 'Following'
-                        : _isRequested
-                            ? 'Requested'
-                            : 'Follow',
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
+          // Action Buttons: Follow + Compare + Suggest (or Adjust Privacy if own profile)
+          if (_isMe)
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () {
+                      EditProfileDialog.show(
+                        context,
+                        user: user,
+                        onSaved: _fetchProfile,
+                      );
+                    },
+                    icon: const Icon(Icons.tune_rounded, size: 16),
+                    label: const Text(
+                      'Adjust Privacy & Visible Tabs',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-
-              // Compare Taste Shortcut
-              IconButton.filledTonal(
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.primary.withOpacity(0.12),
-                  foregroundColor: AppColors.primaryDark,
-                  padding: const EdgeInsets.all(12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ],
+            )
+          else
+            Row(
+              children: [
+                // Follow / Following / Requested Button
+                Expanded(
+                  flex: 3,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isFollowing
+                          ? AppColors.surfaceHighest
+                          : _isRequested
+                              ? Colors.amber.shade100
+                              : AppColors.primary,
+                      foregroundColor: _isFollowing
+                          ? AppColors.textPrimary
+                          : _isRequested
+                              ? Colors.amber.shade900
+                              : Colors.black,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: _isActionLoading ? null : _handleFollowToggle,
+                    icon: Icon(
+                      _isFollowing
+                          ? Icons.person_remove_outlined
+                          : _isRequested
+                              ? Icons.hourglass_top_rounded
+                              : Icons.person_add_rounded,
+                      size: 16,
+                    ),
+                    label: Text(
+                      _isFollowing
+                          ? 'Following'
+                          : _isRequested
+                              ? 'Requested'
+                              : 'Follow',
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
                 ),
-                tooltip: 'Compare Taste',
-                onPressed: () => context.push('/compare/${user.id}', extra: user),
-                icon: const Icon(Icons.compare_arrows_rounded, size: 20),
-              ),
-              const SizedBox(width: 8),
+                const SizedBox(width: 8),
 
-              // Suggest Movie Modal
-              IconButton.filledTonal(
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.primary.withOpacity(0.12),
-                  foregroundColor: AppColors.primaryDark,
-                  padding: const EdgeInsets.all(12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                // Compare Taste Shortcut
+                IconButton.filledTonal(
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.primary.withOpacity(0.12),
+                    foregroundColor: AppColors.primaryDark,
+                    padding: const EdgeInsets.all(12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  tooltip: 'Compare Taste',
+                  onPressed: () => context.push('/compare/${user.id}', extra: user),
+                  icon: const Icon(Icons.compare_arrows_rounded, size: 20),
                 ),
-                tooltip: 'Suggest a Movie',
+                const SizedBox(width: 8),
+
+                // Suggest Movie Modal
+                IconButton.filledTonal(
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.primary.withOpacity(0.12),
+                    foregroundColor: AppColors.primaryDark,
+                    padding: const EdgeInsets.all(12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  tooltip: 'Suggest a Movie',
+                  onPressed: () {
+                    SuggestMovieModal.show(
+                      context,
+                      initialToUserId: user.id,
+                      initialToUserName: user.username,
+                    );
+                  },
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoPublicSectionsView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceHighest,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.visibility_off_outlined, size: 30, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              _isMe ? 'No Public Sections Enabled' : 'No Public Activity',
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _isMe
+                  ? 'You have disabled all individual tabs (Watches, Watching, Watchlist, Rankings) in your privacy settings. Other users will only see your basic profile and bio.'
+                  : 'This user has kept their watch history, lists, and rankings private.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+            ),
+            if (_isMe && _user != null) ...[
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
                 onPressed: () {
-                  SuggestMovieModal.show(
+                  EditProfileDialog.show(
                     context,
-                    initialToUserId: user.id,
-                    initialToUserName: user.username,
+                    user: _user!,
+                    onSaved: _fetchProfile,
                   );
                 },
-                icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+                icon: const Icon(Icons.tune_rounded, size: 16),
+                label: const Text('Enable Sections in Privacy Settings'),
               ),
             ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -936,19 +1116,66 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         final title = item['title'] as String? ?? 'Untitled';
         final posterPath = item['posterPath'] as String?;
         final mediaType = item['mediaType'] == 'tv' ? 'tv' : 'movie';
+        final addedAtRaw = item['addedAt'] ?? item['createdAt'] ?? item['updatedAt'];
+        final addedAt = addedAtRaw is DateTime
+            ? addedAtRaw
+            : (addedAtRaw is String && addedAtRaw.isNotEmpty ? DateTime.tryParse(addedAtRaw) : null);
 
         return WHEntryGridCard(
           tmdbId: tmdbId,
           title: title,
           initialPosterPath: posterPath,
           mediaType: mediaType,
-          mode: WHEntryCardMode.history, // view-only mode
+          mode: WHEntryCardMode.watchlist,
+          addedAt: addedAt,
           onTap: () {
             if (tmdbId > 0) context.push('/details/$mediaType/$tmdbId');
           },
+          onDeleteWithTitle: _isMe ? (resolvedTitle) => _removeWatchlistItem(
+            tmdbId: tmdbId,
+            title: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+            itemId: item['id'] as String?,
+          ) : null,
+          onDelete: _isMe ? () => _removeWatchlistItem(
+            tmdbId: tmdbId,
+            title: title,
+            itemId: item['id'] as String?,
+          ) : null,
         );
       },
     );
+  }
+
+  Future<void> _removeWatchlistItem({required int tmdbId, required String title, String? itemId}) async {
+    final cleanTitle = title.trim().isNotEmpty && title != 'Untitled' ? title : 'this title';
+    final confirm = await WHAlert.confirm(
+      context,
+      title: 'Remove "$cleanTitle"?',
+      message: 'Are you sure you want to remove "$cleanTitle" from your watchlist?',
+      confirmText: 'Remove',
+      severity: WHAlertSeverity.danger,
+      icon: Icons.bookmark_remove_rounded,
+    );
+
+    if (!confirm) return;
+
+    try {
+      await ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+        tmdbId > 0 ? tmdbId : itemId,
+      );
+      if (mounted) {
+        setState(() {
+          _watchlistItems.removeWhere((item) =>
+              (tmdbId > 0 && (item['tmdbId'] as num?)?.toInt() == tmdbId) ||
+              (itemId != null && item['id'] == itemId));
+        });
+        WHAlert.showSuccess(context, 'Removed "$cleanTitle" from Watchlist');
+      }
+    } catch (e) {
+      if (mounted) {
+        WHAlert.showError(context, 'Failed to remove "$cleanTitle": $e');
+      }
+    }
   }
 }
 

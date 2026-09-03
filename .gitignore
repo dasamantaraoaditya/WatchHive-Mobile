@@ -55,4 +55,4 @@ pc-api-key.json
 google-services.json
 watchhive-release.apk
 *.png
-
+**/xcshareddata/swiftpm/

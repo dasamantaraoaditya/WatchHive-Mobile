@@ -22,6 +22,7 @@ class WHEntryGridCard extends ConsumerWidget {
   final WHEntryCardMode mode;
   final double? rating; // User rating or TMDB vote_average
   final DateTime? watchedAt;
+  final DateTime? addedAt;
   final String? suggestedByUsername;
   final String? suggestedByAvatarUrl;
   final List<String> tags;
@@ -30,6 +31,7 @@ class WHEntryGridCard extends ConsumerWidget {
   final VoidCallback? onMarkWatched;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final void Function(String resolvedTitle)? onDeleteWithTitle;
 
   const WHEntryGridCard({
     super.key,
@@ -40,6 +42,7 @@ class WHEntryGridCard extends ConsumerWidget {
     required this.mode,
     this.rating,
     this.watchedAt,
+    this.addedAt,
     this.suggestedByUsername,
     this.suggestedByAvatarUrl,
     this.tags = const [],
@@ -48,6 +51,7 @@ class WHEntryGridCard extends ConsumerWidget {
     this.onMarkWatched,
     this.onEdit,
     this.onDelete,
+    this.onDeleteWithTitle,
   });
 
   @override
@@ -309,27 +313,51 @@ class WHEntryGridCard extends ConsumerWidget {
                 children: [
                   // Left info (Date or Action Label)
                   Expanded(
-                    child: Text(
-                      mode == WHEntryCardMode.watching
-                          ? 'Active Session'
-                          : watchedAt != null
-                              ? DateFormat('MMM d, yyyy').format(watchedAt!)
-                              : year != null
-                                  ? 'Released $year'
-                                  : 'Saved in List',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textMuted,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (mode == WHEntryCardMode.watchlist)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 5),
+                            child: Icon(
+                              Icons.bookmark_added_rounded,
+                              size: 13,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        Flexible(
+                          child: Text(
+                            mode == WHEntryCardMode.watching
+                                ? 'Active Session'
+                                : mode == WHEntryCardMode.watchlist
+                                    ? (addedAt != null
+                                        ? 'Added ${DateFormat('MMM d, yyyy').format(addedAt!)}'
+                                        : (watchedAt != null
+                                            ? 'Added ${DateFormat('MMM d, yyyy').format(watchedAt!)}'
+                                            : 'Added to List'))
+                                    : watchedAt != null
+                                        ? DateFormat('MMM d, yyyy').format(watchedAt!)
+                                        : addedAt != null
+                                            ? 'Added ${DateFormat('MMM d, yyyy').format(addedAt!)}'
+                                            : year != null
+                                                ? 'Released $year'
+                                                : 'Saved in List',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                              fontWeight: mode == WHEntryCardMode.watchlist ? FontWeight.w600 : FontWeight.w500,
+                              color: mode == WHEntryCardMode.watchlist ? AppColors.textSecondary : AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
                   // Three-Dots Context Menu Button
-                  if (onMoveToWatching != null || onMarkWatched != null || onEdit != null || onDelete != null)
+                  if (onMoveToWatching != null || onMarkWatched != null || onEdit != null || onDelete != null || onDeleteWithTitle != null)
                     PopupMenuButton<String>(
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 160),
@@ -373,7 +401,7 @@ class WHEntryGridCard extends ConsumerWidget {
                               ],
                             ),
                           ),
-                        if (onDelete != null)
+                        if (onDelete != null || onDeleteWithTitle != null)
                           PopupMenuItem(
                             value: 'delete',
                             child: Row(
@@ -396,7 +424,13 @@ class WHEntryGridCard extends ConsumerWidget {
                         if (value == 'watching') onMoveToWatching?.call();
                         if (value == 'mark_watched') onMarkWatched?.call();
                         if (value == 'edit') onEdit?.call();
-                        if (value == 'delete') onDelete?.call();
+                        if (value == 'delete') {
+                          if (onDeleteWithTitle != null) {
+                            onDeleteWithTitle!(displayTitle);
+                          } else {
+                            onDelete?.call();
+                          }
+                        }
                       },
                     ),
                 ],
