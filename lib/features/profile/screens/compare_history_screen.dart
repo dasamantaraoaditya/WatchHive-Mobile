@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/models/entry.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -102,10 +103,18 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
     );
   }
 
-  void _onMovieTap(int tmdbId, String type) {
+  void _onMovieTap(int tmdbId, String type, {Entry? entry, User? user}) {
     if (tmdbId <= 0) return;
     final typeSlug = type.toUpperCase() == 'TV_SHOW' || type.toLowerCase() == 'tv' ? 'tv' : 'movie';
-    context.push('/details/$typeSlug/$tmdbId');
+    context.push(
+      '/details/$typeSlug/$tmdbId',
+      extra: entry != null
+          ? {
+              'entry': entry,
+              'user': user,
+            }
+          : null,
+    );
   }
 
   @override
@@ -685,7 +694,24 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
 
         return InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _onMovieTap(item.tmdbId, item.type),
+          onTap: () {
+            final friendUser = _result?.userB.toUser() ?? widget.initialUser;
+            final entry = Entry(
+              id: item.entryB.id ?? '',
+              userId: friendUser?.id ?? '',
+              tmdbId: item.tmdbId,
+              title: item.title,
+              type: item.type,
+              watchedAt: item.entryB.watchedAt != null
+                  ? (DateTime.tryParse(item.entryB.watchedAt!) ?? DateTime.now())
+                  : DateTime.now(),
+              rating: item.entryB.rating,
+              review: item.entryB.review,
+              user: friendUser,
+              createdAt: DateTime.now(),
+            );
+            _onMovieTap(item.tmdbId, item.type, entry: entry, user: friendUser);
+          },
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -866,7 +892,23 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
 
         return InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _onMovieTap(item.tmdbId, item.type),
+          onTap: () {
+            final currentUser = ref.watch(authStateProvider).value?.user;
+            final entry = Entry(
+              id: '',
+              userId: currentUser?.id ?? '',
+              tmdbId: item.tmdbId,
+              title: item.title,
+              type: item.type,
+              watchedAt: item.watchedAt != null
+                  ? (DateTime.tryParse(item.watchedAt!) ?? DateTime.now())
+                  : DateTime.now(),
+              rating: item.rating,
+              user: currentUser,
+              createdAt: DateTime.now(),
+            );
+            _onMovieTap(item.tmdbId, item.type, entry: entry, user: currentUser);
+          },
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -995,7 +1037,23 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
 
         return InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _onMovieTap(item.tmdbId, item.type),
+          onTap: () {
+            final friendUser = _result?.userB.toUser() ?? widget.initialUser;
+            final entry = Entry(
+              id: '',
+              userId: friendUser?.id ?? '',
+              tmdbId: item.tmdbId,
+              title: item.title,
+              type: item.type,
+              watchedAt: item.watchedAt != null
+                  ? (DateTime.tryParse(item.watchedAt!) ?? DateTime.now())
+                  : DateTime.now(),
+              rating: item.rating,
+              user: friendUser,
+              createdAt: DateTime.now(),
+            );
+            _onMovieTap(item.tmdbId, item.type, entry: entry, user: friendUser);
+          },
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(

@@ -194,28 +194,29 @@ class SearchRepository {
 final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({int tmdbId, String mediaType})>((ref, arg) async {
   if (arg.tmdbId <= 0) return null;
   final searchRepo = ref.read(searchRepositoryProvider);
+  final isTv = arg.mediaType.toLowerCase().contains('tv');
   try {
-    if (arg.mediaType == 'tv') {
+    if (isTv) {
       final res = await searchRepo.getTvDetails(arg.tmdbId);
-      if (res['poster_path'] != null) return res;
+      if (res['poster_path'] != null || res['backdrop_path'] != null) return res;
       try {
-        return await searchRepo.getMovieDetails(arg.tmdbId);
-      } catch (_) {
-        return res;
-      }
+        final movieRes = await searchRepo.getMovieDetails(arg.tmdbId);
+        if (movieRes['poster_path'] != null || movieRes['backdrop_path'] != null) return movieRes;
+      } catch (_) {}
+      return res;
     } else {
       final res = await searchRepo.getMovieDetails(arg.tmdbId);
-      if (res['poster_path'] != null) return res;
+      if (res['poster_path'] != null || res['backdrop_path'] != null) return res;
       try {
-        return await searchRepo.getTvDetails(arg.tmdbId);
-      } catch (_) {
-        return res;
-      }
+        final tvRes = await searchRepo.getTvDetails(arg.tmdbId);
+        if (tvRes['poster_path'] != null || tvRes['backdrop_path'] != null) return tvRes;
+      } catch (_) {}
+      return res;
     }
   } catch (_) {
     // Fallback: if initial type call failed, try the alternate media type
     try {
-      if (arg.mediaType == 'tv') {
+      if (isTv) {
         return await searchRepo.getMovieDetails(arg.tmdbId);
       } else {
         return await searchRepo.getTvDetails(arg.tmdbId);

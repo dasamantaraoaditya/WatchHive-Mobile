@@ -66,4 +66,33 @@ class EntriesRepository {
     final data = response.data as Map<String, dynamic>;
     return data['stats'] as Map<String, dynamic>;
   }
+
+  Future<Entry?> getEntryForTmdbId(int tmdbId, {String? userId, String? title}) async {
+    try {
+      final res = await getEntries(
+        userId: userId,
+        search: title,
+        limit: 50,
+      );
+      for (final entry in res.entries) {
+        if (entry.tmdbId == tmdbId) {
+          return entry;
+        }
+      }
+      if (title != null && title.isNotEmpty) {
+        final broadRes = await getEntries(
+          userId: userId,
+          limit: 100,
+        );
+        for (final entry in broadRes.entries) {
+          if (entry.tmdbId == tmdbId) {
+            return entry;
+          }
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 }

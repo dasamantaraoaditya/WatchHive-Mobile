@@ -1,3 +1,5 @@
+import '../../../shared/models/user.dart';
+
 class CompareUserSummary {
   final String id;
   final String username;
@@ -17,6 +19,17 @@ class CompareUserSummary {
       username: json['username']?.toString() ?? 'user',
       displayName: json['displayName']?.toString() ?? json['name']?.toString() ?? json['username']?.toString() ?? 'User',
       profilePictureUrl: json['profilePictureUrl']?.toString() ?? json['avatarUrl']?.toString(),
+    );
+  }
+
+  User toUser() {
+    return User(
+      id: id,
+      username: username,
+      displayName: displayName,
+      profilePictureUrl: profilePictureUrl,
+      email: '',
+      createdAt: DateTime.now(),
     );
   }
 }

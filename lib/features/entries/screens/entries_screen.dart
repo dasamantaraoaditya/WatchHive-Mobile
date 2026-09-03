@@ -371,7 +371,9 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
             startedAt: entry.startedAt ?? entry.createdAt,
             tags: entry.tags,
             onTap: () => context.push(
-                '/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}'),
+              '/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}',
+              extra: entry,
+            ),
             onMarkWatched: entry.isWatching
                 ? () {
                     showModalBottomSheet(

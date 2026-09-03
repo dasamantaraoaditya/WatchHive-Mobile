@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
@@ -12,6 +10,7 @@ import '../../entries/repositories/entries_repository.dart';
 import '../../entries/repositories/watchlist_repository.dart';
 import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../entries/widgets/wh_entry_grid_card.dart';
+import '../../search/repositories/search_repository.dart';
 import '../repositories/user_repository.dart';
 import '../widgets/follow_list_sheet.dart';
 import '../widgets/user_rankings_tab.dart';
@@ -199,16 +198,76 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       ]);
 
       if (mounted) {
+        final historyEntries = (results[0] as ({List<Entry> entries, dynamic pagination})).entries;
+        final watchingEntries = (results[1] as ({List<Entry> entries, dynamic pagination})).entries;
+        final watchlistMap = results[2] as Map<String, dynamic>;
+        final rawWatchlist = (watchlistMap['items'] as List<dynamic>?) ?? [];
+
         setState(() {
-          _historyEntries = (results[0] as ({List<Entry> entries, dynamic pagination})).entries;
-          _watchingEntries = (results[1] as ({List<Entry> entries, dynamic pagination})).entries;
-          final watchlistMap = results[2] as Map<String, dynamic>;
-          _watchlistItems = (watchlistMap['items'] as List<dynamic>?) ?? [];
+          _historyEntries = historyEntries;
+          _watchingEntries = watchingEntries;
+          _watchlistItems = rawWatchlist;
           _isLoadingTabsData = false;
         });
+        if (rawWatchlist.isNotEmpty) {
+          _enrichWatchlistItems(rawWatchlist);
+        }
       }
     } catch (_) {
       if (mounted) setState(() => _isLoadingTabsData = false);
+    }
+  }
+
+  Future<void> _enrichWatchlistItems(List<dynamic> rawItems) async {
+    final searchRepo = ref.read(searchRepositoryProvider);
+    final updated = List<Map<String, dynamic>>.from(rawItems.map((e) => Map<String, dynamic>.from(e as Map)));
+    bool anyChanged = false;
+
+    for (int i = 0; i < updated.length; i++) {
+      final item = updated[i];
+      final currentTitle = item['title'] as String?;
+      final currentPoster = item['posterPath'] as String?;
+      final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
+      final isTv = (item['mediaType'] as String? ?? 'movie').toLowerCase().contains('tv');
+
+      if ((currentTitle == null || currentTitle.isEmpty || currentTitle == 'Untitled') && tmdbId > 0) {
+        try {
+          Map<String, dynamic> details;
+          if (isTv) {
+            try {
+              details = await searchRepo.getTvDetails(tmdbId);
+            } catch (_) {
+              details = await searchRepo.getMovieDetails(tmdbId);
+            }
+          } else {
+            try {
+              details = await searchRepo.getMovieDetails(tmdbId);
+            } catch (_) {
+              details = await searchRepo.getTvDetails(tmdbId);
+            }
+          }
+          final realTitle = (details['title'] as String?) ??
+              (details['name'] as String?) ??
+              (details['original_title'] as String?) ??
+              (details['original_name'] as String?);
+          final realPoster = (details['poster_path'] as String?) ?? (details['backdrop_path'] as String?);
+
+          if (realTitle != null && realTitle.isNotEmpty) {
+            item['title'] = realTitle;
+            anyChanged = true;
+          }
+          if (realPoster != null && realPoster.isNotEmpty && (currentPoster == null || currentPoster.isEmpty)) {
+            item['posterPath'] = realPoster;
+            anyChanged = true;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (anyChanged && mounted) {
+      setState(() {
+        _watchlistItems = updated;
+      });
     }
   }
 
@@ -1042,7 +1101,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           tags: entry.tags,
           onTap: () {
             if (entry.tmdbId > 0) {
-              context.push('/details/$mediaType/${entry.tmdbId}');
+              context.push(
+                '/details/$mediaType/${entry.tmdbId}',
+                extra: {
+                  'entry': entry,
+                  'user': _user,
+                },
+              );
             }
           },
         );
@@ -1084,7 +1149,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           tags: entry.tags,
           onTap: () {
             if (entry.tmdbId > 0) {
-              context.push('/details/$mediaType/${entry.tmdbId}');
+              context.push(
+                '/details/$mediaType/${entry.tmdbId}',
+                extra: {
+                  'entry': entry,
+                  'user': _user,
+                },
+              );
             }
           },
         );
@@ -1114,8 +1185,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       itemBuilder: (ctx, i) {
         final item = _watchlistItems[i] as Map<String, dynamic>;
         final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
-        final title = item['title'] as String? ?? 'Untitled';
-        final posterPath = item['posterPath'] as String?;
+        final title = (item['title'] as String?) ??
+            (item['name'] as String?) ??
+            (item['media_title'] as String?) ??
+            '';
+        final posterPath = (item['posterPath'] as String?) ??
+            (item['poster_path'] as String?) ??
+            (item['backdrop_path'] as String?);
         final mediaType = item['mediaType'] == 'tv' ? 'tv' : 'movie';
         final addedAtRaw = item['addedAt'] ?? item['createdAt'] ?? item['updatedAt'];
         final addedAt = addedAtRaw is DateTime
@@ -1124,7 +1200,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
         return WHEntryGridCard(
           tmdbId: tmdbId,
-          title: title,
+          title: title.isNotEmpty ? title : 'Untitled',
           initialPosterPath: posterPath,
           mediaType: mediaType,
           mode: WHEntryCardMode.watchlist,
@@ -1134,12 +1210,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           },
           onDeleteWithTitle: _isMe ? (resolvedTitle) => _removeWatchlistItem(
             tmdbId: tmdbId,
-            title: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+            title: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : (title.isNotEmpty ? title : 'this title'),
             itemId: item['id'] as String?,
           ) : null,
           onDelete: _isMe ? () => _removeWatchlistItem(
             tmdbId: tmdbId,
-            title: title,
+            title: title.isNotEmpty ? title : 'this title',
             itemId: item['id'] as String?,
           ) : null,
         );

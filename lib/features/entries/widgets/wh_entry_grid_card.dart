@@ -62,17 +62,36 @@ class WHEntryGridCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isTv = mediaType.toLowerCase().contains('tv') || mediaType.toLowerCase().contains('episode');
     final normalizedType = isTv ? 'tv' : 'movie';
-    final shouldFetch = (initialPosterPath == null || initialPosterPath!.isEmpty) && tmdbId > 0;
+    final hasNoPoster = initialPosterPath == null || initialPosterPath!.isEmpty;
+    final isUntitled = title.isEmpty ||
+        title.toLowerCase() == 'untitled' ||
+        title.startsWith('Movie #') ||
+        title.startsWith('Media #');
+    final shouldFetch = (hasNoPoster || isUntitled) && tmdbId > 0;
 
     final detailsAsync = shouldFetch
         ? ref.watch(tmdbMediaDetailsProvider((tmdbId: tmdbId, mediaType: normalizedType)))
         : null;
 
-    final posterPath = initialPosterPath ?? detailsAsync?.value?['poster_path'] as String?;
+    final tmdbPoster = (detailsAsync?.value?['poster_path'] as String?) ??
+        (detailsAsync?.value?['backdrop_path'] as String?);
+    final posterPath = (initialPosterPath != null && initialPosterPath!.isNotEmpty)
+        ? initialPosterPath
+        : tmdbPoster;
+
     final voteAvg = (detailsAsync?.value?['vote_average'] as num?)?.toDouble() ?? rating;
-    final releaseDate = detailsAsync?.value?['release_date'] as String? ?? detailsAsync?.value?['first_air_date'] as String?;
+    final releaseDate = (detailsAsync?.value?['release_date'] as String?) ??
+        (detailsAsync?.value?['first_air_date'] as String?);
     final year = releaseDate != null && releaseDate.length >= 4 ? releaseDate.substring(0, 4) : null;
-    final displayTitle = (detailsAsync?.value?['title'] as String?) ?? (detailsAsync?.value?['name'] as String?) ?? title;
+
+    final tmdbTitle = (detailsAsync?.value?['title'] as String?) ??
+        (detailsAsync?.value?['name'] as String?) ??
+        (detailsAsync?.value?['original_title'] as String?) ??
+        (detailsAsync?.value?['original_name'] as String?);
+
+    final displayTitle = (!isUntitled && title.trim().isNotEmpty)
+        ? title
+        : (tmdbTitle ?? (detailsAsync != null && detailsAsync.isLoading ? '' : (title.isNotEmpty ? title : 'Untitled')));
     final posterUrl = ApiEndpoints.tmdbPoster(posterPath);
 
     return GestureDetector(
@@ -264,20 +283,37 @@ class WHEntryGridCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          displayTitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(offset: Offset(0, 1), blurRadius: 4, color: Colors.black),
-                            ],
+                        if (displayTitle.isEmpty && detailsAsync != null && detailsAsync.isLoading)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Shimmer.fromColors(
+                              baseColor: Colors.white.withValues(alpha: 0.25),
+                              highlightColor: Colors.white.withValues(alpha: 0.5),
+                              child: Container(
+                                height: 13,
+                                width: 110,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          Text(
+                            displayTitle.isNotEmpty ? displayTitle : (title.isNotEmpty ? title : 'Untitled'),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(offset: Offset(0, 1), blurRadius: 4, color: Colors.black),
+                              ],
+                            ),
                           ),
-                        ),
                         if (tags.isNotEmpty) ...[
                           const SizedBox(height: 3),
                           Text(

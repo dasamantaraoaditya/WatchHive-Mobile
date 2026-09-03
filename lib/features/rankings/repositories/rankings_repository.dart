@@ -89,11 +89,23 @@ class RankingsRepository {
         }
 
         try {
-          final type = item.mediaType == 'tv' ? 'tv' : 'movie';
-          final res = await _api.get('/tmdb/$type/${item.tmdbId}');
-          final tmdb = res.data as Map<String, dynamic>? ?? {};
-          final title = tmdb['title'] as String? ?? tmdb['name'] as String? ?? 'Media #${item.tmdbId}';
-          final posterPath = tmdb['poster_path'] as String?;
+          final isTv = item.mediaType.toLowerCase().contains('tv');
+          Map<String, dynamic> tmdb = {};
+          try {
+            final res = await _api.get('/tmdb/${isTv ? "tv" : "movie"}/${item.tmdbId}');
+            tmdb = res.data as Map<String, dynamic>? ?? {};
+          } catch (_) {
+            try {
+              final res = await _api.get('/tmdb/${isTv ? "movie" : "tv"}/${item.tmdbId}');
+              tmdb = res.data as Map<String, dynamic>? ?? {};
+            } catch (_) {}
+          }
+          final title = (tmdb['title'] as String?) ??
+              (tmdb['name'] as String?) ??
+              (tmdb['original_title'] as String?) ??
+              (tmdb['original_name'] as String?) ??
+              'Media #${item.tmdbId}';
+          final posterPath = (tmdb['poster_path'] as String?) ?? (tmdb['backdrop_path'] as String?);
           final releaseDate = tmdb['release_date'] as String? ?? tmdb['first_air_date'] as String?;
           final voteAverage = (tmdb['vote_average'] as num?)?.toDouble();
 
@@ -105,7 +117,7 @@ class RankingsRepository {
           );
 
           return item.copyWith(
-            title: (item.title?.isNotEmpty == true && !item.title!.startsWith('Movie #')) ? item.title : title,
+            title: (item.title?.isNotEmpty == true && !item.title!.startsWith('Movie #') && !item.title!.startsWith('Media #')) ? item.title : title,
             posterPath: item.posterPath ?? posterPath,
             releaseDate: item.releaseDate ?? releaseDate,
             voteAverage: item.voteAverage ?? voteAverage,

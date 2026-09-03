@@ -72,11 +72,25 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
 
       if ((currentTitle == null || currentTitle.isEmpty || currentTitle == 'Untitled') && tmdbId > 0) {
         try {
-          final details = isTv
-              ? await searchRepo.getTvDetails(tmdbId)
-              : await searchRepo.getMovieDetails(tmdbId);
-          final realTitle = (details['title'] as String?) ?? (details['name'] as String?);
-          final realPoster = details['poster_path'] as String?;
+          Map<String, dynamic> details;
+          if (isTv) {
+            try {
+              details = await searchRepo.getTvDetails(tmdbId);
+            } catch (_) {
+              details = await searchRepo.getMovieDetails(tmdbId);
+            }
+          } else {
+            try {
+              details = await searchRepo.getMovieDetails(tmdbId);
+            } catch (_) {
+              details = await searchRepo.getTvDetails(tmdbId);
+            }
+          }
+          final realTitle = (details['title'] as String?) ??
+              (details['name'] as String?) ??
+              (details['original_title'] as String?) ??
+              (details['original_name'] as String?);
+          final realPoster = (details['poster_path'] as String?) ?? (details['backdrop_path'] as String?);
 
           if (realTitle != null && realTitle.isNotEmpty) {
             item['title'] = realTitle;

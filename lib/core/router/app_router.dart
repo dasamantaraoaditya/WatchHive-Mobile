@@ -18,6 +18,7 @@ import '../../features/mindlens/screens/mindlens_screen.dart';
 import '../../features/profile/screens/compare_history_screen.dart';
 import '../../features/rankings/screens/rankings_screen.dart';
 import '../../shared/models/user.dart';
+import '../../shared/models/entry.dart';
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -115,10 +116,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/details/:mediaType/:tmdbId',
-        builder: (context, state) => MovieDetailsScreen(
-          mediaType: state.pathParameters['mediaType']!,
-          tmdbId: int.parse(state.pathParameters['tmdbId']!),
-        ),
+        builder: (context, state) {
+          Entry? initialEntry;
+          User? authorUser;
+          if (state.extra is Entry) {
+            initialEntry = state.extra as Entry;
+            authorUser = initialEntry.user;
+          } else if (state.extra is Map) {
+            final map = state.extra as Map;
+            if (map['entry'] is Entry) {
+              initialEntry = map['entry'] as Entry;
+            }
+            if (map['user'] is User) {
+              authorUser = map['user'] as User;
+            } else {
+              authorUser = initialEntry?.user;
+            }
+          }
+          return MovieDetailsScreen(
+            mediaType: state.pathParameters['mediaType']!,
+            tmdbId: int.parse(state.pathParameters['tmdbId']!),
+            initialEntry: initialEntry,
+            authorUser: authorUser,
+          );
+        },
       ),
       GoRoute(
         path: '/rankings',

@@ -48,16 +48,45 @@ class RankedItem {
       return null;
     }
 
+    final mediaData = json['media'] is Map<String, dynamic> ? json['media'] as Map<String, dynamic> : null;
+    final tmdbData = json['tmdb'] is Map<String, dynamic> ? json['tmdb'] as Map<String, dynamic> : null;
+
+    final rawTmdbId = json['tmdbId'] ??
+        json['tmdb_id'] ??
+        mediaData?['tmdbId'] ??
+        mediaData?['tmdb_id'] ??
+        tmdbData?['id'];
+    final parsedTmdbId = rawTmdbId is int ? rawTmdbId : (int.tryParse(rawTmdbId?.toString() ?? '0') ?? 0);
+
+    final resolvedTitle = (json['title'] as String?) ??
+        (json['name'] as String?) ??
+        (json['media_title'] as String?) ??
+        (mediaData?['title'] as String?) ??
+        (mediaData?['name'] as String?) ??
+        (tmdbData?['title'] as String?) ??
+        (tmdbData?['name'] as String?) ??
+        (tmdbData?['original_title'] as String?) ??
+        (tmdbData?['original_name'] as String?);
+
+    final resolvedPoster = (json['posterPath'] as String?) ??
+        (json['poster_path'] as String?) ??
+        (mediaData?['poster_path'] as String?) ??
+        (mediaData?['posterPath'] as String?) ??
+        (tmdbData?['poster_path'] as String?) ??
+        (json['backdropPath'] as String?) ??
+        (json['backdrop_path'] as String?) ??
+        (tmdbData?['backdrop_path'] as String?);
+
     return RankedItem(
       id: json['id'] as String? ?? '',
       listId: json['listId'] as String? ?? '',
-      tmdbId: (json['tmdbId'] as num?)?.toInt() ?? 0,
-      mediaType: json['mediaType'] as String? ?? 'movie',
+      tmdbId: parsedTmdbId,
+      mediaType: (json['mediaType'] as String?) ?? (json['media_type'] as String?) ?? 'movie',
       orderIndex: (json['orderIndex'] as num?)?.toInt() ?? 0,
-      title: json['title'] as String?,
-      posterPath: json['posterPath'] as String?,
-      releaseDate: json['releaseDate'] as String?,
-      voteAverage: parseDouble(json['voteAverage']),
+      title: resolvedTitle,
+      posterPath: resolvedPoster,
+      releaseDate: (json['releaseDate'] as String?) ?? (json['release_date'] as String?) ?? (tmdbData?['release_date'] as String?),
+      voteAverage: parseDouble(json['voteAverage'] ?? json['vote_average'] ?? tmdbData?['vote_average']),
       localRating: parseDouble(json['localRating']),
       localReview: json['localReview'] as String?,
       tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],

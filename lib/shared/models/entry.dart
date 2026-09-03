@@ -27,6 +27,7 @@ class Entry {
   final String? backdropPath;
   final bool isSuggestion;
   final String? suggestionReason;
+  final DateTime? updatedAt;
 
   const Entry({
     required this.id,
@@ -46,6 +47,7 @@ class Entry {
     this.completedAt,
     this.watchLocation,
     required this.createdAt,
+    this.updatedAt,
     this.user,
     this.likesCount = 0,
     this.commentsCount = 0,
@@ -77,14 +79,26 @@ class Entry {
     final countData = dataMap['_count'] as Map<String, dynamic>?;
     final mediaData = dataMap['media'] is Map<String, dynamic> ? dataMap['media'] as Map<String, dynamic> : null;
 
-    final rawTmdbId = dataMap['tmdbId'] ?? dataMap['id'];
+    final rawTmdbId = dataMap['tmdbId'] ??
+        dataMap['tmdb_id'] ??
+        dataMap['mediaId'] ??
+        dataMap['media_id'] ??
+        mediaData?['tmdbId'] ??
+        mediaData?['tmdb_id'] ??
+        mediaData?['id'] ??
+        (dataMap['id'] is int ? dataMap['id'] : null);
     final parsedTmdbId = rawTmdbId is int
         ? rawTmdbId
         : int.tryParse(rawTmdbId?.toString() ?? '0') ?? 0;
 
-    final titleStr = dataMap['title'] as String? ??
-        dataMap['name'] as String? ??
-        dataMap['media_title'] as String? ??
+    final titleStr = (dataMap['title'] as String?) ??
+        (dataMap['name'] as String?) ??
+        (dataMap['media_title'] as String?) ??
+        (mediaData?['title'] as String?) ??
+        (mediaData?['name'] as String?) ??
+        (mediaData?['original_title'] as String?) ??
+        (mediaData?['original_name'] as String?) ??
+        (dataMap['movieTitle'] as String?) ??
         'Untitled';
 
     final isLiked = dataMap['isLiked'] == true || json['isLiked'] == true;
@@ -135,8 +149,20 @@ class Entry {
       commentsCount: comments,
       isLiked: isLiked,
       isCommented: isCommented,
-      posterPath: dataMap['posterPath'] as String? ?? dataMap['poster_path'] as String? ?? mediaData?['poster_path'] as String?,
-      backdropPath: dataMap['backdropPath'] as String? ?? dataMap['backdrop_path'] as String? ?? mediaData?['backdrop_path'] as String?,
+      posterPath: (dataMap['posterPath'] as String?) ??
+          (dataMap['poster_path'] as String?) ??
+          (dataMap['poster'] as String?) ??
+          (mediaData?['poster_path'] as String?) ??
+          (mediaData?['posterPath'] as String?) ??
+          (dataMap['backdropPath'] as String?) ??
+          (dataMap['backdrop_path'] as String?) ??
+          (mediaData?['backdrop_path'] as String?),
+      backdropPath: (dataMap['backdropPath'] as String?) ??
+          (dataMap['backdrop_path'] as String?) ??
+          (mediaData?['backdrop_path'] as String?) ??
+          (mediaData?['backdropPath'] as String?) ??
+          (dataMap['posterPath'] as String?) ??
+          (dataMap['poster_path'] as String?),
       isSuggestion: isSuggestion,
       suggestionReason: reason,
     );
@@ -160,6 +186,7 @@ class Entry {
     DateTime? completedAt,
     String? watchLocation,
     DateTime? createdAt,
+    DateTime? updatedAt,
     User? user,
     int? likesCount,
     int? commentsCount,
@@ -188,6 +215,7 @@ class Entry {
       completedAt: completedAt ?? this.completedAt,
       watchLocation: watchLocation ?? this.watchLocation,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       user: user ?? this.user,
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,

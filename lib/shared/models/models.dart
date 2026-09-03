@@ -46,8 +46,14 @@ class MediaResult {
 
   factory MediaResult.fromJson(Map<String, dynamic> json) => MediaResult(
         id: (json['id'] as num?)?.toInt() ?? 0,
-        title: (json['title'] ?? json['name'] ?? 'Untitled').toString(),
-        posterPath: json['poster_path'] as String?,
+        title: (json['title'] ??
+                json['name'] ??
+                json['original_title'] ??
+                json['original_name'] ??
+                'Untitled')
+            .toString(),
+        posterPath: (json['poster_path'] as String?) ??
+            (json['backdrop_path'] as String?),
         releaseDate:
             (json['release_date'] ?? json['first_air_date']) as String?,
         overview: json['overview'] as String?,
