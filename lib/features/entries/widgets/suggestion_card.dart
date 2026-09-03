@@ -134,6 +134,11 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
             : firstSuggestor.username)
         : null;
 
+    final firstSuggestion = widget.group.suggestions.isNotEmpty ? widget.group.suggestions.first : null;
+    final suggestedDate = firstSuggestion != null && firstSuggestion.createdAt.isNotEmpty
+        ? DateTime.tryParse(firstSuggestion.createdAt)
+        : null;
+
     return WHEntryGridCard(
       tmdbId: tmdbId,
       title: title,
@@ -141,6 +146,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       mediaType: mediaType,
       mode: WHEntryCardMode.suggestion,
       rating: voteAvg,
+      suggestedAt: suggestedDate,
       suggestedByUsername: suggestorDisplay,
       suggestedByAvatarUrl: firstSuggestor?.profilePictureUrl,
       onTap: () => widget.onTapMedia?.call(tmdbId, mediaType),

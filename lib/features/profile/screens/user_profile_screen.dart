@@ -1077,9 +1077,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           title: entry.title,
           initialPosterPath: entry.posterPath,
           mediaType: entry.type,
-          mode: WHEntryCardMode.history,
+          mode: WHEntryCardMode.watching,
           rating: entry.rating,
           watchedAt: entry.watchedAt,
+          startedAt: entry.startedAt ?? entry.createdAt,
           tags: entry.tags,
           onTap: () {
             if (entry.tmdbId > 0) {
