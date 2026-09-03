@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/models.dart' as wh;
+import '../../../shared/widgets/shared_widgets.dart';
 
 // ─── Repository ───────────────────────────────────────────────────────────────
 
@@ -130,7 +131,37 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? WHSkeleton(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                itemCount: 6,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (_, __) => Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: const [
+                      WHSkeletonBox(width: 42, height: 42, shape: BoxShape.circle),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            WHSkeletonBox(width: double.infinity, height: 13, borderRadius: 4),
+                            SizedBox(height: 6),
+                            WHSkeletonBox(width: 90, height: 10, borderRadius: 4),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
           : _notifications.isEmpty
               ? const _EmptyNotifications()
               : RefreshIndicator(

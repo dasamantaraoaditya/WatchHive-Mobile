@@ -223,7 +223,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ],
           ),
           if (feedState.isLoading)
-            const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppColors.primary)))
+            const SliverToBoxAdapter(child: WHSkeletonFeed(itemCount: 3))
           else if (feedState.error != null && feedState.entries.isEmpty)
             SliverFillRemaining(
               child: _EmptyFeed(onRefresh: () => ref.read(feedProvider.notifier).loadFeed()),

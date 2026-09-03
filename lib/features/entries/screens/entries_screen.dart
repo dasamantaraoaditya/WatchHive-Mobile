@@ -288,9 +288,7 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
     final state = ref.watch(entriesProvider(widget.isWatching));
 
     if (state.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
+      return const WHSkeletonGrid();
     }
 
     if (state.error != null && state.entries.isEmpty) {

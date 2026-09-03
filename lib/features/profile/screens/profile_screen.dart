@@ -268,7 +268,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
           ];
         },
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            ? const Padding(
+                padding: EdgeInsets.all(16),
+                child: WHSkeleton(
+                  child: Column(
+                    children: [
+                      WHSkeletonBox(height: 52, borderRadius: 12),
+                      SizedBox(height: 12),
+                      WHSkeletonBox(height: 52, borderRadius: 12),
+                      SizedBox(height: 12),
+                      WHSkeletonBox(height: 52, borderRadius: 12),
+                    ],
+                  ),
+                ),
+              )
             : TabBarView(
                 controller: _tabController,
                 children: [

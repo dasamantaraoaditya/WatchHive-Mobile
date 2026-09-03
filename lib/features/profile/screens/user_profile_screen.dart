@@ -405,10 +405,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      );
+      return const WHSkeletonProfile();
     }
 
     if (_error != null || _user == null) {
@@ -1070,7 +1067,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
   Widget _buildUserHistoryTab() {
     if (_isLoadingTabsData) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const WHSkeletonGrid(itemCount: 4);
     }
     if (_historyEntries.isEmpty) {
       return const Center(
@@ -1117,7 +1114,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
   Widget _buildUserWatchingTab() {
     if (_isLoadingTabsData) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const WHSkeletonGrid(itemCount: 4);
     }
     if (_watchingEntries.isEmpty) {
       return const Center(
@@ -1165,7 +1162,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
   Widget _buildUserWatchlistTab() {
     if (_isLoadingTabsData) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const WHSkeletonGrid(itemCount: 4);
     }
     if (_watchlistItems.isEmpty) {
       return const Center(

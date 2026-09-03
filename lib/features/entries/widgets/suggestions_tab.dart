@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/suggestion.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/suggestions_repository.dart';
 import 'suggestion_card.dart';
 
@@ -112,7 +113,7 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
 
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                ? const WHSkeletonGrid()
                 : _error != null
                     ? Center(
                         child: Column(

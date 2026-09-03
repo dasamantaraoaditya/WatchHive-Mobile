@@ -435,10 +435,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      );
+      return const WHSkeletonMovieDetails();
     }
 
     if (_error != null || _details == null) {
@@ -1314,11 +1311,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
 
                           // Episodes List
                           if (_isSeasonLoading)
-                            const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(24),
-                                child: CircularProgressIndicator(color: AppColors.primary),
-                              ),
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: WHSkeletonEpisodeList(count: 3),
                             )
                           else if (_seasonDetails?['episodes'] != null && (_seasonDetails!['episodes'] as List).isNotEmpty)
                             ListView.builder(

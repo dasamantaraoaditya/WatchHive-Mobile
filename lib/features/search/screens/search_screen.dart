@@ -208,7 +208,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
       ),
       body: showResults
           ? _isSearching
-              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              ? const WHSkeletonGrid(itemCount: 6)
               : TabBarView(
                   controller: _tabController,
                   children: [

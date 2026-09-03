@@ -232,7 +232,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const WHSkeletonGrid();
     }
     if (_error != null) {
       return Center(
