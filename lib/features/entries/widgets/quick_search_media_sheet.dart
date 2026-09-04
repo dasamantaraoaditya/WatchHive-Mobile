@@ -83,8 +83,21 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
     if (_isSubmitting) return;
 
     if (_isWatchlist) {
-      setState(() => _isSubmitting = true);
       final title = media.title;
+      final cleanTitle = title.trim().isNotEmpty && title != 'Untitled' ? title : 'this title';
+
+      final confirm = await WHAlert.confirm(
+        context,
+        title: 'Add to Watchlist',
+        message: 'Would you like to add "$cleanTitle" to your Watchlist?',
+        confirmText: 'Add to Watchlist',
+        severity: WHAlertSeverity.primary,
+        icon: Icons.bookmark_add_rounded,
+      );
+
+      if (!confirm || !mounted) return;
+
+      setState(() => _isSubmitting = true);
       try {
         await ref.read(watchlistRepositoryProvider).addToWatchlist(
           tmdbId: media.id,
@@ -98,12 +111,12 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
           Navigator.of(context).pop();
           WHAlert.showSuccess(
             context,
-            'Added "$title" to your Watchlist! 📌',
+            'Added "$cleanTitle" to your Watchlist! 📌',
           );
         }
       } catch (e) {
         if (mounted) {
-          WHAlert.showError(context, 'Failed to add "$title" to Watchlist: $e');
+          WHAlert.showError(context, 'Failed to add "$cleanTitle" to Watchlist: $e');
         }
       } finally {
         if (mounted) setState(() => _isSubmitting = false);
@@ -378,10 +391,10 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
                               ),
                             ),
                           ),
-                          if (item.year != null && item.year!.isNotEmpty) ...[
+                          if (item.year.isNotEmpty) ...[
                             const SizedBox(width: 6),
                             Text(
-                              item.year!,
+                              item.year,
                               style: const TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w600),
                             ),
                           ],

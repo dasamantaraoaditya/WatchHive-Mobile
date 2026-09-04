@@ -30,6 +30,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
   List<MediaResult> _searchResults = [];
   bool _isSearching = false;
   bool _isSubmitting = false;
+  int? _submittingMediaId;
   Timer? _debounceTimer;
 
   @override
@@ -70,9 +71,26 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
 
   Future<void> _handleSelectMovie(MediaResult media) async {
     if (_isSubmitting) return;
-    setState(() => _isSubmitting = true);
 
     final title = media.title;
+    final cleanTitle = title.trim().isNotEmpty && title != 'Untitled' ? title : 'this title';
+
+    final confirm = await WHAlert.confirm(
+      context,
+      title: 'Log as Currently Watching',
+      message: 'Would you like to add "$cleanTitle" to your Currently Watching log?',
+      confirmText: 'Add to Watching',
+      severity: WHAlertSeverity.primary,
+      icon: Icons.visibility_rounded,
+    );
+
+    if (!confirm || !mounted) return;
+
+    setState(() {
+      _isSubmitting = true;
+      _submittingMediaId = media.id;
+    });
+
     try {
       final apiType = media.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE';
       final entry = await ref.read(entriesRepositoryProvider).createEntry({
@@ -95,15 +113,20 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
         Navigator.of(context).pop();
         WHAlert.showSuccess(
           context,
-          '"$title" added to your Currently Watching log! 👁️✨',
+          '"$cleanTitle" added to your Currently Watching log! 👁️✨',
         );
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to add "$title" to Currently Watching: $e');
+        WHAlert.showError(context, 'Failed to add "$cleanTitle" to Currently Watching: $e');
       }
     } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          _submittingMediaId = null;
+        });
+      }
     }
   }
 
@@ -136,7 +159,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.12),
+                    color: Colors.green.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.visibility_rounded, color: Colors.green, size: 22),
@@ -247,7 +270,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.search_rounded, size: 48, color: AppColors.textMuted.withOpacity(0.5)),
+              Icon(Icons.search_rounded, size: 48, color: AppColors.textMuted.withValues(alpha: 0.5)),
               const SizedBox(height: 12),
               const Text(
                 'Type a title to search',
@@ -345,7 +368,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: isTv ? Colors.blue.withOpacity(0.15) : AppColors.primary.withOpacity(0.2),
+                              color: isTv ? Colors.blue.withValues(alpha: 0.15) : AppColors.primary.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -358,10 +381,10 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
                               ),
                             ),
                           ),
-                          if (item.year != null && item.year!.isNotEmpty) ...[
+                          if (item.year.isNotEmpty) ...[
                             const SizedBox(width: 6),
                             Text(
-                              item.year!,
+                              item.year,
                               style: const TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w600),
                             ),
                           ],
@@ -381,10 +404,19 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.15),
+                    color: Colors.green.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.add_rounded, color: Colors.green, size: 20),
+                  child: _isSubmitting && _submittingMediaId == item.id
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.green,
+                          ),
+                        )
+                      : const Icon(Icons.add_rounded, color: Colors.green, size: 20),
                 ),
               ],
             ),
