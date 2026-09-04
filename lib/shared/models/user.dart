@@ -57,6 +57,7 @@ class User {
   });
 
   String get name => (displayName != null && displayName!.trim().isNotEmpty) ? displayName! : username;
+  String? get displayLocation => (location != null && location!.trim().isNotEmpty) ? location!.trim() : null;
 
   static int _parseInt(dynamic val) {
     if (val == null) return 0;
@@ -70,6 +71,13 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) {
     final countData = json['_count'] is Map ? json['_count'] as Map : null;
 
+    final rawLocation = json['location'] ?? (json['profile'] is Map ? json['profile']['location'] : null);
+    final parsedLocation = rawLocation is String
+        ? (rawLocation.trim().isNotEmpty ? rawLocation.trim() : null)
+        : (rawLocation is Map
+            ? (rawLocation['name'] ?? rawLocation['city'] ?? rawLocation.values.firstOrNull)?.toString().trim()
+            : (rawLocation != null && rawLocation.toString().trim().isNotEmpty ? rawLocation.toString().trim() : null));
+
     return User(
       id: json['id']?.toString() ?? '',
       username: json['username'] as String? ?? '',
@@ -77,7 +85,7 @@ class User {
       displayName: json['displayName'] as String?,
       profilePictureUrl: json['profilePictureUrl'] as String?,
       bio: json['bio'] as String?,
-      location: json['location'] as String?,
+      location: parsedLocation,
       isPrivate: json['isPrivate'] as bool? ?? false,
       privacyLevel: json['privacyLevel'] as String? ?? 'PUBLIC',
       showWatchEntries: json['showWatchEntries'] as bool? ?? true,

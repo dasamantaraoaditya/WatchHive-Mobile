@@ -376,6 +376,7 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
             rating: entry.rating,
             watchedAt: entry.watchedAt,
             startedAt: entry.startedAt ?? entry.createdAt,
+            watchLocation: entry.watchLocation,
             tags: entry.tags,
             onTap: () => context.push(
               '/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}',

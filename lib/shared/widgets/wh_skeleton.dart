@@ -349,6 +349,7 @@ class WHSkeletonFeed extends StatelessWidget {
   Widget build(BuildContext context) {
     return WHSkeleton(
       child: ListView.separated(
+        shrinkWrap: true,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
         physics: const NeverScrollableScrollPhysics(),
         itemCount: itemCount,

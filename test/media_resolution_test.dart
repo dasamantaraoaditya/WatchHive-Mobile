@@ -5,6 +5,12 @@ import 'package:watchhive_mobile/shared/models/entry.dart';
 import 'package:watchhive_mobile/shared/models/models.dart';
 import 'package:watchhive_mobile/features/rankings/models/ranking_stack.dart';
 import 'package:watchhive_mobile/features/entries/widgets/wh_entry_grid_card.dart';
+import 'package:watchhive_mobile/features/search/repositories/search_repository.dart';
+
+class _FakeSearchRepo implements SearchRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => Future.value(<String, dynamic>{});
+}
 
 void main() {
   group('Media Models Parsing & Fallbacks', () {
@@ -79,6 +85,9 @@ void main() {
     testWidgets('does not display raw "Untitled" text while loading from TMDB', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [
+            searchRepositoryProvider.overrideWithValue(_FakeSearchRepo()),
+          ],
           child: MaterialApp(
             home: Scaffold(
               body: SizedBox(
@@ -99,6 +108,9 @@ void main() {
 
       // Verify that "Untitled" is not rendered on screen while fetching
       expect(find.text('Untitled'), findsNothing);
+
+      // Clean up Shimmer animation timer by disposing widget tree
+      await tester.pumpWidget(const SizedBox());
     });
   });
 }

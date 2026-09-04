@@ -13,6 +13,7 @@ import '../repositories/user_repository.dart';
 import '../widgets/follow_list_sheet.dart';
 import '../widgets/profile_stats_view.dart';
 import '../widgets/compare_picker_modal.dart';
+import '../widgets/data_management_card.dart';
 import 'edit_profile_dialog.dart';
 import '../../../core/utils/error_handler.dart';
 
@@ -474,16 +475,50 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                         color: AppColors.primaryDark,
                       ),
                     ),
-                    if (user.location != null && user.location!.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on_outlined, size: 12, color: AppColors.textMuted),
-                          const SizedBox(width: 3),
-                          Text(user.location!, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                        ],
+                    GestureDetector(
+                      onTap: () {
+                        EditProfileDialog.show(
+                          context,
+                          user: user,
+                          onSaved: _loadProfileData,
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: 12,
+                              color: (user.location != null && user.location!.trim().isNotEmpty)
+                                  ? AppColors.textMuted
+                                  : AppColors.primaryDark,
+                            ),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(
+                                (user.location != null && user.location!.trim().isNotEmpty)
+                                    ? user.location!.trim()
+                                    : 'Add location',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 11,
+                                  fontWeight: (user.location != null && user.location!.trim().isNotEmpty)
+                                      ? FontWeight.w500
+                                      : FontWeight.w600,
+                                  color: (user.location != null && user.location!.trim().isNotEmpty)
+                                      ? AppColors.textMuted
+                                      : AppColors.primaryDark,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -963,6 +998,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
               ],
             ),
           ),
+          const SizedBox(height: 16),
+
+          // Data Management (Export & Import Hive Data)
+          DataManagementCard(onDataChanged: _loadProfileData),
           const SizedBox(height: 16),
 
           // Sign Out Button

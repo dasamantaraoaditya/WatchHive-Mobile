@@ -58,7 +58,7 @@ void main() {
       final mockEntry = Entry(
         id: 'entry-123',
         userId: 'user-1',
-        tmdbId: 550,
+        tmdbId: 0,
         title: 'Fight Club',
         type: 'MOVIE',
         watchedAt: specificDate,

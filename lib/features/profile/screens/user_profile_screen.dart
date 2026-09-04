@@ -675,13 +675,25 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                         color: AppColors.primaryDark,
                       ),
                     ),
-                    if (user.location != null && user.location!.isNotEmpty) ...[
+                    if (user.location != null && user.location!.trim().isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.location_on_outlined, size: 12, color: AppColors.textMuted),
                           const SizedBox(width: 3),
-                          Text(user.location!, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                          Flexible(
+                            child: Text(
+                              user.location!.trim(),
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -1118,6 +1130,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           mode: WHEntryCardMode.history,
           rating: entry.rating,
           watchedAt: entry.watchedAt,
+          watchLocation: entry.watchLocation,
           tags: entry.tags,
           onTap: () {
             if (entry.tmdbId > 0) {
@@ -1166,6 +1179,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           rating: entry.rating,
           watchedAt: entry.watchedAt,
           startedAt: entry.startedAt ?? entry.createdAt,
+          watchLocation: entry.watchLocation,
           tags: entry.tags,
           onTap: () {
             if (entry.tmdbId > 0) {

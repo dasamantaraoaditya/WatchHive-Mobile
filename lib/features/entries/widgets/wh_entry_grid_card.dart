@@ -27,6 +27,7 @@ class WHEntryGridCard extends ConsumerWidget {
   final DateTime? suggestedAt;
   final String? suggestedByUsername;
   final String? suggestedByAvatarUrl;
+  final String? watchLocation;
   final List<String> tags;
   final VoidCallback onTap;
   final VoidCallback? onMoveToWatching;
@@ -49,6 +50,7 @@ class WHEntryGridCard extends ConsumerWidget {
     this.suggestedAt,
     this.suggestedByUsername,
     this.suggestedByAvatarUrl,
+    this.watchLocation,
     this.tags = const [],
     required this.onTap,
     this.onMoveToWatching,
@@ -408,6 +410,37 @@ class WHEntryGridCard extends ConsumerWidget {
                                 ),
                               ),
                             ),
+                            if (watchLocation != null && watchLocation!.trim().isNotEmpty) ...[
+                              const SizedBox(width: 5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.location_on_outlined, size: 9, color: AppColors.primaryDark),
+                                    const SizedBox(width: 2),
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(maxWidth: 55),
+                                      child: Text(
+                                        watchLocation!.trim(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.primaryDark,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

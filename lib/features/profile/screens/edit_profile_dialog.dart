@@ -6,6 +6,7 @@ import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../repositories/user_repository.dart';
+import '../widgets/data_management_card.dart';
 import '../../../core/utils/error_handler.dart';
 
 class EditProfileDialog extends ConsumerStatefulWidget {
@@ -55,7 +56,6 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
   bool _isSaving = false;
   bool _isUploadingAvatar = false;
   bool _isSettingPassword = false;
-  bool _isExporting = false;
   bool _obscurePassword = true;
 
   @override
@@ -163,7 +163,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
         {
           'displayName': displayName.isNotEmpty ? displayName : '',
           'bio': bio,
-          'location': location.isNotEmpty ? location : '',
+          'location': location.isNotEmpty ? location : null,
           'privacyLevel': _privacyLevel,
           'isPrivate': _privacyLevel == 'PRIVATE',
           'showWatchEntries': _showWatchEntries,
@@ -220,28 +220,6 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
       }
     } finally {
       if (mounted) setState(() => _isSettingPassword = false);
-    }
-  }
-
-  Future<void> _handleExportData() async {
-    setState(() => _isExporting = true);
-    try {
-      await ref.read(userRepositoryProvider).exportData(format: 'json');
-      if (mounted) {
-        WHAlert.showSuccess(context, 'Hive data exported successfully! 📦');
-      }
-    } catch (e) {
-      if (mounted) {
-        WHAlert.showError(
-          context,
-          AppErrorHandler.toUserFriendlyMessage(
-            e,
-            defaultMessage: 'Failed to export data. Please try again.',
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isExporting = false);
     }
   }
 
@@ -788,64 +766,8 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
           const SizedBox(height: 24),
         ],
 
-        // Data Management Section
-        const Text(
-          'DATA MANAGEMENT',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            color: AppColors.textMuted,
-            letterSpacing: 1.0,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.download_rounded, color: AppColors.primary, size: 22),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Export Hive Data',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
-                    ),
-                    Text(
-                      'Download your watch entries and lists as JSON',
-                      style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-                    ),
-                  ],
-                ),
-              ),
-              OutlinedButton(
-                onPressed: _isExporting ? null : _handleExportData,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primaryDark,
-                  side: const BorderSide(color: AppColors.primary),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: _isExporting
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
-                    : const Text('Export', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        ),
+        // Data Management Section (Export & Import Hive Data)
+        DataManagementCard(onDataChanged: widget.onSaved),
         const SizedBox(height: 16),
       ],
     );

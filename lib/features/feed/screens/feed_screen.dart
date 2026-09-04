@@ -14,7 +14,6 @@ import '../widgets/comments_sheet.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../search/repositories/search_repository.dart';
 
-import '../../../shared/widgets/wh_brand_logo.dart';
 
 // Feed state
 class FeedState {
@@ -233,7 +232,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               ),
             )
           else if (feedState.entries.isEmpty)
-            const SliverFillRemaining(child: _EmptyFeed())
+            SliverFillRemaining(
+              child: _EmptyFeed(
+                onRefresh: () => ref.read(feedProvider.notifier).loadFeed(),
+              ),
+            )
           else ...[
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -262,7 +265,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         entryAuthorId: entry.userId,
                         onCommentCountChanged: (count) => ref.read(feedProvider.notifier).updateCommentsCount(entry.id, count),
                       ),
-                      onUserTap: () => context.push('/profile/${entry.user?.id}'),
+                      onUserTap: () {
+                        final targetId = (entry.user?.id != null && entry.user!.id.isNotEmpty)
+                            ? entry.user!.id
+                            : entry.userId;
+                        if (targetId.isNotEmpty) {
+                          context.push('/profile/$targetId');
+                        }
+                      },
                       onMediaTap: () => context.push(
                         '/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}',
                         extra: entry,
@@ -301,7 +311,16 @@ class _FeedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSuggestion = entry.isSuggestion || entry.user == null;
-    final displayName = isSuggestion ? 'WatchHive' : (entry.user?.displayName ?? entry.user?.username ?? 'User');
+    final displayName = () {
+      if (isSuggestion) return 'WatchHive';
+      final dn = entry.user?.displayName?.trim();
+      if (dn != null && dn.isNotEmpty) return dn;
+      final un = entry.user?.username.trim();
+      if (un != null && un.isNotEmpty) {
+        return un.startsWith('@') ? un.substring(1) : un;
+      }
+      return 'User';
+    }();
 
     final actionText = () {
       if (isSuggestion) return 'recommends';
@@ -341,7 +360,7 @@ class _FeedCard extends StatelessWidget {
                         )
                       : WHAvatar(
                           imageUrl: entry.user?.profilePictureUrl,
-                          name: entry.user?.displayName ?? entry.user?.username,
+                          name: displayName,
                           radius: 19,
                         ),
                 ),
@@ -350,44 +369,48 @@ class _FeedCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // User Name + Action Sentence
-                      RichText(
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        text: TextSpan(
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            color: AppColors.textPrimary,
+                      // User Name + Action Sentence (Tappable with profile redirect, ellipsis for long names)
+                      GestureDetector(
+                        onTap: isSuggestion ? null : onUserTap,
+                        behavior: HitTestBehavior.opaque,
+                        child: Text.rich(
+                          TextSpan(
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: displayName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              TextSpan(
+                                text: ' $actionText',
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
                           ),
-                          children: [
-                            TextSpan(
-                              text: displayName,
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                            ),
-                            TextSpan(
-                              text: ' $actionText',
-                              style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w400),
-                            ),
-                          ],
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
 
-                      // Subtitle / Username
-                      if (!isSuggestion && entry.user?.username != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          '@${entry.user!.username}',
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 11,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ] else if (isSuggestion) ...[
+                      // Recommendation reason for suggestions (no @user_id shown)
+                      if (isSuggestion) ...[
                         const SizedBox(height: 2),
                         Text(
                           entry.suggestionReason ?? '✨ Recommended for You',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 11,
@@ -397,11 +420,16 @@ class _FeedCard extends StatelessWidget {
                         ),
                       ],
 
-                      // Suggested By Row (If applicable)
+                      // Suggested By Row (If applicable) - Clean name with profile redirect and overflow protection
                       if (entry.suggestedByUser != null) ...[
                         const SizedBox(height: 4),
                         GestureDetector(
-                          onTap: () => context.push('/profile/${entry.suggestedByUser!.id}'),
+                          onTap: () {
+                            final suggId = entry.suggestedByUser!.id;
+                            if (suggId.isNotEmpty) {
+                              context.push('/profile/$suggId');
+                            }
+                          },
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -417,16 +445,28 @@ class _FeedCard extends StatelessWidget {
                               WHAvatar(
                                 imageUrl: entry.suggestedByUser!.profilePictureUrl,
                                 name: entry.suggestedByUser!.displayName ?? entry.suggestedByUser!.username,
-                                radius: 7,
+                                radius: 8,
                               ),
                               const SizedBox(width: 4),
-                              Text(
-                                '@${entry.suggestedByUser!.username}',
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                              Flexible(
+                                child: Text(
+                                  () {
+                                    final sdn = entry.suggestedByUser!.displayName?.trim();
+                                    if (sdn != null && sdn.isNotEmpty) return sdn;
+                                    final sun = entry.suggestedByUser!.username.trim();
+                                    if (sun.isNotEmpty) {
+                                      return sun.startsWith('@') ? sun.substring(1) : sun;
+                                    }
+                                    return 'Friend';
+                                  }(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
                                 ),
                               ),
                             ],
@@ -441,6 +481,7 @@ class _FeedCard extends StatelessWidget {
                 // Compact header timestamp (e.g. "2:30 PM" or "Aug 23")
                 Text(
                   _formatCompactHeaderDate(entry.watchedAt),
+                  maxLines: 1,
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11,
@@ -458,7 +499,7 @@ class _FeedCard extends StatelessWidget {
             onTap: onMediaTap,
           ),
 
-          // Status & Full Precise Timestamp Footer
+          // Status & Full Precise Timestamp Footer with Overflow Protection
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             child: Row(
@@ -472,30 +513,40 @@ class _FeedCard extends StatelessWidget {
                   size: 14,
                   color: isSuggestion ? AppColors.primary : AppColors.textMuted,
                 ),
-                const SizedBox(width: 5),
-                Text(
-                  isSuggestion
-                      ? (entry.suggestionReason ?? 'Recommended for You')
-                      : (entry.isWatching
-                          ? 'Started watching • '
-                          : (entry.startedAt != null ? 'Completed watching • ' : 'Seen • ')),
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: isSuggestion ? AppColors.primary : AppColors.textMuted,
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: isSuggestion
+                              ? (entry.suggestionReason ?? 'Recommended for You')
+                              : (entry.isWatching
+                                  ? 'Started watching • '
+                                  : (entry.startedAt != null ? 'Completed watching • ' : 'Seen • ')),
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                            fontWeight: isSuggestion ? FontWeight.w600 : FontWeight.w500,
+                            color: isSuggestion ? AppColors.primary : AppColors.textMuted,
+                          ),
+                        ),
+                        if (!isSuggestion)
+                          TextSpan(
+                            text: _formatFullTimestamp(entry.watchedAt),
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (!isSuggestion)
-                  Text(
-                    _formatFullTimestamp(entry.watchedAt),
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
               ],
             ),
           ),
@@ -577,6 +628,37 @@ class _FeedCard extends StatelessWidget {
                         : AppColors.textMuted,
                     onTap: onCommentTap ?? () {},
                   ),
+                  if (entry.watchLocation != null && entry.watchLocation!.trim().isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textMuted),
+                              const SizedBox(width: 3),
+                              Flexible(
+                                child: Text(
+                                  entry.watchLocation!.trim(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -859,7 +941,10 @@ class FeedMediaHeroBanner extends ConsumerWidget {
             Positioned(
               top: 10,
               left: 10,
-              child: Row(
+              right: 80,
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -878,8 +963,7 @@ class FeedMediaHeroBanner extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  if (entry.isRewatch) ...[
-                    const SizedBox(width: 6),
+                  if (entry.isRewatch)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
@@ -897,7 +981,6 @@ class FeedMediaHeroBanner extends ConsumerWidget {
                         ),
                       ),
                     ),
-                  ],
                 ],
               ),
             ),
@@ -969,6 +1052,8 @@ class FeedMediaHeroBanner extends ConsumerWidget {
                         ),
                         child: Text(
                           '#$tag',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 10,

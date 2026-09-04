@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/comment.dart';
 import '../../../shared/widgets/shared_widgets.dart';
@@ -257,7 +258,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.12),
+                    color: AppColors.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.chat_bubble_rounded, color: AppColors.primaryDark, size: 18),
@@ -330,7 +331,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                                 width: 56,
                                 height: 56,
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.1),
+                                  color: AppColors.primary.withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(Icons.forum_outlined, color: AppColors.primary, size: 28),
@@ -438,7 +439,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
               border: const Border(top: BorderSide(color: AppColors.border)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 8,
                   offset: const Offset(0, -2),
                 ),
@@ -507,47 +508,53 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     VoidCallback? onDelete,
   }) {
     final userName = comment.user?.displayName ?? comment.user?.username ?? 'Hive Member';
-    final userHandle = comment.user?.username;
+    final authorId = comment.user?.id ?? comment.userId;
+    void goToProfile() {
+      if (authorId.isNotEmpty) {
+        Navigator.of(context).pop();
+        context.push('/profile/$authorId');
+      }
+    }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        WHAvatar(
-          imageUrl: comment.user?.profilePictureUrl,
-          name: userName,
-          radius: isReply ? 13 : 16,
+        GestureDetector(
+          onTap: goToProfile,
+          child: WHAvatar(
+            imageUrl: comment.user?.profilePictureUrl,
+            name: userName,
+            radius: isReply ? 13 : 16,
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Username + Timestamp
+              // Username + Timestamp with Overflow Protection
               Row(
                 children: [
-                  Text(
-                    userName,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: isReply ? 12 : 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  if (userHandle != null) ...[
-                    const SizedBox(width: 4),
-                    Text(
-                      '@$userHandle',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: isReply ? 10 : 11,
-                        color: AppColors.textMuted,
+                  Flexible(
+                    child: GestureDetector(
+                      onTap: goToProfile,
+                      child: Text(
+                        userName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: isReply ? 12 : 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
-                  ],
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     '· ${_formatRelativeTime(comment.createdAt)}',
+                    maxLines: 1,
                     style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
                   ),
                   const Spacer(),

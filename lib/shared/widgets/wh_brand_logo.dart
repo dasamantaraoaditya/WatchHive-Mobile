@@ -17,57 +17,59 @@ class WHBrandLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: mainAxisSize,
-      children: [
-        Container(
-          width: logoSize,
-          height: logoSize,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(logoSize * 0.25),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Image.asset(
-            'assets/images/watchhive-logo.png',
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Icon(
-              Icons.hive_rounded,
-              size: logoSize * 0.8,
-              color: AppColors.primary,
-            ),
-          ),
-        ),
-        if (showText) ...[
-          SizedBox(width: logoSize * 0.3),
-          ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [
-                Color(0xFFFFC83B),
-                Color(0xFFFFB700),
-                Color(0xFFE6A300),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ).createShader(bounds),
-            child: Text(
-              'WatchHive',
-              style: TextStyle(
-                fontFamily: 'Outfit',
-                fontSize: fontSize,
-                fontWeight: FontWeight.w900,
-                color: Colors.white, // Required for ShaderMask
-                letterSpacing: -0.5,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: mainAxisSize,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: logoSize,
+            height: logoSize,
+            child: Image.asset(
+              'assets/images/watchhive-logo.png',
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (_, __, ___) => Icon(
+                Icons.hive_rounded,
+                size: logoSize * 0.85,
+                color: AppColors.primary,
               ),
             ),
           ),
+          if (showText) ...[
+            const SizedBox(width: 8),
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Watch',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  TextSpan(
+                    text: 'Hive',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.primary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
+

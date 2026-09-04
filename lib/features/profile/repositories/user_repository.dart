@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -69,12 +70,12 @@ class UserRepository {
     dynamic resData;
     DioException? lastError;
 
-    // List of candidate endpoints/methods to try
+    // List of candidate endpoints/methods to try (PUT /users/me is canonical backend endpoint)
     final attempts = [
-      () => _api.patch(ApiEndpoints.me, data: cleanData),
       () => _api.put(ApiEndpoints.me, data: cleanData),
-      () => _api.patch(ApiEndpoints.updateProfile(userId), data: cleanData),
+      () => _api.patch(ApiEndpoints.me, data: cleanData),
       () => _api.put(ApiEndpoints.updateProfile(userId), data: cleanData),
+      () => _api.patch(ApiEndpoints.updateProfile(userId), data: cleanData),
     ];
 
     for (final attempt in attempts) {
@@ -414,20 +415,53 @@ class UserRepository {
     );
   }
 
-  /// Export user data as JSON or CSV
-  Future<dynamic> exportData({
+  /// Export user data as JSON or CSV string
+  Future<String> exportData({
     bool includeEntries = true,
     bool includeLists = true,
     String format = 'json',
   }) async {
+    final includeParts = <String>[];
+    if (includeEntries) includeParts.add('entries');
+    if (includeLists) includeParts.add('lists');
+    if (includeParts.isEmpty) {
+      throw Exception('Select at least one data type to export.');
+    }
+
     final response = await _api.get(
       ApiEndpoints.dataExport,
       queryParameters: {
-        'includeEntries': includeEntries,
-        'includeLists': includeLists,
         'format': format,
+        'include': includeParts.join(','),
       },
+      options: Options(responseType: ResponseType.plain),
     );
-    return response.data;
+
+    final raw = response.data;
+    if (raw is String) {
+      return raw;
+    }
+    return jsonEncode(raw);
+  }
+
+  /// Import user data payload { "entries": [...], "lists": [...] }
+  Future<Map<String, dynamic>> importData(Map<String, dynamic> payload) async {
+    final body = <String, dynamic>{};
+    if (payload['entries'] is List) body['entries'] = payload['entries'];
+    if (payload['lists'] is List) body['lists'] = payload['lists'];
+
+    if (!body.containsKey('entries') && !body.containsKey('lists')) {
+      throw Exception('File must contain an "entries" and/or "lists" array.');
+    }
+
+    final response = await _api.post(
+      ApiEndpoints.dataImport,
+      data: body,
+    );
+
+    if (response.data is Map<String, dynamic>) {
+      return response.data as Map<String, dynamic>;
+    }
+    return <String, dynamic>{'message': 'Import complete!'};
   }
 }
