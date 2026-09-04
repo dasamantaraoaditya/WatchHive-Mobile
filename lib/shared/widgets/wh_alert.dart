@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/error_handler.dart';
 
 enum WHAlertSeverity {
   primary,
@@ -71,10 +72,11 @@ class WHAlert {
     );
   }
 
-  static void showError(BuildContext context, String message) {
+  static void showError(BuildContext context, dynamic messageOrError) {
+    final cleanMessage = AppErrorHandler.toUserFriendlyMessage(messageOrError);
     _showFloatingToast(
       context,
-      message: message,
+      message: cleanMessage,
       severity: WHAlertSeverity.danger,
       icon: Icons.error_outline_rounded,
     );

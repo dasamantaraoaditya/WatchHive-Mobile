@@ -123,8 +123,8 @@ class Entry {
       title: titleStr,
       type: dataMap['type'] as String? ?? (dataMap['media_type']?.toString().toUpperCase() == 'TV' ? 'TV_SHOW' : 'MOVIE'),
       watchedAt: dataMap['watchedAt'] != null
-          ? DateTime.tryParse(dataMap['watchedAt'].toString()) ?? DateTime.now()
-          : (json['timestamp'] != null ? DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now() : DateTime.now()),
+          ? (DateTime.tryParse(dataMap['watchedAt'].toString())?.toLocal() ?? DateTime.now())
+          : (json['timestamp'] != null ? (DateTime.tryParse(json['timestamp'].toString())?.toLocal() ?? DateTime.now()) : DateTime.now()),
       rating: dataMap['rating'] != null
           ? double.tryParse(dataMap['rating'].toString())
           : (dataMap['vote_average'] != null ? double.tryParse(dataMap['vote_average'].toString()) : null),
@@ -133,14 +133,14 @@ class Entry {
       isRewatch: dataMap['isRewatch'] as bool? ?? false,
       isWatching: dataMap['isWatching'] as bool? ?? false,
       startedAt: dataMap['startedAt'] != null
-          ? DateTime.tryParse(dataMap['startedAt'].toString())
+          ? DateTime.tryParse(dataMap['startedAt'].toString())?.toLocal()
           : null,
       completedAt: dataMap['completedAt'] != null
-          ? DateTime.tryParse(dataMap['completedAt'].toString())
+          ? DateTime.tryParse(dataMap['completedAt'].toString())?.toLocal()
           : null,
       watchLocation: dataMap['watchLocation'] as String?,
       createdAt: dataMap['createdAt'] != null
-          ? DateTime.tryParse(dataMap['createdAt'].toString()) ?? DateTime.now()
+          ? (DateTime.tryParse(dataMap['createdAt'].toString())?.toLocal() ?? DateTime.now())
           : DateTime.now(),
       user: dataMap['user'] != null
           ? User.fromJson(dataMap['user'] as Map<String, dynamic>)

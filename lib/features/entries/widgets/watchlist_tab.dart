@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/watchlist_repository.dart';
 import '../repositories/entries_repository.dart';
@@ -51,7 +52,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = AppErrorHandler.toUserFriendlyMessage(e);
           _isLoading = false;
         });
       }
@@ -236,19 +237,37 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     }
     if (_error != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-            const SizedBox(height: 12),
-            Text('Failed to load Watchlist: $_error', style: const TextStyle(color: AppColors.textMuted)),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _fetchWatchlist,
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Retry', style: TextStyle(color: Colors.white)),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.cloud_off_rounded, size: 48, color: AppColors.textMuted),
+              const SizedBox(height: 14),
+              const Text(
+                'Could not load your Watchlist',
+                style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
+              ),
+              const SizedBox(height: 18),
+              ElevatedButton.icon(
+                onPressed: _fetchWatchlist,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                label: const Text('Tap to Retry', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
         ),
       );
     }

@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/auth_provider.dart';
+import '../../../core/utils/error_handler.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -46,7 +47,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, _parseError(e.toString()));
+        WHAlert.showError(context, _parseError(e));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -82,7 +83,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (mounted) {
           WHAlert.showError(
             context,
-            'Google Sign-In failed: No ID Token returned. Ensure GOOGLE_WEB_CLIENT_ID is set in .env',
+            'Google Sign-In could not be completed. Please try again or sign in with your email and password.',
           );
         }
         return;
@@ -105,21 +106,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String _formatGoogleError(dynamic e) {
     final str = e.toString();
     if (str.contains('7:')) {
-      return 'Google Sign-In error (7): Network error. Please ensure a Google account is logged into the device Settings > Accounts and internet is connected.';
-    } else if (str.contains('10:')) {
-      return 'Google Sign-In error (10): SHA-1 fingerprint or Web Client ID mismatch in Google Cloud Console.';
-    } else if (str.contains('12500')) {
-      return 'Google Sign-In error (12500): Check Google Play Services and OAuth configuration.';
+      return 'Network error during Google Sign-In. Please check your internet connection.';
+    } else if (str.contains('10:') || str.contains('12500')) {
+      return 'Google Sign-In is temporarily unavailable. Please sign in with your email and password.';
     } else if (str.contains('Concurrent')) {
       return 'Google Sign-In is already in progress. Please wait a moment.';
     }
-    return _parseError(str);
+    return _parseError(e);
   }
 
-  String _parseError(String error) {
-    if (error.contains('401') || error.contains('Invalid')) return 'Invalid email or password.';
-    if (error.contains('network') || error.contains('connection')) return 'Network error. Check your connection.';
-    return error.length > 80 ? '${error.substring(0, 80)}...' : error;
+  String _parseError(dynamic error) {
+    return AppErrorHandler.toUserFriendlyMessage(
+      error,
+      defaultMessage: 'Unable to sign in. Please verify your credentials and try again.',
+    );
   }
 
   @override

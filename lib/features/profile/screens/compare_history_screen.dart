@@ -9,6 +9,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../entries/widgets/suggest_movie_modal.dart';
 import '../models/compare_result.dart';
 import '../repositories/user_repository.dart';
+import '../../../core/utils/error_handler.dart';
 
 class CompareHistoryScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -62,12 +63,18 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
         if (msg.startsWith('PRIVACY_RESTRICTED:')) {
           setState(() {
             _isPrivacyRestricted = true;
-            _error = msg.replaceFirst('PRIVACY_RESTRICTED:', '');
+            _error = AppErrorHandler.sanitize(
+              msg.replaceFirst('PRIVACY_RESTRICTED:', ''),
+              defaultMessage: 'This user has restricted access to their watch history.',
+            );
             _isLoading = false;
           });
         } else {
           setState(() {
-            _error = msg;
+            _error = AppErrorHandler.toUserFriendlyMessage(
+              e,
+              defaultMessage: 'Could not compare watch histories at this time. Please try again.',
+            );
             _isLoading = false;
           });
         }

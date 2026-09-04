@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../profile/widgets/profile_stats_view.dart';
 import '../repositories/mindlens_repository.dart';
@@ -44,7 +45,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = AppErrorHandler.toUserFriendlyMessage(e, defaultMessage: 'Could not generate MindLens insights at this time.');
           _isLoading = false;
         });
       }
@@ -80,21 +81,42 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Failed to load MindLens: $_error',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppColors.textMuted),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.psychology_alt_rounded, size: 40, color: AppColors.error),
                         ),
                         const SizedBox(height: 16),
-                        ElevatedButton(
+                        const Text(
+                          'MindLens Unavailable',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
                           onPressed: _fetchMindLensData,
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
-                          child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),

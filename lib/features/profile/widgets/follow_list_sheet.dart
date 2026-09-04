@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/user_repository.dart';
+import '../../../core/utils/error_handler.dart';
 
 class FollowListSheet extends ConsumerStatefulWidget {
   final String userId;
@@ -72,7 +73,10 @@ class _FollowListSheetState extends ConsumerState<FollowListSheet> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Could not load ${widget.title.toLowerCase()}. Please try again.',
+          );
           _isLoading = false;
         });
       }
@@ -184,10 +188,16 @@ class _FollowListSheetState extends ConsumerState<FollowListSheet> {
               const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 40),
               const SizedBox(height: 10),
               Text(
-                'Failed to load ${widget.title.toLowerCase()}',
+                'Could not load ${widget.title.toLowerCase()}',
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 6),
+              Text(
+                _error!,
+                style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 14),
               ElevatedButton(
                 onPressed: _fetchUsers,
                 style: ElevatedButton.styleFrom(

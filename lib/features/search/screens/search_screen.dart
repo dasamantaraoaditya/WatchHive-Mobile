@@ -7,6 +7,7 @@ import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/search_repository.dart';
 import '../../profile/repositories/user_repository.dart';
+import '../../../core/utils/error_handler.dart';
 
 enum TrendingFilter {
   allTrending('🔥 All Trending', 'all', 'trending'),
@@ -774,7 +775,15 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
         }
       }
     } catch (e) {
-      if (mounted) WHAlert.showError(context, 'Action failed: $e');
+      if (mounted) {
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Could not update follow status. Please try again.',
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

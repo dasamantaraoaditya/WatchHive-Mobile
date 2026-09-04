@@ -6,6 +6,7 @@ import '../../../shared/models/comment.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../repositories/comments_repository.dart';
+import '../../../core/utils/error_handler.dart';
 
 class CommentsSheet extends ConsumerStatefulWidget {
   final String entryId;
@@ -130,7 +131,13 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSubmitting = false);
-        WHAlert.showError(context, 'Failed to post comment: $e');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Could not post comment. Please try again.',
+          ),
+        );
       }
     }
   }
@@ -179,7 +186,13 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to delete comment: $e');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Could not delete comment. Please try again.',
+          ),
+        );
       }
     }
   }

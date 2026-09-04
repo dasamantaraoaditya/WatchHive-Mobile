@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/ranking_stack.dart';
 import '../repositories/rankings_repository.dart';
+import '../../../core/utils/error_handler.dart';
 
 // State model for My Ranking Stacks list
 class MyRankingsState {
@@ -41,7 +42,13 @@ class MyRankingsNotifier extends StateNotifier<MyRankingsState> {
       final stacks = await _repo.getMyRankingStacks(_userId);
       state = state.copyWith(stacks: stacks, isLoading: false);
     } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
+      state = state.copyWith(
+        error: AppErrorHandler.toUserFriendlyMessage(
+          e,
+          defaultMessage: 'Could not load your ranking stacks.',
+        ),
+        isLoading: false,
+      );
     }
   }
 
@@ -59,7 +66,12 @@ class MyRankingsNotifier extends StateNotifier<MyRankingsState> {
       state = state.copyWith(stacks: [newStack, ...state.stacks]);
       return newStack;
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(
+        error: AppErrorHandler.toUserFriendlyMessage(
+          e,
+          defaultMessage: 'Could not create ranking stack.',
+        ),
+      );
       return null;
     }
   }
@@ -81,7 +93,12 @@ class MyRankingsNotifier extends StateNotifier<MyRankingsState> {
         stacks: state.stacks.map((s) => s.id == listId ? updated : s).toList(),
       );
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(
+        error: AppErrorHandler.toUserFriendlyMessage(
+          e,
+          defaultMessage: 'Could not update ranking stack.',
+        ),
+      );
     }
   }
 
@@ -92,7 +109,12 @@ class MyRankingsNotifier extends StateNotifier<MyRankingsState> {
         stacks: state.stacks.where((s) => s.id != listId).toList(),
       );
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(
+        error: AppErrorHandler.toUserFriendlyMessage(
+          e,
+          defaultMessage: 'Could not delete ranking stack.',
+        ),
+      );
     }
   }
 }
@@ -147,7 +169,13 @@ class ActiveStackNotifier extends StateNotifier<ActiveStackState> {
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
+      state = state.copyWith(
+        error: AppErrorHandler.toUserFriendlyMessage(
+          e,
+          defaultMessage: 'Could not load ranking stack.',
+        ),
+        isLoading: false,
+      );
     }
   }
 
@@ -167,7 +195,12 @@ class ActiveStackNotifier extends StateNotifier<ActiveStackState> {
       // Reload stack to get full metadata from backend
       await loadStack(_currentListId!);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(
+        error: AppErrorHandler.toUserFriendlyMessage(
+          e,
+          defaultMessage: 'Could not add item to stack.',
+        ),
+      );
     }
   }
 
@@ -186,7 +219,13 @@ class ActiveStackNotifier extends StateNotifier<ActiveStackState> {
       );
     } catch (e) {
       // Revert on error
-      state = state.copyWith(items: previousItems, error: e.toString());
+      state = state.copyWith(
+        items: previousItems,
+        error: AppErrorHandler.toUserFriendlyMessage(
+          e,
+          defaultMessage: 'Could not remove item from stack.',
+        ),
+      );
     }
   }
 

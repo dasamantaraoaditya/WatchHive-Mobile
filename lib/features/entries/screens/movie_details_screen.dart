@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/models/entry.dart';
@@ -169,7 +170,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = AppErrorHandler.toUserFriendlyMessage(e, defaultMessage: 'Could not load details right now. Please try again.');
           _isLoading = false;
         });
       }
@@ -463,9 +464,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _error ?? 'The hive is a bit busy right now.',
+                  _error ?? 'Unable to load cinematic details right now. Please try again.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                  style: const TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton.icon(

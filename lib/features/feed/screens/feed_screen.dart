@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
@@ -77,7 +78,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
     } catch (e, stackTrace) {
       debugPrint('Feed load error: $e');
       debugPrint('Feed stack trace: $stackTrace');
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: AppErrorHandler.toUserFriendlyMessage(e));
     }
   }
 
@@ -226,7 +227,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             const SliverToBoxAdapter(child: WHSkeletonFeed(itemCount: 3))
           else if (feedState.error != null && feedState.entries.isEmpty)
             SliverFillRemaining(
-              child: _EmptyFeed(onRefresh: () => ref.read(feedProvider.notifier).loadFeed()),
+              child: _ErrorFeed(
+                errorMessage: feedState.error!,
+                onRefresh: () => ref.read(feedProvider.notifier).loadFeed(),
+              ),
             )
           else if (feedState.entries.isEmpty)
             const SliverFillRemaining(child: _EmptyFeed())
@@ -631,6 +635,59 @@ class _ActionButton extends StatelessWidget {
                 color: color,
                 fontWeight: FontWeight.w500,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorFeed extends StatelessWidget {
+  final String errorMessage;
+  final VoidCallback onRefresh;
+
+  const _ErrorFeed({
+    required this.errorMessage,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 48, color: AppColors.textMuted),
+            const SizedBox(height: 16),
+            const Text(
+              'Could not load feed',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: onRefresh,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              label: const Text('Tap to Retry', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),

@@ -13,6 +13,7 @@ import '../repositories/entries_repository.dart';
 import '../repositories/suggestions_repository.dart';
 import 'entries_screen.dart';
 import '../../search/repositories/search_repository.dart';
+import '../../../core/utils/error_handler.dart';
 
 class _LocationPreset {
   final String label;
@@ -124,7 +125,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       _watchLocation = e.watchLocation ?? '';
       _locationController.text = _watchLocation;
       _tags = List<String>.from(e.tags);
-      _watchedDate = e.watchedAt;
+      _watchedDate = e.watchedAt.toLocal();
       if (_tmdbId > 0) _loadMediaDetails(_tmdbId, _type);
     } else {
       if (widget.prefillIsWatching != null) {
@@ -238,11 +239,15 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final now = DateTime.now();
+    final maxDate = now.add(const Duration(days: 365));
+    final initial = _watchedDate.isAfter(maxDate) ? maxDate : _watchedDate;
+
+    final pickedDate = await showDatePicker(
       context: context,
-      initialDate: _watchedDate,
+      initialDate: initial,
       firstDate: DateTime(1900),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+      lastDate: maxDate,
       builder: (context, child) {
         return Theme(
           data: ThemeData.dark().copyWith(
@@ -258,7 +263,76 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         );
       },
     );
-    if (picked != null) setState(() => _watchedDate = picked);
+
+    if (pickedDate == null || !mounted) return;
+
+    // After picking a date, prompt the user for the watch time, preserving current hours/minutes as default
+    final initialTime = TimeOfDay.fromDateTime(_watchedDate);
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.primary,
+              onPrimary: Colors.black,
+              surface: AppColors.surfaceElevated,
+              onSurface: AppColors.textPrimary,
+            ),
+            dialogBackgroundColor: AppColors.surface,
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    final resolvedTime = pickedTime ?? initialTime;
+    if (mounted) {
+      setState(() {
+        _watchedDate = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          resolvedTime.hour,
+          resolvedTime.minute,
+        );
+      });
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final initialTime = TimeOfDay.fromDateTime(_watchedDate);
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.primary,
+              onPrimary: Colors.black,
+              surface: AppColors.surfaceElevated,
+              onSurface: AppColors.textPrimary,
+            ),
+            dialogBackgroundColor: AppColors.surface,
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedTime != null && mounted) {
+      setState(() {
+        _watchedDate = DateTime(
+          _watchedDate.year,
+          _watchedDate.month,
+          _watchedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+      });
+    }
   }
 
   Future<void> _save() async {
@@ -279,7 +353,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         'isWatching': _isWatching,
         'watchLocation': _watchLocation.isNotEmpty ? _watchLocation : null,
         'tags': _tags,
-        'watchedAt': _watchedDate.toIso8601String(),
+        'watchedAt': _watchedDate.toUtc().toIso8601String(),
         if (_suggestedByUserId != null && _suggestedByUserId!.isNotEmpty)
           'suggestedByUserId': _suggestedByUserId,
       };
@@ -304,7 +378,15 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         );
       }
     } catch (e) {
-      if (mounted) WHAlert.showError(context, 'Failed to save entry: $e');
+      if (mounted) {
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Could not save entry. Please try again.',
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -467,30 +549,164 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                   WHRatingPicker(rating: _rating, onRatingChanged: (val) => setState(() => _rating = val)),
                   const SizedBox(height: 20),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _SectionHeader(
+                        title: _isWatching ? 'Started Watching' : 'When Did You Watch?',
+                        subtitle: 'Date and time of your screening',
+                      ),
+                      TextButton.icon(
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          setState(() => _watchedDate = DateTime.now());
+                        },
+                        icon: const Icon(Icons.history_rounded, size: 14, color: AppColors.primary),
+                        label: const Text(
+                          'Now',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
                     children: [
                       Expanded(
                         child: GestureDetector(
                           onTap: _pickDate,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            decoration: BoxDecoration(color: AppColors.surfaceElevated, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
-                            child: Row(children: [const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primary), const SizedBox(width: 8), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Watched Date', style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted)), const SizedBox(height: 2), Text(DateFormat('MMM dd, yyyy').format(_watchedDate), style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary))]))]),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceElevated,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _isWatching ? 'Started Date' : 'Watched Date',
+                                        style: const TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        DateFormat('MMM dd, yyyy').format(_watchedDate),
+                                        style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: GestureDetector(
-                          onTap: () { HapticFeedback.lightImpact(); setState(() => _isRewatch = !_isRewatch); },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
+                          onTap: _pickTime,
+                          child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            decoration: BoxDecoration(color: _isRewatch ? Colors.amber.withValues(alpha: 0.18) : AppColors.surfaceElevated, borderRadius: BorderRadius.circular(14), border: Border.all(color: _isRewatch ? Colors.amber : AppColors.border, width: _isRewatch ? 1.5 : 1)),
-                            child: Row(children: [Icon(Icons.repeat_rounded, size: 18, color: _isRewatch ? Colors.amber : AppColors.textMuted), const SizedBox(width: 8), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Rewatch', style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: _isRewatch ? Colors.amber : AppColors.textMuted)), const SizedBox(height: 2), Text(_isRewatch ? 'Repeat Watch 🔁' : 'First Time 🎬', style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _isRewatch ? Colors.amber : AppColors.textSecondary))]))]),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceElevated,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.access_time_rounded, size: 16, color: AppColors.primary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _isWatching ? 'Started Time' : 'Watched Time',
+                                        style: const TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        DateFormat('h:mm a').format(_watchedDate),
+                                        style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      setState(() => _isRewatch = !_isRewatch);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _isRewatch ? Colors.amber.withValues(alpha: 0.18) : AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _isRewatch ? Colors.amber : AppColors.border,
+                          width: _isRewatch ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.repeat_rounded, size: 18, color: _isRewatch ? Colors.amber : AppColors.textMuted),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Rewatch Status',
+                                  style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: _isRewatch ? Colors.amber : AppColors.textMuted),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _isRewatch ? 'Repeat Watch 🔁' : 'First Time Watch 🎬',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: _isRewatch ? Colors.amber : AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch.adaptive(
+                            value: _isRewatch,
+                            activeColor: Colors.amber,
+                            activeTrackColor: Colors.amber.withValues(alpha: 0.3),
+                            onChanged: (val) {
+                              HapticFeedback.lightImpact();
+                              setState(() => _isRewatch = val);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   const _SectionHeader(title: 'Your Thoughts & Review', subtitle: 'What did you think of the story, acting, direction & soundtrack?'),

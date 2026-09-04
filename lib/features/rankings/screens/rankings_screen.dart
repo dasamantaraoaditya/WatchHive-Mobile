@@ -11,6 +11,7 @@ import '../../search/repositories/search_repository.dart';
 import '../../../shared/models/models.dart';
 import '../models/ranking_stack.dart';
 import '../providers/rankings_provider.dart';
+import '../../../core/utils/error_handler.dart';
 
 class RankingsScreen extends ConsumerStatefulWidget {
   final String? initialStackId;
@@ -188,7 +189,15 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                                   }
                                 }
                               } catch (e) {
-                                if (mounted) WHAlert.showError(context, 'Failed to save stack: $e');
+                                if (mounted) {
+                                  WHAlert.showError(
+                                    context,
+                                    AppErrorHandler.toUserFriendlyMessage(
+                                      e,
+                                      defaultMessage: 'Could not save ranking stack. Please try again.',
+                                    ),
+                                  );
+                                }
                               } finally {
                                 if (mounted) setModalState(() => isSubmitting = false);
                               }
@@ -310,9 +319,11 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
       ),
       body: myRankingsState.isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : myRankingsState.stacks.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
+          : (myRankingsState.error != null && myRankingsState.stacks.isEmpty)
+              ? _buildErrorState(myRankingsState.error!)
+              : myRankingsState.stacks.isEmpty
+                  ? _buildEmptyState()
+                  : RefreshIndicator(
                   color: AppColors.primary,
                   onRefresh: () async {
                     await ref.read(myRankingsProvider.notifier).loadStacks();
@@ -422,6 +433,50 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                     ],
                   ),
                 ),
+    );
+  }
+
+  Widget _buildErrorState(String error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.format_list_numbered_rounded, color: AppColors.error, size: 40),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Rankings Unavailable',
+              style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () => ref.read(myRankingsProvider.notifier).loadStacks(),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Try Again', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -863,7 +918,15 @@ class _SearchAddModalState extends ConsumerState<_SearchAddModal> {
         WHAlert.showSuccess(context, 'Added "${media.title}" to stack! 🎬');
       }
     } catch (e) {
-      if (mounted) WHAlert.showError(context, 'Failed to add item: $e');
+      if (mounted) {
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Could not add item to stack. Please try again.',
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _addingTmdbId = null);
     }

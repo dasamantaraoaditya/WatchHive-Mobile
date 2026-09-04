@@ -15,6 +15,7 @@ import '../repositories/user_repository.dart';
 import '../widgets/follow_list_sheet.dart';
 import '../widgets/user_rankings_tab.dart';
 import 'edit_profile_dialog.dart';
+import '../../../core/utils/error_handler.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -96,7 +97,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = AppErrorHandler.toUserFriendlyMessage(e, defaultMessage: 'Unable to load profile.');
           _isLoading = false;
         });
       }
@@ -418,18 +419,40 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.person_off_outlined, size: 48, color: AppColors.textMuted),
-                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceHighest,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.person_off_outlined, size: 40, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Profile Unavailable',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Text(
                   _error ?? 'User not found.',
                   style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton(
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
                   onPressed: _fetchProfile,
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.black),
-                  child: const Text('Retry'),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
               ],
             ),

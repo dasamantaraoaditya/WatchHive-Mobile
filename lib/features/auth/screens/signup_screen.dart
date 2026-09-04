@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/auth_provider.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wh_text_field.dart';
 import '../../../shared/widgets/wh_button.dart';
 import '../../../shared/widgets/wh_logo_header.dart';
@@ -48,18 +49,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, _parseError(e.toString()));
+        WHAlert.showError(context, _parseError(e));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-
-  String _parseError(String error) {
-    if (error.contains('409') || error.contains('already')) return 'Email or username already taken.';
-    if (error.contains('network')) return 'Network error. Check your connection.';
-    return 'Sign up failed. Please try again.';
+  String _parseError(dynamic error) {
+    return AppErrorHandler.toUserFriendlyMessage(
+      error,
+      defaultMessage: 'Sign up failed. Please try again.',
+    );
   }
 
   @override

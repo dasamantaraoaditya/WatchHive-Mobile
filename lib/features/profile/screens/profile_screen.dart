@@ -14,6 +14,7 @@ import '../widgets/follow_list_sheet.dart';
 import '../widgets/profile_stats_view.dart';
 import '../widgets/compare_picker_modal.dart';
 import 'edit_profile_dialog.dart';
+import '../../../core/utils/error_handler.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -97,7 +98,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to update setting: $e');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Failed to update setting. Please try again.',
+          ),
+        );
       }
     }
   }
@@ -122,7 +129,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to upload image: $e');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Failed to upload image. Please try again.',
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isUploadingAvatar = false);
@@ -154,7 +167,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to remove image: $e');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Failed to remove image. Please try again.',
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isUploadingAvatar = false);
@@ -178,7 +197,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to update bio: $e');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Failed to update bio. Please try again.',
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSavingBio = false);

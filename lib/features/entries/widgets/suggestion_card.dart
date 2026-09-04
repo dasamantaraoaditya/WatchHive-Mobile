@@ -9,6 +9,7 @@ import '../screens/add_entry_sheet.dart';
 import '../screens/entries_screen.dart';
 import '../../search/repositories/search_repository.dart';
 import 'wh_entry_grid_card.dart';
+import '../../../core/utils/error_handler.dart';
 
 
 class SuggestionCard extends ConsumerStatefulWidget {
@@ -62,7 +63,13 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to add to currently watching: $e');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Could not update currently watching. Please try again.',
+          ),
+        );
       }
     }
   }
@@ -107,7 +114,13 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to delete suggestion: $e');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Could not dismiss suggestion. Please try again.',
+          ),
+        );
       }
     }
   }

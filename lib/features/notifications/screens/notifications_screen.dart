@@ -6,6 +6,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/models.dart' as wh;
 import '../../../shared/widgets/shared_widgets.dart';
+import '../../../core/utils/error_handler.dart';
 
 // ─── Repository ───────────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   List<wh.Notification> _notifications = [];
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -57,14 +59,24 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   }
 
   Future<void> _loadNotifications() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final result = await ref.read(notificationsRepositoryProvider).getNotifications();
       setState(() {
         _notifications = result;
         _isLoading = false;
       });
-    } catch (_) {
-      setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() {
+        _error = AppErrorHandler.toUserFriendlyMessage(
+          e,
+          defaultMessage: 'Could not load notifications. Please check your connection.',
+        );
+        _isLoading = false;
+      });
     }
   }
 
@@ -162,9 +174,55 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 ),
               ),
             )
-          : _notifications.isEmpty
-              ? const _EmptyNotifications()
-              : RefreshIndicator(
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceHighest,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.notifications_off_outlined, size: 40, color: AppColors.textMuted),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Notifications Unavailable',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: _loadNotifications,
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : _notifications.isEmpty
+                  ? const _EmptyNotifications()
+                  : RefreshIndicator(
                   color: AppColors.primary,
                   onRefresh: _loadNotifications,
                   child: ListView.builder(

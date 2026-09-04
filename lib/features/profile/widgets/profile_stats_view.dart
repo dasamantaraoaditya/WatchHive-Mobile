@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/error_handler.dart';
 import '../repositories/user_repository.dart';
 
 class ProfileStatsView extends ConsumerStatefulWidget {
@@ -49,7 +50,10 @@ class _ProfileStatsViewState extends ConsumerState<ProfileStatsView> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Could not load watch analytics. Please try again.',
+          );
           _isLoading = false;
         });
       }
@@ -187,7 +191,11 @@ class _ProfileStatsViewState extends ConsumerState<ProfileStatsView> {
                   children: [
                     const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 36),
                     const SizedBox(height: 8),
-                    Text('Failed to load analytics: $_error', style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
+                    Text(
+                      _error!,
+                      style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 12),
                     ElevatedButton(
                       onPressed: _fetchStats,

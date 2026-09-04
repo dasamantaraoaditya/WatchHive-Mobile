@@ -9,6 +9,7 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../../profile/repositories/user_repository.dart';
 import '../../search/repositories/search_repository.dart';
 import '../repositories/suggestions_repository.dart';
+import '../../../core/utils/error_handler.dart';
 
 class SuggestMovieModal extends ConsumerStatefulWidget {
   final int? tmdbId;
@@ -213,7 +214,13 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to send suggestion: $e');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Could not send suggestion. Please try again.',
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSending = false);

@@ -7,6 +7,7 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../models/ranking_stack.dart';
 import '../repositories/rankings_repository.dart';
 import '../providers/rankings_provider.dart';
+import '../../../core/utils/error_handler.dart';
 
 class AddToStackSheet extends ConsumerStatefulWidget {
   final int tmdbId;
@@ -68,7 +69,13 @@ class _AddToStackSheetState extends ConsumerState<AddToStackSheet> {
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to add to stack: $e');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Could not add to stack. Please try again.',
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _addingStackId = null);

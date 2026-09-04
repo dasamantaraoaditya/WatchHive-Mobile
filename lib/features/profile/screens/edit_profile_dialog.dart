@@ -6,6 +6,7 @@ import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../repositories/user_repository.dart';
+import '../../../core/utils/error_handler.dart';
 
 class EditProfileDialog extends ConsumerStatefulWidget {
   final User user;
@@ -101,8 +102,13 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
       }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString().replaceAll('Exception: ', '');
-        WHAlert.showError(context, 'Failed to upload image: $msg');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Failed to upload image. Please try again.',
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isUploadingAvatar = false);
@@ -131,8 +137,13 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
       }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString().replaceAll('Exception: ', '');
-        WHAlert.showError(context, 'Failed to remove image: $msg');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Failed to remove image. Please try again.',
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isUploadingAvatar = false);
@@ -170,8 +181,13 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
       }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString().replaceAll('Exception: ', '');
-        WHAlert.showError(context, 'Failed to update profile: $msg');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Failed to update profile. Please try again.',
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -194,8 +210,13 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
       }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString().replaceAll('Exception: ', '');
-        WHAlert.showError(context, 'Failed to set password: $msg');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Failed to set password. Please try again.',
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSettingPassword = false);
@@ -211,8 +232,13 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
       }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString().replaceAll('Exception: ', '');
-        WHAlert.showError(context, 'Export failed: $msg');
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Failed to export data. Please try again.',
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isExporting = false);

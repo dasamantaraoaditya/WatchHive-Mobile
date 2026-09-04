@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../rankings/models/ranking_stack.dart';
 import '../../rankings/repositories/rankings_repository.dart';
+import '../../../core/utils/error_handler.dart';
 
 class UserRankingsTab extends ConsumerStatefulWidget {
   final String userId;
@@ -51,7 +52,10 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Could not load ranking stacks. Please try again.',
+          );
           _isLoading = false;
         });
       }
@@ -79,9 +83,13 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+              const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 40),
               const SizedBox(height: 8),
-              Text('Failed to load ranking stacks: $_error', style: const TextStyle(color: AppColors.textMuted, fontSize: 13), textAlign: TextAlign.center),
+              Text(
+                _error!,
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: _fetchRankings,

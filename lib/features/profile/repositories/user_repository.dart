@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/user.dart';
+import '../../../core/utils/error_handler.dart';
 
 final userRepositoryProvider = Provider<UserRepository>((ref) {
   return UserRepository(ref.read(apiClientProvider));
@@ -244,17 +245,10 @@ class UserRepository {
   }
 
   static String _extractErrorMessage(DioException e) {
-    if (e.response?.data != null) {
-      final data = e.response!.data;
-      if (data is Map) {
-        if (data['message'] is String) return data['message'] as String;
-        if (data['message'] is List && (data['message'] as List).isNotEmpty) {
-          return (data['message'] as List).join(', ');
-        }
-        if (data['error'] is String) return data['error'] as String;
-      }
-    }
-    return e.message ?? 'Network request failed';
+    return AppErrorHandler.toUserFriendlyMessage(
+      e,
+      defaultMessage: 'Unable to complete request. Please try again.',
+    );
   }
 
   /// Upload new avatar image via multipart upload
