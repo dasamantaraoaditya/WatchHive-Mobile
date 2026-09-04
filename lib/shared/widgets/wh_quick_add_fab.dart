@@ -24,7 +24,7 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 260),
+      duration: const Duration(milliseconds: 240),
     );
     _expandAnimation = CurvedAnimation(
       parent: _controller,
@@ -34,6 +34,16 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
     _rotateAnimation = Tween<double>(begin: 0.0, end: 0.125).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
+
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.dismissed) {
+        if (mounted && _isOpen) {
+          setState(() => _isOpen = false);
+        } else if (mounted) {
+          setState(() {});
+        }
+      }
+    });
   }
 
   @override
@@ -67,8 +77,55 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
     Future.delayed(const Duration(milliseconds: 150), action);
   }
 
+  Widget _buildMainFab() {
+    return GestureDetector(
+      onTap: _toggle,
+      child: Container(
+        width: 58,
+        height: 58,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: _isOpen ? Colors.white : AppColors.primary,
+          border: Border.all(
+            color: _isOpen ? AppColors.primary : Colors.white,
+            width: 3,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(_isOpen ? 0.2 : 0.45),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Center(
+          child: RotationTransition(
+            turns: _rotateAnimation,
+            child: Icon(
+              Icons.add_rounded,
+              size: 32,
+              color: _isOpen ? AppColors.primary : Colors.black,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isVisible = _isOpen || _controller.value > 0;
+
+    // When closed and animation finished: DO NOT render full-screen stack!
+    // Render only the FAB at bottom: 16, right: 16 to never block screen touches.
+    if (!isVisible) {
+      return Positioned(
+        bottom: 16,
+        right: 16,
+        child: _buildMainFab(),
+      );
+    }
+
     final actions = [
       _FABAction(
         label: 'Log an Entry',
@@ -112,20 +169,25 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
         alignment: Alignment.bottomRight,
         children: [
           // Backdrop overlay when open
-          if (_isOpen)
-            Positioned.fill(
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: !_isOpen,
               child: GestureDetector(
                 onTap: _close,
                 behavior: HitTestBehavior.opaque,
                 child: AnimatedBuilder(
                   animation: _expandAnimation,
                   builder: (context, child) {
+                    if (_expandAnimation.value == 0.0) return const SizedBox.shrink();
                     return Opacity(
                       opacity: _expandAnimation.value,
                       child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                        filter: ImageFilter.blur(
+                          sigmaX: 4 * _expandAnimation.value,
+                          sigmaY: 4 * _expandAnimation.value,
+                        ),
                         child: Container(
-                          color: Colors.black.withOpacity(0.55),
+                          color: Colors.black.withOpacity(0.55 * _expandAnimation.value),
                         ),
                       ),
                     );
@@ -133,15 +195,18 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
                 ),
               ),
             ),
+          ),
 
           // Action Items Column
-          if (_isOpen || _controller.isAnimating)
-            Positioned(
-              bottom: 84,
-              right: 16,
+          Positioned(
+            bottom: 84,
+            right: 16,
+            child: IgnorePointer(
+              ignoring: !_isOpen,
               child: AnimatedBuilder(
                 animation: _expandAnimation,
                 builder: (context, child) {
+                  if (_expandAnimation.value == 0.0) return const SizedBox.shrink();
                   return Opacity(
                     opacity: _expandAnimation.value,
                     child: Column(
@@ -223,43 +288,13 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
                 },
               ),
             ),
+          ),
 
           // Main FAB Button
           Positioned(
             bottom: 16,
             right: 16,
-            child: GestureDetector(
-              onTap: _toggle,
-              child: Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _isOpen ? Colors.white : AppColors.primary,
-                  border: Border.all(
-                    color: _isOpen ? AppColors.primary : Colors.white,
-                    width: 3,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(_isOpen ? 0.2 : 0.45),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: RotationTransition(
-                    turns: _rotateAnimation,
-                    child: Icon(
-                      Icons.add_rounded,
-                      size: 32,
-                      color: _isOpen ? AppColors.primary : Colors.black,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            child: _buildMainFab(),
           ),
         ],
       ),
