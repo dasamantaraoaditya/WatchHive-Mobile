@@ -264,7 +264,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.15),
+                  color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.auto_awesome_rounded, color: AppColors.primaryDark, size: 22),
@@ -328,10 +328,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                 ),
               ),
               if (_isSearchingMedia)
-                const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2)),
-                )
+                const WHSkeletonMediaSearchList(count: 2)
               else if (_searchResults.isNotEmpty)
                 Container(
                   constraints: const BoxConstraints(maxHeight: 180),
@@ -501,7 +498,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                     ),
                   )
                 : _isLoadingFriends
-                    ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                    ? const WHSkeletonUserList(count: 3)
                     : _buildFriendsList(),
           ),
           const SizedBox(height: 12),
@@ -607,10 +604,10 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
             margin: const EdgeInsets.only(bottom: 6),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary.withOpacity(0.08) : Colors.transparent,
+              color: isSelected ? AppColors.primary.withValues(alpha: 0.08) : Colors.transparent,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: isSelected ? AppColors.primary.withOpacity(0.3) : Colors.transparent,
+                color: isSelected ? AppColors.primary.withValues(alpha: 0.3) : Colors.transparent,
               ),
             ),
             child: Row(

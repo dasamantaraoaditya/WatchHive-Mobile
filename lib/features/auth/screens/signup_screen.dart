@@ -5,9 +5,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/utils/error_handler.dart';
-import '../../../shared/widgets/wh_text_field.dart';
-import '../../../shared/widgets/wh_button.dart';
-import '../../../shared/widgets/wh_logo_header.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});

@@ -318,7 +318,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
             decoration: BoxDecoration(
               color: AppColors.background,
-              border: Border(top: BorderSide(color: AppColors.border.withOpacity(0.5))),
+              border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
             ),
             child: SizedBox(
               width: double.infinity,
@@ -420,8 +420,18 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                 ),
               ),
               if (_isUploadingAvatar)
-                const Positioned.fill(
-                  child: CircularProgressIndicator(color: AppColors.primary),
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withValues(alpha: 0.45),
+                    ),
+                    child: const Center(
+                      child: WHSkeleton(
+                        child: WHSkeletonBox(width: 44, height: 44, shape: BoxShape.circle),
+                      ),
+                    ),
+                  ),
                 ),
               Positioned(
                 bottom: 0,
@@ -810,7 +820,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
               margin: const EdgeInsets.symmetric(horizontal: 4),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary.withOpacity(0.08) : AppColors.surface,
+                color: isSelected ? AppColors.primary.withValues(alpha: 0.08) : AppColors.surface,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isSelected ? AppColors.primary : AppColors.border,
@@ -864,7 +874,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
   }) {
     return SwitchListTile(
       activeThumbColor: AppColors.primary,
-      activeTrackColor: AppColors.primary.withOpacity(0.4),
+      activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
       secondary: Icon(icon, color: AppColors.primary, size: 20),
       title: Text(
         title,

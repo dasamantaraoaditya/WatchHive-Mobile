@@ -8,6 +8,7 @@ import '../../../core/api/api_endpoints.dart';
 import '../../profile/widgets/profile_stats_view.dart';
 import '../repositories/mindlens_repository.dart';
 import '../widgets/watch_frequency_chart.dart';
+import '../../../shared/widgets/wh_skeleton.dart';
 
 class MindLensScreen extends ConsumerStatefulWidget {
   const MindLensScreen({super.key});
@@ -73,7 +74,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const WHSkeletonMindLens()
           : _error != null
               ? Center(
                   child: Padding(
@@ -84,7 +85,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: AppColors.error.withOpacity(0.1),
+                            color: AppColors.error.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.psychology_alt_rounded, size: 40, color: AppColors.error),
@@ -854,11 +855,11 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.insights_rounded, color: AppColors.primary, size: 22),
-              const SizedBox(width: 8),
-              const Expanded(
+              Icon(Icons.insights_rounded, color: AppColors.primary, size: 22),
+              SizedBox(width: 8),
+              Expanded(
                 child: Text(
                   'Suggestion Influence & Network',
                   style: TextStyle(

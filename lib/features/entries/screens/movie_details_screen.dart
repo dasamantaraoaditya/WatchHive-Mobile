@@ -12,13 +12,11 @@ import '../../../shared/models/models.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
-import '../../../shared/widgets/wh_alert.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../entries/screens/add_entry_sheet.dart';
 import '../../entries/screens/entries_screen.dart';
 import '../../entries/repositories/entries_repository.dart';
 import '../../../core/api/api_endpoints.dart';
-import '../../../shared/widgets/wh_rating_picker.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../widgets/suggest_movie_modal.dart';
 import '../repositories/watchlist_repository.dart';
@@ -155,7 +153,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         });
 
         // Initialize first TV season if TV show
-        if (widget.mediaType == 'tv' && details != null) {
+        if (widget.mediaType == 'tv') {
           final seasons = details['seasons'] as List<dynamic>? ?? [];
           if (seasons.isNotEmpty) {
             final validSeason = seasons.firstWhere(
@@ -537,7 +535,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
               child: Center(
                 child: CircleAvatar(
                   radius: 20,
-                  backgroundColor: Colors.black.withOpacity(0.55),
+                  backgroundColor: Colors.black.withValues(alpha: 0.55),
                   child: IconButton(
                     padding: EdgeInsets.zero,
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
@@ -552,7 +550,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                 child: Center(
                   child: CircleAvatar(
                     radius: 20,
-                    backgroundColor: Colors.black.withOpacity(0.55),
+                    backgroundColor: Colors.black.withValues(alpha: 0.55),
                     child: IconButton(
                       padding: EdgeInsets.zero,
                       icon: const Icon(Icons.share_rounded, color: Colors.white, size: 18),
@@ -604,10 +602,10 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.9),
+                            color: AppColors.primary.withValues(alpha: 0.9),
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
+                              BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4),
                             ],
                           ),
                           child: Text(
@@ -642,7 +640,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                               fontFamily: 'Inter',
                               fontSize: 12,
                               fontStyle: FontStyle.italic,
-                              color: Colors.white.withOpacity(0.85),
+                              color: Colors.white.withValues(alpha: 0.85),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -695,7 +693,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: AppColors.border),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 2)),
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 2)),
                       ],
                     ),
                     child: Column(
@@ -983,12 +981,12 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [AppColors.primary.withOpacity(0.12), AppColors.surface],
+                          colors: [AppColors.primary.withValues(alpha: 0.12), AppColors.surface],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1046,9 +1044,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: Colors.green.withOpacity(0.12),
+                                      color: Colors.green.withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                      border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                                     ),
                                     child: Text(
                                       'Box Office: $boxOffice',
@@ -1373,7 +1371,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                                   decoration: BoxDecoration(
-                                                    color: AppColors.primary.withOpacity(0.2),
+                                                    color: AppColors.primary.withValues(alpha: 0.2),
                                                     borderRadius: BorderRadius.circular(4),
                                                   ),
                                                   child: Text(

@@ -4,10 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
-import '../../../shared/widgets/wh_brand_logo.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../repositories/user_repository.dart';
 import '../widgets/follow_list_sheet.dart';
@@ -340,7 +338,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -356,9 +354,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
+                  color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
@@ -437,6 +435,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                       ),
                     ),
                   ),
+                  if (_isUploadingAvatar)
+                    Positioned.fill(
+                      child: ClipOval(
+                        child: Container(
+                          color: Colors.black45,
+                          child: const Center(
+                            child: WHSkeleton(
+                              child: WHSkeletonBox(
+                                width: 72,
+                                height: 72,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   if (user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty)
                     Positioned(
                       top: 0,
@@ -753,10 +768,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isPrimary ? AppColors.primary.withOpacity(0.08) : AppColors.background,
+          color: isPrimary ? AppColors.primary.withValues(alpha: 0.08) : AppColors.background,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isPrimary ? AppColors.primary.withOpacity(0.3) : AppColors.border,
+            color: isPrimary ? AppColors.primary.withValues(alpha: 0.3) : AppColors.border,
           ),
         ),
         child: Column(
@@ -1133,7 +1148,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
         style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
       ),
       value: value,
-      activeColor: AppColors.primary,
+      activeThumbColor: AppColors.primary,
       onChanged: onChanged,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
     );

@@ -69,11 +69,6 @@ class WHAvatar extends StatelessWidget {
 
   const WHAvatar({super.key, this.imageUrl, this.name, this.radius = 20});
 
-  bool _isValidUrl(String? url) {
-    if (url == null || url.isEmpty) return false;
-    return url.startsWith('http://') || url.startsWith('https://');
-  }
-
   @override
   Widget build(BuildContext context) {
     final resolvedUrl = ApiEndpoints.resolveAvatarUrl(imageUrl);
@@ -86,7 +81,7 @@ class WHAvatar extends StatelessWidget {
     }
     return CircleAvatar(
       radius: radius,
-      backgroundColor: AppColors.primary.withOpacity(0.2),
+      backgroundColor: AppColors.primary.withValues(alpha: 0.2),
       child: Text(
         (name?.isNotEmpty == true ? name![0] : '?').toUpperCase(),
         style: TextStyle(
@@ -120,7 +115,7 @@ class WHChip extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary.withOpacity(0.2) : AppColors.surfaceElevated,
+          color: selected ? AppColors.primary.withValues(alpha: 0.2) : AppColors.surfaceElevated,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.border,

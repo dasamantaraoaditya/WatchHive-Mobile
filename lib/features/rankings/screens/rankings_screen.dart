@@ -320,7 +320,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
         ],
       ),
       body: myRankingsState.isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const WHSkeletonRankings()
           : (myRankingsState.error != null && myRankingsState.stacks.isEmpty)
               ? _buildErrorState(myRankingsState.error!)
               : myRankingsState.stacks.isEmpty
@@ -420,10 +420,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
 
                       // ── Ranked Items List ──
                       if (activeState.isLoading)
-                        const Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                        )
+                        const WHSkeletonRankedItemList(itemCount: 4)
                       else if (activeState.items.isEmpty)
                         _buildEmptyItemsState(activeState.stack?.id ?? '')
                       else
@@ -448,7 +445,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.format_list_numbered_rounded, color: AppColors.error, size: 40),

@@ -172,7 +172,7 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: headerColor.withOpacity(0.15),
+                    color: headerColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(headerIcon, color: headerColor, size: 22),
@@ -283,7 +283,7 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.search_rounded, size: 48, color: AppColors.textMuted.withOpacity(0.5)),
+              Icon(Icons.search_rounded, size: 48, color: AppColors.textMuted.withValues(alpha: 0.5)),
               const SizedBox(height: 12),
               const Text(
                 'Type a title to search',
@@ -304,6 +304,10 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
           ),
         ),
       );
+    }
+
+    if (_isSearching) {
+      return const WHSkeletonMediaSearchList(count: 5);
     }
 
     if (_searchResults.isEmpty && !_isSearching) {
@@ -381,7 +385,7 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: isTv ? Colors.blue.withOpacity(0.15) : AppColors.primary.withOpacity(0.2),
+                              color: isTv ? Colors.blue.withValues(alpha: 0.15) : AppColors.primary.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -417,7 +421,7 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: actionColor.withOpacity(0.15),
+                    color: actionColor.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(

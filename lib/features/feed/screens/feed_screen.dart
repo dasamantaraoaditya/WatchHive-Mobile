@@ -177,29 +177,34 @@ class FeedScreen extends ConsumerStatefulWidget {
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
   final _scrollController = ScrollController();
-
+  bool _hasCheckedTour = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkAndPromptTour();
-    });
   }
 
-  Future<void> _checkAndPromptTour() async {
+  void _checkTourOnce() {
+    if (_hasCheckedTour) return;
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null && user.id.isNotEmpty) {
+      _hasCheckedTour = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkAndPromptTour(user.id);
+      });
+    }
+  }
+
+  Future<void> _checkAndPromptTour(String userId) async {
     // Short delay so the feed screen and layout settle cleanly first
-    await Future.delayed(const Duration(milliseconds: 650));
+    await Future.delayed(const Duration(milliseconds: 550));
     if (!mounted) return;
 
-    final user = ref.read(authStateProvider).value?.user;
-    if (user == null || user.id.isEmpty) return;
-
     final tourService = ref.read(tourServiceProvider);
-    final shouldShow = await tourService.shouldShowTour(user.id);
+    final shouldShow = await tourService.shouldShowTour(userId);
     if (shouldShow && mounted) {
-      QuickGuideTourDialog.show(context, userId: user.id);
+      QuickGuideTourDialog.show(context, userId: userId);
     }
   }
 
@@ -218,6 +223,15 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<AuthState>>(authStateProvider, (prev, next) {
+      final u = next.value?.user;
+      if (u != null && u.id.isNotEmpty && !_hasCheckedTour) {
+        _checkTourOnce();
+      }
+    });
+
+    _checkTourOnce();
+
     final feedState = ref.watch(feedProvider);
     final currentUser = ref.watch(authStateProvider).value?.user;
 
@@ -276,10 +290,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 itemCount: feedState.entries.length + (feedState.isLoadingMore ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (index == feedState.entries.length) {
-                    return const Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2)),
-                    );
+                    return const WHSkeletonFeedFooter();
                   }
                   final entry = feedState.entries[index];
                   final isLiked = feedState.likedEntryIds.contains(entry.id) || entry.isLiked;
@@ -898,13 +909,29 @@ class FeedMediaHeroBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mediaType = (entry.type == 'TV_SHOW' || entry.type == 'EPISODE') ? 'tv' : 'movie';
-    final shouldFetch = (entry.posterPath == null || entry.posterPath!.isEmpty) &&
-        (entry.backdropPath == null || entry.backdropPath!.isEmpty) &&
+    final isGenericTitle = entry.title.trim().isEmpty ||
+        entry.title.toLowerCase() == 'this title' ||
+        entry.title.toLowerCase() == 'untitled' ||
+        entry.title.startsWith('Movie #') ||
+        entry.title.startsWith('Media #');
+
+    final shouldFetch = (((entry.posterPath == null || entry.posterPath!.isEmpty) &&
+        (entry.backdropPath == null || entry.backdropPath!.isEmpty)) ||
+        isGenericTitle) &&
         entry.tmdbId > 0;
 
     final detailsAsync = shouldFetch
         ? ref.watch(_tmdbMediaDetailsProvider((tmdbId: entry.tmdbId, mediaType: mediaType)))
         : null;
+
+    final tmdbTitle = (detailsAsync?.value?['title'] as String?) ??
+        (detailsAsync?.value?['name'] as String?) ??
+        (detailsAsync?.value?['original_title'] as String?) ??
+        (detailsAsync?.value?['original_name'] as String?);
+
+    final displayTitle = (isGenericTitle && tmdbTitle != null && tmdbTitle.trim().isNotEmpty)
+        ? tmdbTitle
+        : (entry.title.isNotEmpty ? entry.title : (tmdbTitle ?? 'Untitled'));
 
     final posterPath = entry.posterPath ?? detailsAsync?.value?['poster_path'] as String?;
     final backdropPath = entry.backdropPath ?? detailsAsync?.value?['backdrop_path'] as String?;
@@ -1057,7 +1084,7 @@ class FeedMediaHeroBanner extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    entry.title,
+                    displayTitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

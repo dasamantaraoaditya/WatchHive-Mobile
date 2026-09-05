@@ -71,7 +71,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
       final isTv = (item['mediaType'] as String? ?? 'movie').toLowerCase().contains('tv');
 
-      if ((currentTitle == null || currentTitle.isEmpty || currentTitle == 'Untitled') && tmdbId > 0) {
+      if ((currentTitle == null || currentTitle.isEmpty || currentTitle == 'Untitled' || currentTitle.toLowerCase() == 'this title') && tmdbId > 0) {
         try {
           Map<String, dynamic> details;
           if (isTv) {
@@ -121,7 +121,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     final isTv = (mediaType ?? '').toLowerCase().contains('tv');
     String effectiveTitle = title.trim();
 
-    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && tmdbId > 0) {
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled' || effectiveTitle.toLowerCase() == 'this title') && tmdbId > 0) {
       try {
         final searchRepo = ref.read(searchRepositoryProvider);
         final details = isTv
@@ -137,7 +137,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       } catch (_) {}
     }
 
-    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title'
         ? effectiveTitle
         : (isTv ? 'this TV show' : 'this movie');
 
@@ -182,11 +182,11 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
     final suggestedByUserId = item['suggestedByUserId'] as String? ?? suggestedByUser?['id'] as String?;
 
-    String effectiveTitle = (resolvedTitle != null && resolvedTitle.trim().isNotEmpty && resolvedTitle != 'Untitled')
+    String effectiveTitle = (resolvedTitle != null && resolvedTitle.trim().isNotEmpty && resolvedTitle != 'Untitled' && resolvedTitle.toLowerCase() != 'this title')
         ? resolvedTitle.trim()
         : ((item['title'] as String?)?.trim() ?? '');
 
-    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && tmdbId > 0) {
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled' || effectiveTitle.toLowerCase() == 'this title') && tmdbId > 0) {
       try {
         final searchRepo = ref.read(searchRepositoryProvider);
         final details = isTv
@@ -203,7 +203,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       } catch (_) {}
     }
 
-    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title'
         ? effectiveTitle
         : (isTv ? 'this TV show' : 'this movie');
 
@@ -240,11 +240,11 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
     final isTv = (item['mediaType'] as String? ?? 'movie').toLowerCase().contains('tv');
 
-    String effectiveTitle = (resolvedTitle != null && resolvedTitle.trim().isNotEmpty && resolvedTitle != 'Untitled')
+    String effectiveTitle = (resolvedTitle != null && resolvedTitle.trim().isNotEmpty && resolvedTitle != 'Untitled' && resolvedTitle.toLowerCase() != 'this title')
         ? resolvedTitle.trim()
         : ((item['title'] as String?)?.trim() ?? '');
 
-    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && tmdbId > 0) {
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled' || effectiveTitle.toLowerCase() == 'this title') && tmdbId > 0) {
       try {
         final searchRepo = ref.read(searchRepositoryProvider);
         final details = isTv
@@ -261,7 +261,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       } catch (_) {}
     }
 
-    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title'
         ? effectiveTitle
         : (isTv ? 'this TV show' : 'this movie');
 
@@ -286,7 +286,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
 
       final entry = await ref.read(entriesRepositoryProvider).createEntry({
         'tmdbId': tmdbId,
-        'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' ? effectiveTitle : cleanTitle,
+        'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title' ? effectiveTitle : cleanTitle,
         'type': mediaType,
         'isWatching': true,
         'startedAt': DateTime.now().toIso8601String(),

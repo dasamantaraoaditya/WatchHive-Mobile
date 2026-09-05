@@ -148,12 +148,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
     ],
-    errorBuilder: (context, state) => Scaffold(
-      backgroundColor: const Color(0xFF0F0F14),
+    errorBuilder: (context, state) => const Scaffold(
+      backgroundColor: Color(0xFF0F0F14),
       body: Center(
         child: Text(
           'Page not found',
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white),
         ),
       ),
     ),

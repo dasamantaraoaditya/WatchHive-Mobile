@@ -71,6 +71,7 @@ class WHEntryGridCard extends ConsumerWidget {
     final hasNoPoster = initialPosterPath == null || initialPosterPath!.isEmpty;
     final isUntitled = title.isEmpty ||
         title.toLowerCase() == 'untitled' ||
+        title.toLowerCase() == 'this title' ||
         title.startsWith('Movie #') ||
         title.startsWith('Media #');
     final shouldFetch = (hasNoPoster || isUntitled) && tmdbId > 0;
@@ -384,7 +385,7 @@ class WHEntryGridCard extends ConsumerWidget {
 
                 final dateText = effectiveDate != null
                     ? DateFormat('MMM d, yyyy').format(effectiveDate)
-                    : (year != null ? year : '');
+                    : (year ?? '');
 
                 return Padding(
                   padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),

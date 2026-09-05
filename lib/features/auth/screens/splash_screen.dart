@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/wh_skeleton.dart';
 import '../providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -89,12 +90,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               ),
             ),
             const SizedBox(height: 64),
-            const SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-                strokeWidth: 2.5,
+            WHSkeleton(
+              child: Container(
+                width: 120,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
           ],

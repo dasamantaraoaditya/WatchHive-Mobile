@@ -138,7 +138,7 @@ class _FollowListSheetState extends ConsumerState<FollowListSheet> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.15),
+                          color: AppColors.primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -174,9 +174,7 @@ class _FollowListSheetState extends ConsumerState<FollowListSheet> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
+      return const WHSkeletonUserList(count: 6);
     }
 
     if (_error != null) {
@@ -224,7 +222,7 @@ class _FollowListSheetState extends ConsumerState<FollowListSheet> {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

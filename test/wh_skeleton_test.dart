@@ -61,5 +61,126 @@ void main() {
 
       expect(find.byType(WHSkeletonProfile), findsOneWidget);
     });
+
+    testWidgets('WHSkeletonCommentsList renders comment rows', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: WHSkeletonCommentsList(count: 3),
+          ),
+        ),
+      );
+
+      expect(find.byType(WHSkeletonCommentsList), findsOneWidget);
+      expect(find.byType(WHSkeleton), findsOneWidget);
+    });
+
+    testWidgets('WHSkeletonMindLens renders AI Persona and taste charts', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: WHSkeletonMindLens(),
+          ),
+        ),
+      );
+
+      expect(find.byType(WHSkeletonMindLens), findsOneWidget);
+    });
+
+    testWidgets('WHSkeletonRankings renders stack carousel and ranked cards', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: WHSkeletonRankings(),
+          ),
+        ),
+      );
+
+      expect(find.byType(WHSkeletonRankings), findsOneWidget);
+    });
+
+    testWidgets('WHSkeletonCompare renders dual avatars and comparison cards', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: WHSkeletonCompare(),
+          ),
+        ),
+      );
+
+      expect(find.byType(WHSkeletonCompare), findsOneWidget);
+    });
+
+    testWidgets('WHSkeletonUserList renders user rows', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: WHSkeletonUserList(count: 4),
+          ),
+        ),
+      );
+
+      expect(find.byType(WHSkeletonUserList), findsOneWidget);
+    });
+
+    testWidgets('WHSkeletonMediaSearchList renders media search result cards', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: WHSkeletonMediaSearchList(count: 3),
+          ),
+        ),
+      );
+
+      expect(find.byType(WHSkeletonMediaSearchList), findsOneWidget);
+    });
+
+    testWidgets('WHSkeletonSuggestedUsersHorizontal renders horizontal friends list', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: WHSkeletonSuggestedUsersHorizontal(),
+          ),
+        ),
+      );
+
+      expect(find.byType(WHSkeletonSuggestedUsersHorizontal), findsOneWidget);
+    });
+
+    testWidgets('WHSkeletonStackList renders stack items', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: WHSkeletonStackList(count: 3),
+          ),
+        ),
+      );
+
+      expect(find.byType(WHSkeletonStackList), findsOneWidget);
+    });
+
+    testWidgets('WHSkeletonFeedFooter renders pagination skeleton footer', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: WHSkeletonFeedFooter(),
+          ),
+        ),
+      );
+
+      expect(find.byType(WHSkeletonFeedFooter), findsOneWidget);
+    });
+
+    testWidgets('WHSkeletonProfileStats renders profile stats skeleton cards', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: WHSkeletonProfileStats(),
+          ),
+        ),
+      );
+
+      expect(find.byType(WHSkeletonProfileStats), findsOneWidget);
+    });
   });
 }

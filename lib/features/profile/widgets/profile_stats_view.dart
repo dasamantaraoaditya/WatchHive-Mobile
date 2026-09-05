@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
 import '../repositories/user_repository.dart';
+import '../../../shared/widgets/wh_skeleton.dart';
 
 class ProfileStatsView extends ConsumerStatefulWidget {
   const ProfileStatsView({super.key});
@@ -177,12 +178,7 @@ class _ProfileStatsViewState extends ConsumerState<ProfileStatsView> {
 
           // Main Content
           if (_isLoading)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            )
+            const WHSkeletonProfileStats()
           else if (_error != null)
             Center(
               child: Padding(
@@ -221,7 +217,7 @@ class _ProfileStatsViewState extends ConsumerState<ProfileStatsView> {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.12),
+                      color: AppColors.primary.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.analytics_outlined, color: AppColors.primary, size: 28),
@@ -450,9 +446,9 @@ class _ProfileStatsViewState extends ConsumerState<ProfileStatsView> {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceHighest.withOpacity(0.5),
+                        color: AppColors.surfaceHighest.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+                        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

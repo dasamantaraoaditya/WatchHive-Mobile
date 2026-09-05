@@ -199,19 +199,7 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: AppColors.primary),
-                  SizedBox(height: 16),
-                  Text(
-                    'Cross-referencing viewing histories...',
-                    style: TextStyle(fontFamily: 'Inter', color: AppColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            )
+          ? const WHSkeletonCompare()
           : _isPrivacyRestricted
               ? _buildPrivacyRestrictedView()
               : _error != null

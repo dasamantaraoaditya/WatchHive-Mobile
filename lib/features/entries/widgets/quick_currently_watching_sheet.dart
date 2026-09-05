@@ -296,6 +296,10 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
       );
     }
 
+    if (_isSearching) {
+      return const WHSkeletonMediaSearchList(count: 5);
+    }
+
     if (_searchResults.isEmpty && !_isSearching) {
       return Center(
         child: Padding(

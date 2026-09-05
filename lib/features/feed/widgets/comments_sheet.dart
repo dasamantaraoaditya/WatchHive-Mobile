@@ -320,7 +320,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
           // Discussion List
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                ? const WHSkeletonCommentsList(count: 4)
                 : _comments.isEmpty
                     ? Center(
                         child: Padding(

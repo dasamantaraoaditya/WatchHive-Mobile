@@ -157,7 +157,7 @@ class _AddToStackSheetState extends ConsumerState<AddToStackSheet> {
           const SizedBox(height: 10),
 
           if (state.isLoading)
-            const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: AppColors.primary)))
+            const WHSkeletonStackList(count: 3)
           else if (state.stacks.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),

@@ -34,7 +34,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
     final isTv = widget.group.mediaType == 'tv';
     String effectiveTitle = title.trim();
 
-    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && widget.group.tmdbId > 0) {
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled' || effectiveTitle.toLowerCase() == 'this title') && widget.group.tmdbId > 0) {
       try {
         final searchRepo = ref.read(searchRepositoryProvider);
         final details = isTv
@@ -50,7 +50,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       } catch (_) {}
     }
 
-    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title'
         ? effectiveTitle
         : (isTv ? 'this TV show' : 'this movie');
 
@@ -124,7 +124,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
     final isTv = widget.group.mediaType == 'tv';
     String effectiveTitle = title.trim();
 
-    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && widget.group.tmdbId > 0) {
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled' || effectiveTitle.toLowerCase() == 'this title') && widget.group.tmdbId > 0) {
       try {
         final searchRepo = ref.read(searchRepositoryProvider);
         final details = isTv
@@ -140,7 +140,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       } catch (_) {}
     }
 
-    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title'
         ? effectiveTitle
         : (isTv ? 'this TV show' : 'this movie');
 

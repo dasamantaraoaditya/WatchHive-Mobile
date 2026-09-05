@@ -9,7 +9,6 @@ import '../../auth/providers/auth_provider.dart';
 import '../../entries/repositories/entries_repository.dart';
 import '../../entries/repositories/watchlist_repository.dart';
 import '../../entries/screens/add_entry_sheet.dart';
-import '../../entries/screens/entries_screen.dart';
 import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../entries/widgets/wh_entry_grid_card.dart';
 import '../../search/repositories/search_repository.dart';
@@ -233,7 +232,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
       final isTv = (item['mediaType'] as String? ?? 'movie').toLowerCase().contains('tv');
 
-      if ((currentTitle == null || currentTitle.isEmpty || currentTitle == 'Untitled') && tmdbId > 0) {
+      if ((currentTitle == null || currentTitle.isEmpty || currentTitle == 'Untitled' || currentTitle.toLowerCase() == 'this title') && tmdbId > 0) {
         try {
           Map<String, dynamic> details;
           if (isTv) {
@@ -423,7 +422,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
               children: [
                 Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.surfaceHighest,
                     shape: BoxShape.circle,
                   ),
@@ -601,9 +600,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
+                  color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
@@ -773,9 +772,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
               ),
               child: Column(
                 children: [
@@ -902,7 +901,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 // Compare Taste Shortcut
                 IconButton.filledTonal(
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primary.withOpacity(0.12),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
                     foregroundColor: AppColors.primaryDark,
                     padding: const EdgeInsets.all(12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -916,7 +915,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 // Suggest Movie Modal
                 IconButton.filledTonal(
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primary.withOpacity(0.12),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
                     foregroundColor: AppColors.primaryDark,
                     padding: const EdgeInsets.all(12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -1008,10 +1007,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isPrimary ? AppColors.primary.withOpacity(0.08) : AppColors.background,
+          color: isPrimary ? AppColors.primary.withValues(alpha: 0.08) : AppColors.background,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isPrimary ? AppColors.primary.withOpacity(0.3) : AppColors.border,
+            color: isPrimary ? AppColors.primary.withValues(alpha: 0.3) : AppColors.border,
           ),
         ),
         child: Column(
@@ -1059,7 +1058,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
+                  color: AppColors.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.lock_rounded, size: 32, color: AppColors.primary),
@@ -1249,11 +1248,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
             resolvedTitle: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
           ) : null,
           onMoveToWatching: _isMe ? () => _addToCurrentlyWatching(item, resolvedTitle: title) : null,
-          onMarkWatchedWithTitle: _isMe ? (resolvedTitle) => _logWatchlistItem(
+          onMarkWatchedWithTitle: _isMe ? (resolvedTitle) => _logWatchedFromWatchlist(
             item,
             resolvedTitle: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
           ) : null,
-          onMarkWatched: _isMe ? () => _logWatchlistItem(item, resolvedTitle: title) : null,
+          onMarkWatched: _isMe ? () => _logWatchedFromWatchlist(item, resolvedTitle: title) : null,
           onDeleteWithTitle: _isMe ? (resolvedTitle) => _removeWatchlistItem(
             tmdbId: tmdbId,
             title: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
@@ -1275,11 +1274,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
     final isTv = (item['mediaType'] as String? ?? 'movie').toLowerCase().contains('tv');
 
-    String effectiveTitle = (resolvedTitle != null && resolvedTitle.trim().isNotEmpty && resolvedTitle != 'Untitled')
+    String effectiveTitle = (resolvedTitle != null && resolvedTitle.trim().isNotEmpty && resolvedTitle != 'Untitled' && resolvedTitle.toLowerCase() != 'this title')
         ? resolvedTitle.trim()
         : ((item['title'] as String?)?.trim() ?? '');
 
-    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && tmdbId > 0) {
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled' || effectiveTitle.toLowerCase() == 'this title') && tmdbId > 0) {
       try {
         final searchRepo = ref.read(searchRepositoryProvider);
         final details = isTv
@@ -1296,7 +1295,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       } catch (_) {}
     }
 
-    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title'
         ? effectiveTitle
         : (isTv ? 'this TV show' : 'this movie');
 
@@ -1321,46 +1320,45 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
       final entry = await ref.read(entriesRepositoryProvider).createEntry({
         'tmdbId': tmdbId,
-        'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' ? effectiveTitle : cleanTitle,
+        'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title' ? effectiveTitle : cleanTitle,
         'type': mediaType,
         'isWatching': true,
         'startedAt': DateTime.now().toIso8601String(),
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
       });
 
-      ref.read(entriesProvider(true).notifier).addEntry(entry);
-
-      await ref.read(watchlistRepositoryProvider).removeFromWatchlist(
-        tmdbId > 0 ? tmdbId : itemId,
-      );
       if (mounted) {
+        ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+          tmdbId > 0 ? tmdbId : itemId,
+        );
         setState(() {
           _watchlistItems.removeWhere((it) =>
               (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
               (itemId != null && it['id'] == itemId));
+          _watchingEntries.insert(0, entry);
         });
-        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching! 🎬');
+        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching! 🍿');
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to add to currently watching: $e');
+        WHAlert.showError(context, 'Failed to move to Currently Watching. Please try again.');
       }
     }
   }
 
-  Future<void> _logWatchlistItem(Map<String, dynamic> item, {String? resolvedTitle}) async {
-    final itemId = item['id'] as String?;
+  Future<void> _logWatchedFromWatchlist(Map<String, dynamic> item, {String? resolvedTitle}) async {
     final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
     final isTv = (item['mediaType'] as String? ?? 'movie').toLowerCase().contains('tv');
+    final itemId = item['id'] as String?;
     final mediaType = isTv ? 'TV_SHOW' : 'MOVIE';
     final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
     final suggestedByUserId = item['suggestedByUserId'] as String? ?? suggestedByUser?['id'] as String?;
 
-    String effectiveTitle = (resolvedTitle != null && resolvedTitle.trim().isNotEmpty && resolvedTitle != 'Untitled')
+    String effectiveTitle = (resolvedTitle != null && resolvedTitle.trim().isNotEmpty && resolvedTitle != 'Untitled' && resolvedTitle.toLowerCase() != 'this title')
         ? resolvedTitle.trim()
         : ((item['title'] as String?)?.trim() ?? '');
 
-    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && tmdbId > 0) {
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled' || effectiveTitle.toLowerCase() == 'this title') && tmdbId > 0) {
       try {
         final searchRepo = ref.read(searchRepositoryProvider);
         final details = isTv
@@ -1377,7 +1375,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       } catch (_) {}
     }
 
-    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title'
         ? effectiveTitle
         : (isTv ? 'this TV show' : 'this movie');
 
@@ -1418,7 +1416,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     final isTv = (mediaType ?? '').toLowerCase().contains('tv');
     String effectiveTitle = title.trim();
 
-    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && tmdbId > 0) {
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled' || effectiveTitle.toLowerCase() == 'this title') && tmdbId > 0) {
       try {
         final searchRepo = ref.read(searchRepositoryProvider);
         final details = isTv
@@ -1434,7 +1432,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       } catch (_) {}
     }
 
-    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title'
         ? effectiveTitle
         : (isTv ? 'this TV show' : 'this movie');
 

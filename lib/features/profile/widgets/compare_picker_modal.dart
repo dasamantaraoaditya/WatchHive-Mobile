@@ -205,7 +205,7 @@ class _ComparePickerModalState extends ConsumerState<ComparePickerModal> {
           // Content List
           Expanded(
             child: (_isLoadingFollowing && !isQueryActive) || (_isSearching && isQueryActive)
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                ? const WHSkeletonUserList(count: 5)
                 : displayList.isEmpty
                     ? Center(
                         child: Padding(

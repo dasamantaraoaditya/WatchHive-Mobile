@@ -92,7 +92,7 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
           ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(_isOpen ? 0.2 : 0.45),
+              color: AppColors.primary.withValues(alpha: _isOpen ? 0.2 : 0.45),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -166,7 +166,7 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
         label: 'Add to Watchlist',
         icon: Icons.bookmark_add_rounded,
         color: AppColors.primary,
-        bgColor: AppColors.primary.withOpacity(0.12),
+        bgColor: AppColors.primary.withValues(alpha: 0.12),
         onTap: () => _onAction(() => QuickSearchMediaSheet.show(context, intent: QuickSearchIntent.watchlist)),
       ),
     ];
@@ -194,7 +194,7 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
                           sigmaY: 4 * _expandAnimation.value,
                         ),
                         child: Container(
-                          color: Colors.black.withOpacity(0.55 * _expandAnimation.value),
+                          color: Colors.black.withValues(alpha: 0.55 * _expandAnimation.value),
                         ),
                       ),
                     );
@@ -238,10 +238,10 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF1E1E1E),
                                       borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(color: Colors.white.withOpacity(0.12)),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.35),
+                                          color: Colors.black.withValues(alpha: 0.35),
                                           blurRadius: 8,
                                           offset: const Offset(0, 3),
                                         ),
@@ -269,10 +269,10 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.black.withOpacity(0.06)),
+                                      border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: action.color.withOpacity(0.3),
+                                          color: action.color.withValues(alpha: 0.3),
                                           blurRadius: 10,
                                           offset: const Offset(0, 4),
                                         ),

@@ -256,8 +256,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
               onPrimary: Colors.black,
               surface: AppColors.surfaceElevated,
               onSurface: AppColors.textPrimary,
-            ),
-            dialogBackgroundColor: AppColors.surface,
+            ), dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
           ),
           child: child!,
         );
@@ -279,8 +278,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
               onPrimary: Colors.black,
               surface: AppColors.surfaceElevated,
               onSurface: AppColors.textPrimary,
-            ),
-            dialogBackgroundColor: AppColors.surface,
+            ), dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
           ),
           child: child!,
         );
@@ -314,8 +312,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
               onPrimary: Colors.black,
               surface: AppColors.surfaceElevated,
               onSurface: AppColors.textPrimary,
-            ),
-            dialogBackgroundColor: AppColors.surface,
+            ), dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
           ),
           child: child!,
         );
@@ -532,7 +529,10 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                         decoration: InputDecoration(hintText: 'Search title (e.g. Inception, Dune, Succession)…', hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13), prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20), suffixIcon: _isSearching ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))) : _searchController.text.isNotEmpty ? IconButton(icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textMuted), onPressed: () => setState(() { _searchController.clear(); _searchResults.clear(); })) : null, border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
                       ),
                     ),
-                    if (_searchResults.isNotEmpty) ...[
+                    if (_isSearching) ...[
+                      const SizedBox(height: 8),
+                      const WHSkeletonMediaSearchList(count: 3),
+                    ] else if (_searchResults.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Container(
                         decoration: BoxDecoration(color: AppColors.surfaceElevated, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.border), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 14, offset: const Offset(0, 6))]),
@@ -697,7 +697,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                           ),
                           Switch.adaptive(
                             value: _isRewatch,
-                            activeColor: Colors.amber,
+                            activeThumbColor: Colors.amber,
                             activeTrackColor: Colors.amber.withValues(alpha: 0.3),
                             onChanged: (val) {
                               HapticFeedback.lightImpact();
@@ -743,7 +743,10 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                           decoration: BoxDecoration(color: AppColors.surfaceElevated, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
                           child: TextField(controller: _suggestedByController, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.textPrimary), onChanged: (val) => _searchFriends(val), onTap: () { if (_friendResults.isEmpty) _searchFriends(''); }, decoration: InputDecoration(hintText: 'Search follower or friend username…', hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12), prefixIcon: const Icon(Icons.person_search_rounded, color: Colors.amber, size: 20), suffixIcon: _isSearchingFriends ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))) : null, border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12))),
                         ),
-                        if (_showFriendPicker && _friendResults.isNotEmpty) ...[
+                        if (_isSearchingFriends) ...[
+                          const SizedBox(height: 6),
+                          const WHSkeletonUserList(count: 2),
+                        ] else if (_showFriendPicker && _friendResults.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Container(
                             constraints: const BoxConstraints(maxHeight: 180),

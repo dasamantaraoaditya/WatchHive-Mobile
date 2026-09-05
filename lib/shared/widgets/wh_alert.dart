@@ -23,7 +23,7 @@ class WHAlert {
   }) async {
     final result = await showDialog<bool>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.55),
+      barrierColor: Colors.black.withValues(alpha: 0.55),
       builder: (ctx) => _WHConfirmDialog(
         title: title,
         message: message,
@@ -49,7 +49,7 @@ class WHAlert {
   }) async {
     await showDialog<bool>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.55),
+      barrierColor: Colors.black.withValues(alpha: 0.55),
       builder: (ctx) => _WHConfirmDialog(
         title: title,
         message: message,
@@ -120,31 +120,31 @@ class WHAlert {
           const Color(0xFF10B981),
           const Color(0xFFF0FDF4),
           const Color(0xFF065F46),
-          const Color(0xFF86EFAC).withOpacity(0.5),
+          const Color(0xFF86EFAC).withValues(alpha: 0.5),
         ),
       WHAlertSeverity.danger => (
           const Color(0xFFEF4444),
           const Color(0xFFFEF2F2),
           const Color(0xFF991B1B),
-          const Color(0xFFFCA5A5).withOpacity(0.5),
+          const Color(0xFFFCA5A5).withValues(alpha: 0.5),
         ),
       WHAlertSeverity.warning => (
           const Color(0xFFF59E0B),
           const Color(0xFFFFFBEB),
           const Color(0xFF92400E),
-          const Color(0xFFFDE68A).withOpacity(0.5),
+          const Color(0xFFFDE68A).withValues(alpha: 0.5),
         ),
       WHAlertSeverity.info => (
           const Color(0xFF3B82F6),
           const Color(0xFFEFF6FF),
           const Color(0xFF1E40AF),
-          const Color(0xFF93C5FD).withOpacity(0.5),
+          const Color(0xFF93C5FD).withValues(alpha: 0.5),
         ),
       WHAlertSeverity.primary => (
           AppColors.primaryDark,
           const Color(0xFFFFF9EE),
           AppColors.textPrimary,
-          AppColors.primary.withOpacity(0.3),
+          AppColors.primary.withValues(alpha: 0.3),
         ),
     };
 
@@ -166,7 +166,7 @@ class WHAlert {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.12),
+                color: iconColor.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: iconColor, size: 18),
@@ -243,7 +243,7 @@ class _WHConfirmDialog extends StatelessWidget {
         ),
       WHAlertSeverity.primary => (
           customIcon ?? Icons.auto_awesome_rounded,
-          AppColors.primary.withOpacity(0.15),
+          AppColors.primary.withValues(alpha: 0.15),
           AppColors.primaryDark,
           AppColors.primary,
           Colors.black,
@@ -261,7 +261,7 @@ class _WHConfirmDialog extends StatelessWidget {
           border: Border.all(color: AppColors.border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),

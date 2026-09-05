@@ -5,7 +5,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
-import '../../../shared/widgets/wh_brand_logo.dart';
 import '../repositories/entries_repository.dart';
 import 'add_entry_sheet.dart';
 import '../widgets/suggestions_tab.dart';
@@ -200,16 +199,6 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
-  }
-
-  void _showAddEntry() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useRootNavigator: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const AddEntrySheet(),
-    );
   }
 
   @override

@@ -259,10 +259,10 @@ class _MediaResultsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (results.isEmpty) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             Icon(Icons.movie_filter_outlined, size: 48, color: AppColors.textMuted),
             SizedBox(height: 12),
             Text('No movies or series found', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
@@ -301,10 +301,10 @@ class _UserResultsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (users.isEmpty) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             Icon(Icons.person_search_rounded, size: 48, color: AppColors.textMuted),
             SizedBox(height: 12),
             Text('No users found', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
@@ -503,7 +503,7 @@ class _DiscoveryView extends StatelessWidget {
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                       ),
                       backgroundColor: AppColors.surface,
-                      selectedColor: AppColors.primary.withOpacity(0.2),
+                      selectedColor: AppColors.primary.withValues(alpha: 0.2),
                       side: const BorderSide(color: AppColors.border),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       onPressed: () => onSelectRecentSearch(term),
@@ -541,10 +541,7 @@ class _DiscoveryView extends StatelessWidget {
           ),
           if (isSuggestedUsersLoading)
             const SliverToBoxAdapter(
-              child: SizedBox(
-                height: 140,
-                child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-              ),
+              child: WHSkeletonSuggestedUsersHorizontal(),
             )
           else
             SliverToBoxAdapter(
@@ -690,12 +687,18 @@ class _DiscoveryView extends StatelessWidget {
 
         // Discovery Media Grid
         if (isDiscoveryLoading)
-          const SliverFillRemaining(
-            hasScrollBody: false,
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: CircularProgressIndicator(color: AppColors.primary),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+                childAspectRatio: 0.63,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (_, __) => const WHSkeleton(child: WHSkeletonCard()),
+                childCount: 6,
               ),
             ),
           )
@@ -803,7 +806,7 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
           border: Border.all(color: AppColors.border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -898,7 +901,7 @@ class _MediaPosterCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.65),
+                      color: Colors.black.withValues(alpha: 0.65),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(

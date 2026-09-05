@@ -8,6 +8,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../rankings/models/ranking_stack.dart';
 import '../../rankings/repositories/rankings_repository.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../../shared/widgets/wh_skeleton.dart';
 
 class UserRankingsTab extends ConsumerStatefulWidget {
   final String userId;
@@ -68,12 +69,7 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
     final isCurrentUser = currentUserId == widget.userId;
 
     if (_isLoading) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-      );
+      return const WHSkeletonRankings();
     }
 
     if (_error != null) {

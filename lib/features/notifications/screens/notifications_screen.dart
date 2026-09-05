@@ -155,8 +155,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: Row(
-                    children: const [
+                  child: const Row(
+                    children: [
                       WHSkeletonBox(width: 42, height: 42, shape: BoxShape.circle),
                       SizedBox(width: 12),
                       Expanded(
@@ -183,7 +183,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: AppColors.surfaceHighest,
                             shape: BoxShape.circle,
                           ),
@@ -280,7 +280,7 @@ class _NotificationTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: notification.isRead ? Colors.transparent : AppColors.primary.withOpacity(0.06),
+          color: notification.isRead ? Colors.transparent : AppColors.primary.withValues(alpha: 0.06),
           border: const Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
         ),
         child: Row(
@@ -289,7 +289,7 @@ class _NotificationTile extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.12),
+                color: iconColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: iconColor, size: 20),
