@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/auth_manager.dart';
@@ -75,7 +76,7 @@ class ApiClient {
 class _AuthInterceptor extends Interceptor {
   final AuthManager _authManager;
   final Dio _dio;
-  bool _isRefreshing = false;
+  Completer<bool>? _refreshCompleter;
 
   _AuthInterceptor(this._authManager, this._dio);
 
@@ -93,21 +94,52 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 401 && !_isRefreshing) {
-      _isRefreshing = true;
+    // If not a 401 or if it's the refresh endpoint itself, pass through
+    if (err.response?.statusCode != 401 ||
+        err.requestOptions.path.contains('/auth/refresh')) {
+      return handler.next(err);
+    }
+
+    // If another request is currently refreshing tokens, await its completion
+    if (_refreshCompleter != null) {
       try {
-        final refreshed = await _authManager.refreshTokens();
+        final refreshed = await _refreshCompleter!.future;
         if (refreshed) {
           final newToken = await _authManager.getAccessToken();
           err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
           final response = await _dio.fetch(err.requestOptions);
-          _isRefreshing = false;
           return handler.resolve(response);
         }
+      } on DioException catch (retryErr) {
+        return handler.next(retryErr);
       } catch (_) {}
-      _isRefreshing = false;
-      await _authManager.logout();
+      return handler.next(err);
     }
+
+    final completer = Completer<bool>();
+    _refreshCompleter = completer;
+
+    try {
+      final refreshed = await _authManager.refreshTokens();
+      completer.complete(refreshed);
+
+      if (refreshed) {
+        final newToken = await _authManager.getAccessToken();
+        err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+        final response = await _dio.fetch(err.requestOptions);
+        return handler.resolve(response);
+      } else {
+        await _authManager.logout();
+      }
+    } on DioException catch (retryErr) {
+      return handler.next(retryErr);
+    } catch (e) {
+      completer.complete(false);
+      await _authManager.logout();
+    } finally {
+      _refreshCompleter = null;
+    }
+
     handler.next(err);
   }
 }

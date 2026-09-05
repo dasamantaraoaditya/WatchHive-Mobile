@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/suggestion.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
@@ -32,23 +31,48 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
 
   Future<void> _handleAddToWatching(String title) async {
     final firstSuggestor = widget.group.suggestors.isNotEmpty ? widget.group.suggestors.first : null;
+    final isTv = widget.group.mediaType == 'tv';
+    String effectiveTitle = title.trim();
+
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && widget.group.tmdbId > 0) {
+      try {
+        final searchRepo = ref.read(searchRepositoryProvider);
+        final details = isTv
+            ? await searchRepo.getTvDetails(widget.group.tmdbId)
+            : await searchRepo.getMovieDetails(widget.group.tmdbId);
+        final realTitle = (details['title'] as String?) ??
+            (details['name'] as String?) ??
+            (details['original_title'] as String?) ??
+            (details['original_name'] as String?);
+        if (realTitle != null && realTitle.trim().isNotEmpty) {
+          effectiveTitle = realTitle.trim();
+        }
+      } catch (_) {}
+    }
+
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+        ? effectiveTitle
+        : (isTv ? 'this TV show' : 'this movie');
+
+    if (!mounted) return;
+
     final confirm = await WHAlert.confirm(
       context,
       title: 'Move to Currently Watching',
-      message: 'Would you like to move "$title" to your Currently Watching log?',
+      message: 'Would you like to move "$cleanTitle" to your Currently Watching log?',
       confirmText: 'Move to Watching',
       severity: WHAlertSeverity.primary,
       icon: Icons.play_circle_outline_rounded,
     );
-    if (!confirm) return;
+    if (!confirm || !mounted) return;
 
     try {
       final repo = ref.read(entriesRepositoryProvider);
       final suggRepo = ref.read(suggestionsRepositoryProvider);
       final entry = await repo.createEntry({
         'tmdbId': widget.group.tmdbId,
-        'title': title,
-        'type': widget.group.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
+        'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' ? effectiveTitle : cleanTitle,
+        'type': isTv ? 'TV_SHOW' : 'MOVIE',
         'isWatching': true,
         'startedAt': DateTime.now().toIso8601String(),
         if (firstSuggestor != null) 'suggestedByUserId': firstSuggestor.id,
@@ -58,7 +82,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
 
       await Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)));
       if (mounted) {
-        WHAlert.showSuccess(context, 'Moved "$title" to Currently Watching! 🎬');
+        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching! 🎬');
         widget.onRefresh();
       }
     } catch (e) {
@@ -83,33 +107,59 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       builder: (ctx) => AddEntrySheet(
         prefillTmdbId: widget.group.tmdbId,
         prefillType: widget.group.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
-        prefillSuggestor: firstSuggestor,
-        onSuccess: () {
+        prefillSuggestedByUserId: firstSuggestor?.id,
+        onSuccess: () async {
           final suggRepo = ref.read(suggestionsRepositoryProvider);
-          Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)))
-              .then((_) => widget.onRefresh())
-              .catchError((_) => widget.onRefresh());
+          await Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)));
+          if (mounted) {
+            widget.onRefresh();
+          }
         },
       ),
     );
   }
 
   Future<void> _handleDelete(String title) async {
+    final isTv = widget.group.mediaType == 'tv';
+    String effectiveTitle = title.trim();
+
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && widget.group.tmdbId > 0) {
+      try {
+        final searchRepo = ref.read(searchRepositoryProvider);
+        final details = isTv
+            ? await searchRepo.getTvDetails(widget.group.tmdbId)
+            : await searchRepo.getMovieDetails(widget.group.tmdbId);
+        final realTitle = (details['title'] as String?) ??
+            (details['name'] as String?) ??
+            (details['original_title'] as String?) ??
+            (details['original_name'] as String?);
+        if (realTitle != null && realTitle.trim().isNotEmpty) {
+          effectiveTitle = realTitle.trim();
+        }
+      } catch (_) {}
+    }
+
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+        ? effectiveTitle
+        : (isTv ? 'this TV show' : 'this movie');
+
+    if (!mounted) return;
+
     final confirm = await WHAlert.confirm(
       context,
       title: 'Dismiss Suggestion',
-      message: 'Dismiss recommendation for "$title"?',
+      message: 'Dismiss recommendation for "$cleanTitle"?',
       confirmText: 'Dismiss',
       severity: WHAlertSeverity.danger,
       icon: Icons.delete_outline_rounded,
     );
-    if (!confirm) return;
+    if (!confirm || !mounted) return;
 
     try {
       final suggRepo = ref.read(suggestionsRepositoryProvider);
       await Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)));
       if (mounted) {
-        WHAlert.showSuccess(context, 'Dismissed recommendation for "$title"');
+        WHAlert.showSuccess(context, 'Dismissed recommendation for "$cleanTitle"');
         widget.onRefresh();
       }
     } catch (e) {
@@ -163,8 +213,14 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       suggestedByUsername: suggestorDisplay,
       suggestedByAvatarUrl: firstSuggestor?.profilePictureUrl,
       onTap: () => widget.onTapMedia?.call(tmdbId, mediaType),
+      onMoveToWatchingWithTitle: (resolvedTitle) => _handleAddToWatching(
+        resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+      ),
       onMoveToWatching: () => _handleAddToWatching(title),
       onMarkWatched: _handleMarkAsWatched,
+      onDeleteWithTitle: (resolvedTitle) => _handleDelete(
+        resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+      ),
       onDelete: () => _handleDelete(title),
     );
   }

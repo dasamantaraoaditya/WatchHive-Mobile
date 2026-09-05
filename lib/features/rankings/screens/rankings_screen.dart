@@ -838,20 +838,25 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                     onPressed: () async {
                       final confirm = await showDialog<bool>(
                         context: context,
-                        builder: (ctx) => AlertDialog(
-                          backgroundColor: AppColors.surface,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                          title: const Text('Remove from Stack?', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                          content: Text('Remove "${item.title ?? 'this title'}" from the stack?', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted))),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Remove', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            ),
-                          ],
-                        ),
+                        builder: (ctx) {
+                          final itemTitle = (item.title != null && item.title!.trim().isNotEmpty && item.title != 'Untitled')
+                              ? item.title!.trim()
+                              : (item.mediaType == 'tv' ? 'this TV show' : 'this movie');
+                          return AlertDialog(
+                            backgroundColor: AppColors.surface,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                            title: const Text('Remove from Stack?', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                            content: Text('Remove "$itemTitle" from the stack?', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted))),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Remove', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          );
+                        },
                       );
                       if (confirm == true) {
                         ref.read(activeStackProvider.notifier).removeItem(item.tmdbId);

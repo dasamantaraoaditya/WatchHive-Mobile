@@ -241,7 +241,10 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   Future<void> _handleStartWatching() async {
     if (_isTransitioning || _details == null) return;
 
-    final title = (_details?['title'] ?? _details?['name'] ?? 'Movie/Show').toString();
+    final rawTitle = (_details?['title'] ?? _details?['name'])?.toString().trim();
+    final title = (rawTitle != null && rawTitle.isNotEmpty && rawTitle != 'Untitled')
+        ? rawTitle
+        : (widget.mediaType == 'tv' ? 'this TV show' : 'this movie');
     final confirmed = await WHAlert.confirm(
       context,
       title: 'Log as Currently Watching',

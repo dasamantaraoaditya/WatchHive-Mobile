@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_manager.dart';
 import '../../../shared/models/user.dart';
@@ -46,9 +47,16 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     try {
       final user = await ref.read(authRepositoryProvider).getMe();
       return AuthState(user: user, isAuthenticated: true);
-    } catch (_) {
-      await authManager.logout();
-      return const AuthState(isAuthenticated: false);
+    } catch (e) {
+      // Only logout if explicitly unauthorized (401/403) and refresh failed
+      if (e is DioException &&
+          (e.response?.statusCode == 401 || e.response?.statusCode == 403)) {
+        await authManager.logout();
+        return const AuthState(isAuthenticated: false);
+      }
+      // For network errors / connection drops / offline mode,
+      // keep the user authenticated so saved tokens are never wiped!
+      return const AuthState(isAuthenticated: true);
     }
   }
 

@@ -31,7 +31,9 @@ class WHEntryGridCard extends ConsumerWidget {
   final List<String> tags;
   final VoidCallback onTap;
   final VoidCallback? onMoveToWatching;
+  final void Function(String resolvedTitle)? onMoveToWatchingWithTitle;
   final VoidCallback? onMarkWatched;
+  final void Function(String resolvedTitle)? onMarkWatchedWithTitle;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final void Function(String resolvedTitle)? onDeleteWithTitle;
@@ -54,7 +56,9 @@ class WHEntryGridCard extends ConsumerWidget {
     this.tags = const [],
     required this.onTap,
     this.onMoveToWatching,
+    this.onMoveToWatchingWithTitle,
     this.onMarkWatched,
+    this.onMarkWatchedWithTitle,
     this.onEdit,
     this.onDelete,
     this.onDeleteWithTitle,
@@ -446,7 +450,13 @@ class WHEntryGridCard extends ConsumerWidget {
                       ),
 
                       // Three-Dots Context Menu Button
-                      if (onMoveToWatching != null || onMarkWatched != null || onEdit != null || onDelete != null || onDeleteWithTitle != null)
+                      if (onMoveToWatching != null ||
+                          onMoveToWatchingWithTitle != null ||
+                          onMarkWatched != null ||
+                          onMarkWatchedWithTitle != null ||
+                          onEdit != null ||
+                          onDelete != null ||
+                          onDeleteWithTitle != null)
                         PopupMenuButton<String>(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 160),
@@ -457,7 +467,7 @@ class WHEntryGridCard extends ConsumerWidget {
                             side: const BorderSide(color: AppColors.border),
                           ),
                           itemBuilder: (_) => [
-                            if (onMoveToWatching != null)
+                            if (onMoveToWatching != null || onMoveToWatchingWithTitle != null)
                               const PopupMenuItem(
                                 value: 'watching',
                                 child: Row(
@@ -468,7 +478,7 @@ class WHEntryGridCard extends ConsumerWidget {
                                   ],
                                 ),
                               ),
-                            if (onMarkWatched != null)
+                            if (onMarkWatched != null || onMarkWatchedWithTitle != null)
                               const PopupMenuItem(
                                 value: 'mark_watched',
                                 child: Row(
@@ -510,12 +520,27 @@ class WHEntryGridCard extends ConsumerWidget {
                               ),
                           ],
                           onSelected: (value) {
-                            if (value == 'watching') onMoveToWatching?.call();
-                            if (value == 'mark_watched') onMarkWatched?.call();
+                            final resolved = displayTitle.isNotEmpty && displayTitle != 'Untitled'
+                                ? displayTitle
+                                : ((tmdbTitle != null && tmdbTitle.isNotEmpty && tmdbTitle != 'Untitled') ? tmdbTitle : title);
+                            if (value == 'watching') {
+                              if (onMoveToWatchingWithTitle != null) {
+                                onMoveToWatchingWithTitle!(resolved);
+                              } else {
+                                onMoveToWatching?.call();
+                              }
+                            }
+                            if (value == 'mark_watched') {
+                              if (onMarkWatchedWithTitle != null) {
+                                onMarkWatchedWithTitle!(resolved);
+                              } else {
+                                onMarkWatched?.call();
+                              }
+                            }
                             if (value == 'edit') onEdit?.call();
                             if (value == 'delete') {
                               if (onDeleteWithTitle != null) {
-                                onDeleteWithTitle!(displayTitle);
+                                onDeleteWithTitle!(resolved);
                               } else {
                                 onDelete?.call();
                               }

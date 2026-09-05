@@ -8,6 +8,8 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../entries/repositories/entries_repository.dart';
 import '../../entries/repositories/watchlist_repository.dart';
+import '../../entries/screens/add_entry_sheet.dart';
+import '../../entries/screens/entries_screen.dart';
 import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../entries/widgets/wh_entry_grid_card.dart';
 import '../../search/repositories/search_repository.dart';
@@ -1242,23 +1244,201 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           onTap: () {
             if (tmdbId > 0) context.push('/details/$mediaType/$tmdbId');
           },
+          onMoveToWatchingWithTitle: _isMe ? (resolvedTitle) => _addToCurrentlyWatching(
+            item,
+            resolvedTitle: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+          ) : null,
+          onMoveToWatching: _isMe ? () => _addToCurrentlyWatching(item, resolvedTitle: title) : null,
+          onMarkWatchedWithTitle: _isMe ? (resolvedTitle) => _logWatchlistItem(
+            item,
+            resolvedTitle: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+          ) : null,
+          onMarkWatched: _isMe ? () => _logWatchlistItem(item, resolvedTitle: title) : null,
           onDeleteWithTitle: _isMe ? (resolvedTitle) => _removeWatchlistItem(
             tmdbId: tmdbId,
-            title: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : (title.isNotEmpty ? title : 'this title'),
+            title: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
             itemId: item['id'] as String?,
+            mediaType: mediaType,
           ) : null,
           onDelete: _isMe ? () => _removeWatchlistItem(
             tmdbId: tmdbId,
-            title: title.isNotEmpty ? title : 'this title',
+            title: title,
             itemId: item['id'] as String?,
+            mediaType: mediaType,
           ) : null,
         );
       },
     );
   }
 
-  Future<void> _removeWatchlistItem({required int tmdbId, required String title, String? itemId}) async {
-    final cleanTitle = title.trim().isNotEmpty && title != 'Untitled' ? title : 'this title';
+  Future<void> _addToCurrentlyWatching(Map<String, dynamic> item, {String? resolvedTitle}) async {
+    final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
+    final isTv = (item['mediaType'] as String? ?? 'movie').toLowerCase().contains('tv');
+
+    String effectiveTitle = (resolvedTitle != null && resolvedTitle.trim().isNotEmpty && resolvedTitle != 'Untitled')
+        ? resolvedTitle.trim()
+        : ((item['title'] as String?)?.trim() ?? '');
+
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && tmdbId > 0) {
+      try {
+        final searchRepo = ref.read(searchRepositoryProvider);
+        final details = isTv
+            ? await searchRepo.getTvDetails(tmdbId)
+            : await searchRepo.getMovieDetails(tmdbId);
+        final realTitle = (details['title'] as String?) ??
+            (details['name'] as String?) ??
+            (details['original_title'] as String?) ??
+            (details['original_name'] as String?);
+        if (realTitle != null && realTitle.trim().isNotEmpty) {
+          effectiveTitle = realTitle.trim();
+          item['title'] = effectiveTitle;
+        }
+      } catch (_) {}
+    }
+
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+        ? effectiveTitle
+        : (isTv ? 'this TV show' : 'this movie');
+
+    if (!mounted) return;
+
+    final confirm = await WHAlert.confirm(
+      context,
+      title: 'Move to Currently Watching',
+      message: 'Would you like to move "$cleanTitle" to your Currently Watching log?',
+      confirmText: 'Move to Watching',
+      severity: WHAlertSeverity.primary,
+      icon: Icons.play_circle_outline_rounded,
+    );
+
+    if (!confirm || !mounted) return;
+
+    try {
+      final mediaType = isTv ? 'TV_SHOW' : 'MOVIE';
+      final itemId = item['id'] as String?;
+      final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
+      final suggestedByUserId = item['suggestedByUserId'] as String? ?? suggestedByUser?['id'] as String?;
+
+      final entry = await ref.read(entriesRepositoryProvider).createEntry({
+        'tmdbId': tmdbId,
+        'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' ? effectiveTitle : cleanTitle,
+        'type': mediaType,
+        'isWatching': true,
+        'startedAt': DateTime.now().toIso8601String(),
+        if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
+      });
+
+      ref.read(entriesProvider(true).notifier).addEntry(entry);
+
+      await ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+        tmdbId > 0 ? tmdbId : itemId,
+      );
+      if (mounted) {
+        setState(() {
+          _watchlistItems.removeWhere((it) =>
+              (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
+              (itemId != null && it['id'] == itemId));
+        });
+        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching! 🎬');
+      }
+    } catch (e) {
+      if (mounted) {
+        WHAlert.showError(context, 'Failed to add to currently watching: $e');
+      }
+    }
+  }
+
+  Future<void> _logWatchlistItem(Map<String, dynamic> item, {String? resolvedTitle}) async {
+    final itemId = item['id'] as String?;
+    final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
+    final isTv = (item['mediaType'] as String? ?? 'movie').toLowerCase().contains('tv');
+    final mediaType = isTv ? 'TV_SHOW' : 'MOVIE';
+    final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
+    final suggestedByUserId = item['suggestedByUserId'] as String? ?? suggestedByUser?['id'] as String?;
+
+    String effectiveTitle = (resolvedTitle != null && resolvedTitle.trim().isNotEmpty && resolvedTitle != 'Untitled')
+        ? resolvedTitle.trim()
+        : ((item['title'] as String?)?.trim() ?? '');
+
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && tmdbId > 0) {
+      try {
+        final searchRepo = ref.read(searchRepositoryProvider);
+        final details = isTv
+            ? await searchRepo.getTvDetails(tmdbId)
+            : await searchRepo.getMovieDetails(tmdbId);
+        final realTitle = (details['title'] as String?) ??
+            (details['name'] as String?) ??
+            (details['original_title'] as String?) ??
+            (details['original_name'] as String?);
+        if (realTitle != null && realTitle.trim().isNotEmpty) {
+          effectiveTitle = realTitle.trim();
+          item['title'] = effectiveTitle;
+        }
+      } catch (_) {}
+    }
+
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+        ? effectiveTitle
+        : (isTv ? 'this TV show' : 'this movie');
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddEntrySheet(
+        prefillTmdbId: tmdbId > 0 ? tmdbId : null,
+        prefillType: mediaType,
+        prefillSuggestedByUserId: suggestedByUserId,
+        onSuccess: () {
+          ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+            tmdbId > 0 ? tmdbId : itemId,
+          );
+          if (mounted) {
+            setState(() {
+              _watchlistItems.removeWhere((it) =>
+                  (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
+                  (itemId != null && it['id'] == itemId));
+            });
+            WHAlert.showSuccess(context, 'Logged and removed "$cleanTitle" from Watchlist! ✨');
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _removeWatchlistItem({
+    required int tmdbId,
+    required String title,
+    String? itemId,
+    String? mediaType,
+  }) async {
+    final isTv = (mediaType ?? '').toLowerCase().contains('tv');
+    String effectiveTitle = title.trim();
+
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled') && tmdbId > 0) {
+      try {
+        final searchRepo = ref.read(searchRepositoryProvider);
+        final details = isTv
+            ? await searchRepo.getTvDetails(tmdbId)
+            : await searchRepo.getMovieDetails(tmdbId);
+        final realTitle = (details['title'] as String?) ??
+            (details['name'] as String?) ??
+            (details['original_title'] as String?) ??
+            (details['original_name'] as String?);
+        if (realTitle != null && realTitle.trim().isNotEmpty) {
+          effectiveTitle = realTitle.trim();
+        }
+      } catch (_) {}
+    }
+
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled'
+        ? effectiveTitle
+        : (isTv ? 'this TV show' : 'this movie');
+
+    if (!mounted) return;
+
     final confirm = await WHAlert.confirm(
       context,
       title: 'Remove "$cleanTitle"?',
@@ -1268,7 +1448,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       icon: Icons.bookmark_remove_rounded,
     );
 
-    if (!confirm) return;
+    if (!confirm || !mounted) return;
 
     try {
       await ref.read(watchlistRepositoryProvider).removeFromWatchlist(

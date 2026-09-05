@@ -84,7 +84,9 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
 
     if (_isWatchlist) {
       final title = media.title;
-      final cleanTitle = title.trim().isNotEmpty && title != 'Untitled' ? title : 'this title';
+      final cleanTitle = title.trim().isNotEmpty && title != 'Untitled'
+          ? title.trim()
+          : (media.mediaType == 'tv' ? 'this TV show' : 'this movie');
 
       final confirm = await WHAlert.confirm(
         context,

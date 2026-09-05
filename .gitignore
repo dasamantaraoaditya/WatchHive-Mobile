@@ -31,6 +31,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+android/build/
 /coverage/
 
 # Symbolication related
@@ -57,3 +58,4 @@ watchhive-release.apk
 *.png
 !assets/images/*.png
 **/xcshareddata/swiftpm/
+.kotlin/

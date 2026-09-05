@@ -73,7 +73,9 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
     if (_isSubmitting) return;
 
     final title = media.title;
-    final cleanTitle = title.trim().isNotEmpty && title != 'Untitled' ? title : 'this title';
+    final cleanTitle = title.trim().isNotEmpty && title != 'Untitled'
+        ? title.trim()
+        : (media.mediaType == 'tv' ? 'this TV show' : 'this movie');
 
     final confirm = await WHAlert.confirm(
       context,

@@ -33,6 +33,10 @@ class AuthManager {
   }
 
   Future<bool> hasValidSession() async {
+    final refreshToken = await getRefreshToken();
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      return true;
+    }
     final token = await getAccessToken();
     return token != null && token.isNotEmpty;
   }
@@ -44,14 +48,33 @@ class AuthManager {
     ]);
   }
 
+  Future<bool>? _ongoingRefresh;
+
   /// Attempts to silently refresh the access token using the stored refresh token.
+  /// Deduplicates concurrent calls so only one HTTP refresh is executed.
   /// Returns true on success, false on failure.
   Future<bool> refreshTokens() async {
+    if (_ongoingRefresh != null) {
+      return _ongoingRefresh!;
+    }
+    _ongoingRefresh = _executeRefresh();
+    try {
+      return await _ongoingRefresh!;
+    } finally {
+      _ongoingRefresh = null;
+    }
+  }
+
+  Future<bool> _executeRefresh() async {
     try {
       final refreshToken = await getRefreshToken();
-      if (refreshToken == null) return false;
+      if (refreshToken == null || refreshToken.isEmpty) return false;
 
-      final dio = Dio(BaseOptions(baseUrl: ApiEndpoints.baseUrl));
+      final dio = Dio(BaseOptions(
+        baseUrl: ApiEndpoints.baseUrl,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      ));
       final response = await dio.post(
         ApiEndpoints.refreshToken,
         data: {'refreshToken': refreshToken},
