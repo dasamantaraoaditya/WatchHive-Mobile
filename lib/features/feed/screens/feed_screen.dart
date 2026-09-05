@@ -15,6 +15,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../onboarding/services/tour_service.dart';
 import '../../onboarding/widgets/quick_guide_tour_dialog.dart';
+import '../../notifications/providers/notifications_provider.dart';
 
 
 // Feed state
@@ -203,6 +204,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
     final tourService = ref.read(tourServiceProvider);
     final shouldShow = await tourService.shouldShowTour(userId);
+    debugPrint('QuickGuideTour: checking if tour should show for $userId: $shouldShow');
     if (shouldShow && mounted) {
       QuickGuideTourDialog.show(context, userId: userId);
     }
@@ -262,7 +264,25 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 onPressed: () => context.push('/mindlens'),
               ),
               IconButton(
-                icon: const Icon(Icons.notifications_outlined),
+                icon: Consumer(
+                  builder: (context, ref, child) {
+                    final unreadCount = ref.watch(unreadNotificationsCountProvider);
+                    return Badge(
+                      isLabelVisible: unreadCount > 0,
+                      backgroundColor: AppColors.primary,
+                      textColor: Colors.black,
+                      label: Text(
+                        unreadCount > 99 ? '99+' : unreadCount.toString(),
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      child: const Icon(Icons.notifications_outlined),
+                    );
+                  },
+                ),
                 tooltip: 'Notifications',
                 onPressed: () => context.push('/notifications'),
               ),

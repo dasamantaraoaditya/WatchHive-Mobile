@@ -24,8 +24,10 @@ class QuickGuideTourDialog extends ConsumerStatefulWidget {
     bool isReplay = false,
     VoidCallback? onCompleted,
   }) {
+    debugPrint('QuickGuideTour: displaying tour (userId: $userId, isReplay: $isReplay)');
     return showDialog<void>(
       context: context,
+      useRootNavigator: true,
       barrierDismissible: isReplay,
       routeSettings: const RouteSettings(name: 'QuickGuideTourDialog'),
       builder: (dialogContext) => QuickGuideTourDialog(
