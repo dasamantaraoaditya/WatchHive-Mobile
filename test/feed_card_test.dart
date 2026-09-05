@@ -192,6 +192,7 @@ void main() {
       );
 
       await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 700));
 
       // Ensure no Flutter layout overflow exceptions were thrown
       expect(tester.takeException(), isNull);

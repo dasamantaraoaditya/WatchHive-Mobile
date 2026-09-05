@@ -206,6 +206,7 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const AddEntrySheet(),
     );
@@ -387,6 +388,7 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
                     showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
+                      useRootNavigator: true,
                       backgroundColor: Colors.transparent,
                       builder: (_) => AddEntrySheet(
                         editEntry: entry,
@@ -399,6 +401,7 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
               showModalBottomSheet(
                 context: context,
                 isScrollControlled: true,
+                useRootNavigator: true,
                 backgroundColor: Colors.transparent,
                 builder: (_) => AddEntrySheet(editEntry: entry),
               );

@@ -1386,6 +1386,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (_) => AddEntrySheet(
         prefillTmdbId: tmdbId > 0 ? tmdbId : null,

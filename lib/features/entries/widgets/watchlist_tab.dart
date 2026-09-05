@@ -212,6 +212,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (_) => AddEntrySheet(
         prefillTmdbId: tmdbId > 0 ? tmdbId : null,

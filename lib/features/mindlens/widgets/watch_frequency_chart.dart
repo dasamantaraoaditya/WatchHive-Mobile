@@ -46,6 +46,7 @@ class _WatchFrequencyChartState extends State<WatchFrequencyChart> {
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
+        useRootNavigator: true,
         backgroundColor: Colors.transparent,
         builder: (_) => DailyLogInspectorSheet(
           dateStr: dateStr,

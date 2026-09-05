@@ -33,6 +33,7 @@ class CommentsSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => CommentsSheet(
         entryId: entryId,
@@ -480,6 +481,8 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
+                    key: const Key('comment_submit_button'),
+                    tooltip: 'Post Comment',
                     style: IconButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.black,

@@ -103,6 +103,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => AddEntrySheet(
         prefillTmdbId: widget.group.tmdbId,

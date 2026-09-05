@@ -16,6 +16,7 @@ import '../widgets/compare_picker_modal.dart';
 import '../widgets/data_management_card.dart';
 import 'edit_profile_dialog.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../onboarding/widgets/quick_guide_tour_dialog.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -257,6 +258,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
               elevation: 0,
               backgroundColor: AppColors.background,
               title: const WHBrandLogo(logoSize: 26, fontSize: 19),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+                  tooltip: 'Quick Guide Tour',
+                  onPressed: () => QuickGuideTourDialog.show(
+                    context,
+                    userId: user.id,
+                    isReplay: true,
+                  ),
+                ),
+              ],
             ),
             SliverToBoxAdapter(
               child: Padding(
@@ -994,6 +1006,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                   title: 'Invite Friends to WatchHive',
                   subtitle: 'Share your personal invite link',
                   onTap: () => _handleInviteFriends(user),
+                ),
+                const Divider(height: 1, color: AppColors.border),
+                _buildActionTile(
+                  icon: Icons.explore_outlined,
+                  title: 'App Guide Tour',
+                  subtitle: 'Walkthrough of features & how to use WatchHive',
+                  onTap: () => QuickGuideTourDialog.show(
+                    context,
+                    userId: user.id,
+                    isReplay: true,
+                  ),
                 ),
               ],
             ),

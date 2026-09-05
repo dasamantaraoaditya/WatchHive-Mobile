@@ -13,6 +13,8 @@ import '../repositories/feed_repository.dart';
 import '../widgets/comments_sheet.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../search/repositories/search_repository.dart';
+import '../../onboarding/services/tour_service.dart';
+import '../../onboarding/widgets/quick_guide_tour_dialog.dart';
 
 
 // Feed state
@@ -181,6 +183,24 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndPromptTour();
+    });
+  }
+
+  Future<void> _checkAndPromptTour() async {
+    // Short delay so the feed screen and layout settle cleanly first
+    await Future.delayed(const Duration(milliseconds: 650));
+    if (!mounted) return;
+
+    final user = ref.read(authStateProvider).value?.user;
+    if (user == null || user.id.isEmpty) return;
+
+    final tourService = ref.read(tourServiceProvider);
+    final shouldShow = await tourService.shouldShowTour(user.id);
+    if (shouldShow && mounted) {
+      QuickGuideTourDialog.show(context, userId: user.id);
+    }
   }
 
   void _onScroll() {
@@ -210,6 +230,18 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             floating: true,
             title: const WHBrandLogo(logoSize: 30, fontSize: 21),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+                tooltip: 'Quick Guide Tour',
+                onPressed: () {
+                  final user = ref.read(authStateProvider).value?.user;
+                  QuickGuideTourDialog.show(
+                    context,
+                    userId: user?.id ?? 'guest',
+                    isReplay: true,
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),
                 tooltip: 'MindLens AI',

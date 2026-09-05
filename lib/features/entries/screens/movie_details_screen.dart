@@ -296,6 +296,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (_) => ProviderScope(
         parent: ProviderScope.containerOf(context),
@@ -355,6 +356,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SuggestMovieModal(
         tmdbId: widget.tmdbId,

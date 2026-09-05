@@ -114,6 +114,12 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    // Hide FAB when keyboard is open to prevent blocking text inputs and submit buttons
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    if (isKeyboardOpen && !_isOpen) {
+      return const SizedBox.shrink();
+    }
+
     final isVisible = _isOpen || _controller.value > 0;
 
     // When closed and animation finished: DO NOT render full-screen stack!
@@ -136,6 +142,7 @@ class _WHQuickAddFABState extends State<WHQuickAddFAB> with SingleTickerProvider
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
+            useRootNavigator: true,
             backgroundColor: Colors.transparent,
             builder: (_) => const AddEntrySheet(),
           );
