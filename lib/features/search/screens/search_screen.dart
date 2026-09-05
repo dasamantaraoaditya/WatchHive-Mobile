@@ -208,21 +208,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
             : null,
       ),
       body: showResults
-          ? _isSearching
-              ? const WHSkeletonGrid(itemCount: 6)
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _MediaResultsList(
-                      results: _mediaResults,
-                      onSelectMedia: (m) => ref.read(searchRepositoryProvider).addRecentSearch(m.title),
-                    ),
-                    _UserResultsList(
-                      users: _userResults,
-                      onSelectUser: (u) => ref.read(searchRepositoryProvider).addRecentSearch(u.username),
-                    ),
-                  ],
-                )
+          ? TabBarView(
+              controller: _tabController,
+              children: [
+                _isSearching
+                    ? const WHSkeletonMediaSearchList(count: 6)
+                    : _MediaResultsList(
+                        results: _mediaResults,
+                        onSelectMedia: (m) => ref.read(searchRepositoryProvider).addRecentSearch(m.title),
+                      ),
+                _isSearching
+                    ? const WHSkeletonUserList(count: 6)
+                    : _UserResultsList(
+                        users: _userResults,
+                        onSelectUser: (u) => ref.read(searchRepositoryProvider).addRecentSearch(u.username),
+                      ),
+              ],
+            )
           : _DiscoveryView(
               discoveryMedia: _discoveryMedia,
               suggestedUsers: _suggestedUsers,
