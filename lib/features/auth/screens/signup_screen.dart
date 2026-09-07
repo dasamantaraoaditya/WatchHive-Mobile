@@ -146,7 +146,41 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   isLoading: _isLoading,
                   onPressed: _register,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
+
+                Center(
+                  child: Text.rich(
+                    TextSpan(
+                      text: 'By creating an account, you agree to our ',
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11.5,
+                        color: AppColors.textMuted,
+                      ),
+                      children: [
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.baseline,
+                          baseline: TextBaseline.alphabetic,
+                          child: GestureDetector(
+                            onTap: () => context.push('/privacy-policy'),
+                            child: const Text(
+                              'Privacy Policy',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryDark,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 24),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

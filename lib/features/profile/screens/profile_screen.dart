@@ -1033,6 +1033,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                     isReplay: true,
                   ),
                 ),
+                const Divider(height: 1, color: AppColors.border),
+                _buildActionTile(
+                  icon: Icons.shield_outlined,
+                  title: 'Privacy Policy & Terms',
+                  subtitle: 'Data usage, MindLens metrics & rights',
+                  onTap: () => context.push('/privacy-policy'),
+                ),
               ],
             ),
           ),

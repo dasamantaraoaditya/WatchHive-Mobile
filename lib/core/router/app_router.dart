@@ -17,6 +17,7 @@ import '../../features/entries/screens/movie_details_screen.dart';
 import '../../features/mindlens/screens/mindlens_screen.dart';
 import '../../features/profile/screens/compare_history_screen.dart';
 import '../../features/rankings/screens/rankings_screen.dart';
+import '../../features/profile/screens/privacy_policy_screen.dart';
 import '../../shared/models/user.dart';
 import '../../shared/models/entry.dart';
 
@@ -100,6 +101,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/privacy-policy',
+        builder: (context, state) => const PrivacyPolicyScreen(),
       ),
       GoRoute(
         path: '/compare/:id',
