@@ -120,6 +120,9 @@ class ApiEndpoints {
   // Push Notifications
   static const String pushSubscribe = '/push/subscribe';
   static const String pushUnsubscribe = '/push/unsubscribe';
+  static const String registerDeviceToken = '/push/device-token';
+  static const String unregisterDeviceToken = '/push/device-token';
+  static const String testPush = '/push/test';
 
   // Health
   static const String health = '/health';

@@ -1,7 +1,10 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_manager.dart';
+import '../../../core/notifications/push_notification_service.dart';
 import '../../../shared/models/user.dart';
+import '../../notifications/repositories/push_repository.dart';
 import '../repositories/auth_repository.dart';
 
 // Auth state model
@@ -46,6 +49,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
     try {
       final user = await ref.read(authRepositoryProvider).getMe();
+      _syncDeviceToken();
       return AuthState(user: user, isAuthenticated: true);
     } catch (e) {
       // Only logout if explicitly unauthorized (401/403) and refresh failed
@@ -56,7 +60,19 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       }
       // For network errors / connection drops / offline mode,
       // keep the user authenticated so saved tokens are never wiped!
+      _syncDeviceToken();
       return const AuthState(isAuthenticated: true);
+    }
+  }
+
+  Future<void> _syncDeviceToken() async {
+    try {
+      final token = PushNotificationService.instance.currentToken;
+      if (token != null && token.isNotEmpty) {
+        await ref.read(pushRepositoryProvider).registerDeviceToken(token);
+      }
+    } catch (e) {
+      debugPrint('[AuthNotifier] Token sync skipped or failed: $e');
     }
   }
 
@@ -67,6 +83,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
             email: email,
             password: password,
           );
+      _syncDeviceToken();
       return AuthState(user: user, isAuthenticated: true);
     });
   }
@@ -83,6 +100,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
             email: email,
             password: password,
           );
+      _syncDeviceToken();
       return AuthState(user: user, isAuthenticated: true);
     });
   }
@@ -91,11 +109,18 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final user = await ref.read(authRepositoryProvider).googleSignIn(idToken);
+      _syncDeviceToken();
       return AuthState(user: user, isAuthenticated: true);
     });
   }
 
   Future<void> logout() async {
+    final token = PushNotificationService.instance.currentToken;
+    if (token != null && token.isNotEmpty) {
+      try {
+        await ref.read(pushRepositoryProvider).unregisterDeviceToken(token);
+      } catch (_) {}
+    }
     await ref.read(authRepositoryProvider).logout();
     state = const AsyncData(AuthState(isAuthenticated: false));
   }

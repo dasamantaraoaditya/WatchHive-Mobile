@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:watchhive_mobile/core/api/api_client.dart';
 import 'package:watchhive_mobile/features/notifications/providers/notifications_provider.dart';
-import 'package:watchhive_mobile/features/notifications/repositories/notifications_repository.dart';
 import 'package:watchhive_mobile/features/notifications/screens/notifications_screen.dart';
 import 'package:watchhive_mobile/shared/models/models.dart' as wh;
 
@@ -14,9 +12,6 @@ class MockNotificationsRepository implements NotificationsRepository {
   bool rejectCalled = false;
   String? lastAcceptedId;
   String? lastRejectedId;
-
-  @override
-  ApiClient get _api => throw UnimplementedError();
 
   @override
   Future<List<wh.Notification>> getNotifications({int limit = 30, int offset = 0}) async {

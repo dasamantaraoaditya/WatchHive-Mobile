@@ -14,6 +14,8 @@ import '../widgets/compare_picker_modal.dart';
 import '../widgets/data_management_card.dart';
 import 'edit_profile_dialog.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../../core/notifications/push_notification_service.dart';
+import '../../notifications/repositories/push_repository.dart';
 import '../../onboarding/widgets/quick_guide_tour_dialog.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -326,6 +328,154 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                 ],
               ),
       ),
+    );
+  }
+
+  Future<void> _handlePushNotificationsSettings() async {
+    final pushService = PushNotificationService.instance;
+    final isGranted = await pushService.isPermissionGranted();
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        bool hasPermission = isGranted;
+        bool isSending = false;
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.notifications_active_rounded, color: AppColors.primary, size: 24),
+                          SizedBox(width: 10),
+                          Text(
+                            'Push Notifications',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: AppColors.textMuted),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: hasPermission ? Colors.green : Colors.amber,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            hasPermission
+                                ? 'Notifications Active & Enabled'
+                                : 'Permissions Not Yet Granted',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: hasPermission ? Colors.green : Colors.amber[700],
+                            ),
+                          ),
+                        ),
+                        if (!hasPermission)
+                          TextButton(
+                            onPressed: () async {
+                              final granted = await pushService.requestPermission();
+                              setModalState(() => hasPermission = granted);
+                              if (granted) {
+                                final token = pushService.currentToken;
+                                if (token != null) {
+                                  await ref.read(pushRepositoryProvider).registerDeviceToken(token);
+                                }
+                              }
+                            },
+                            child: const Text('Enable', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Stay in the loop with instant alerts when friends like your reviews, reply to your comments, or suggest movies.',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: isSending
+                          ? null
+                          : () async {
+                              setModalState(() => isSending = true);
+                              // Send local test banner
+                              await pushService.showLocalNotification(
+                                title: '🐝 WatchHive Buzz',
+                                body: 'Push notification system is alive and buzzing!',
+                                data: {'type': 'LIKE'},
+                              );
+                              // Also attempt backend test endpoint
+                              await ref.read(pushRepositoryProvider).sendTestPush();
+                              if (ctx.mounted) {
+                                setModalState(() => isSending = false);
+                                WHAlert.showSuccess(ctx, 'Test notification dispatched! 🔔');
+                              }
+                            },
+                      icon: isSending
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                          : const Icon(Icons.send_to_mobile_rounded, size: 18),
+                      label: Text(
+                        isSending ? 'Sending...' : 'Send Test Notification',
+                        style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1021,6 +1171,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                   title: 'Invite Friends to WatchHive',
                   subtitle: 'Share your personal invite link',
                   onTap: () => _handleInviteFriends(user),
+                ),
+                const Divider(height: 1, color: AppColors.border),
+                _buildActionTile(
+                  icon: Icons.notifications_active_outlined,
+                  title: 'Push Notifications',
+                  subtitle: 'Manage activity alerts & test delivery',
+                  onTap: _handlePushNotificationsSettings,
                 ),
                 const Divider(height: 1, color: AppColors.border),
                 _buildActionTile(

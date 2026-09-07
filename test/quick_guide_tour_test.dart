@@ -53,7 +53,7 @@ void main() {
 
   group('TourStep Model Tests', () {
     test('defaultSteps contains 6 curated steps covering core features', () {
-      final steps = TourStep.defaultSteps;
+      const steps = TourStep.defaultSteps;
       expect(steps.length, equals(6));
 
       expect(steps[0].title, contains('Movie & TV Sanctuary'));

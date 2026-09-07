@@ -158,7 +158,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
                         Icon(Icons.psychology_rounded, size: 22, color: AppColors.primaryDark),
                         SizedBox(width: 8),
@@ -173,8 +173,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       'We utilize mood correlations, genre frequencies, and atmosphere ratings to construct visualization metrics. This assessment is computed securely and used solely to build your dashboard insights.\n\nWe do NOT sell, rent, or distribute your MindLens datasets or watch history to advertisers or third-party marketing services.',
                       style: TextStyle(
                         fontFamily: 'Inter',

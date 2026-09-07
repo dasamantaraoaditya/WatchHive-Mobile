@@ -31,10 +31,13 @@ class RouterNotifier extends ChangeNotifier {
 
 final routerNotifierProvider = Provider<RouterNotifier>((ref) => RouterNotifier(ref));
 
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     refreshListenable: notifier,
     redirect: (context, state) {
