@@ -65,7 +65,7 @@ class NotificationsRepository {
   }
 
   Future<void> markAllRead() async {
-    await _api.post(ApiEndpoints.markAllNotificationsRead);
+    await _api.patch(ApiEndpoints.markAllNotificationsRead);
   }
 
   Future<void> markRead(String id) async {

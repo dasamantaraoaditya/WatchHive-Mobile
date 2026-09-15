@@ -196,5 +196,53 @@ void main() {
       expect(mockRepo.acceptCalled, isTrue);
       expect(mockRepo.lastAcceptedId, 'req-pending-1');
     });
+
+    testWidgets('NotificationsScreen displays Mark all read button and marks all notifications as read', (tester) async {
+      mockRepo.mockNotifications = [
+        wh.Notification(
+          id: 'n-1',
+          userId: 'user-1',
+          type: 'LIKE',
+          content: {'actorName': 'Alice'},
+          isRead: false,
+          createdAt: DateTime.now(),
+        ),
+        wh.Notification(
+          id: 'n-2',
+          userId: 'user-1',
+          type: 'COMMENT',
+          content: {'actorName': 'Bob'},
+          isRead: false,
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            notificationsRepositoryProvider.overrideWithValue(mockRepo),
+          ],
+          child: const MaterialApp(
+            home: NotificationsScreen(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Mark all read button should be visible
+      expect(find.text('Mark all read'), findsOneWidget);
+
+      // Tap Mark all read
+      await tester.tap(find.text('Mark all read'));
+      await tester.pumpAndSettle();
+
+      // All notifications should now be marked as read
+      expect(mockRepo.mockNotifications.every((n) => n.isRead), isTrue);
+
+      // Button should now be gone
+      expect(find.text('Mark all read'), findsNothing);
+    });
   });
 }

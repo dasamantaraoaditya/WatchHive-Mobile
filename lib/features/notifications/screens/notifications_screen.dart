@@ -168,7 +168,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final notifState = ref.watch(notificationsProvider);
-    final unreadCount = notifState.unreadCount;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -178,9 +177,21 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w800, fontSize: 18),
         ),
         actions: [
-          if (unreadCount > 0)
+          if (notifState.hasUnreadNotifications)
             TextButton(
-              onPressed: () => ref.read(notificationsProvider.notifier).markAllRead(),
+              onPressed: () async {
+                HapticFeedback.lightImpact();
+                try {
+                  await ref.read(notificationsProvider.notifier).markAllRead();
+                  if (context.mounted) {
+                    WHAlert.showSuccess(context, 'All notifications marked as read');
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    WHAlert.showError(context, 'Failed to mark notifications as read');
+                  }
+                }
+              },
               child: const Text(
                 'Mark all read',
                 style: TextStyle(fontFamily: 'Inter', color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13),

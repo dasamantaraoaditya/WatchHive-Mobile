@@ -20,6 +20,8 @@ class NotificationsState {
   int get unreadCount =>
       notifications.where((n) => !n.isRead).length + pendingRequests.length;
 
+  bool get hasUnreadNotifications => notifications.any((n) => !n.isRead);
+
   NotificationsState copyWith({
     List<wh.Notification>? notifications,
     List<PendingFollowRequest>? pendingRequests,
@@ -69,40 +71,50 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   }
 
   Future<void> markAllRead() async {
+    final previous = state.notifications;
+    final updated = state.notifications
+        .map((n) => wh.Notification(
+              id: n.id,
+              userId: n.userId,
+              type: n.type,
+              content: n.content,
+              isRead: true,
+              createdAt: n.createdAt,
+            ))
+        .toList();
+    state = state.copyWith(notifications: updated);
+
     try {
       await _repo.markAllRead();
-      final updated = state.notifications
-          .map((n) => wh.Notification(
-                id: n.id,
-                userId: n.userId,
-                type: n.type,
-                content: n.content,
-                isRead: true,
-                createdAt: n.createdAt,
-              ))
-          .toList();
-      state = state.copyWith(notifications: updated);
-    } catch (_) {}
+    } catch (e) {
+      state = state.copyWith(notifications: previous);
+      rethrow;
+    }
   }
 
   Future<void> markRead(String id) async {
+    final previous = state.notifications;
+    final updated = state.notifications.map((n) {
+      if (n.id == id) {
+        return wh.Notification(
+          id: n.id,
+          userId: n.userId,
+          type: n.type,
+          content: n.content,
+          isRead: true,
+          createdAt: n.createdAt,
+        );
+      }
+      return n;
+    }).toList();
+    state = state.copyWith(notifications: updated);
+
     try {
       await _repo.markRead(id);
-      final updated = state.notifications.map((n) {
-        if (n.id == id) {
-          return wh.Notification(
-            id: n.id,
-            userId: n.userId,
-            type: n.type,
-            content: n.content,
-            isRead: true,
-            createdAt: n.createdAt,
-          );
-        }
-        return n;
-      }).toList();
-      state = state.copyWith(notifications: updated);
-    } catch (_) {}
+    } catch (e) {
+      state = state.copyWith(notifications: previous);
+      rethrow;
+    }
   }
 
   Future<bool> acceptRequest(String requestId, {String? notificationId}) async {
