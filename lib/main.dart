@@ -18,7 +18,9 @@ Future<void> main() async {
 
   // Initialize Firebase & Push Notifications (safely catch if config not yet provided)
   try {
-    await Firebase.initializeApp();
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp();
+    }
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await PushNotificationService.instance.initialize();
   } catch (e) {

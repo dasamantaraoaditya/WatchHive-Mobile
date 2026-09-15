@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,11 +46,28 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     final authManager = ref.read(authManagerProvider);
     final hasSession = await authManager.hasValidSession();
 
+    // Listen to token refresh events throughout the notifier lifecycle
+    final tokenSubscription =
+        PushNotificationService.instance.onTokenRefresh.listen((token) async {
+      final auth = state.value;
+      if (auth != null && auth.isAuthenticated && token.isNotEmpty) {
+        debugPrint('[AuthNotifier] Token refreshed/retrieved, registering to backend...');
+        try {
+          await ref.read(pushRepositoryProvider).registerDeviceToken(token);
+        } catch (e) {
+          debugPrint('[AuthNotifier] Failed to sync refreshed token: $e');
+        }
+      }
+    });
+    ref.onDispose(() {
+      tokenSubscription.cancel();
+    });
+
     if (!hasSession) return const AuthState(isAuthenticated: false);
 
     try {
       final user = await ref.read(authRepositoryProvider).getMe();
-      _syncDeviceToken();
+      unawaited(_syncDeviceToken());
       return AuthState(user: user, isAuthenticated: true);
     } catch (e) {
       // Only logout if explicitly unauthorized (401/403) and refresh failed
@@ -60,15 +78,16 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       }
       // For network errors / connection drops / offline mode,
       // keep the user authenticated so saved tokens are never wiped!
-      _syncDeviceToken();
+      unawaited(_syncDeviceToken());
       return const AuthState(isAuthenticated: true);
     }
   }
 
   Future<void> _syncDeviceToken() async {
     try {
-      final token = PushNotificationService.instance.currentToken;
+      final token = await PushNotificationService.instance.getOrFetchToken();
       if (token != null && token.isNotEmpty) {
+        debugPrint('[AuthNotifier] Syncing FCM device token with backend...');
         await ref.read(pushRepositoryProvider).registerDeviceToken(token);
       }
     } catch (e) {
@@ -83,7 +102,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
             email: email,
             password: password,
           );
-      _syncDeviceToken();
+      unawaited(_syncDeviceToken());
       return AuthState(user: user, isAuthenticated: true);
     });
   }
@@ -100,7 +119,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
             email: email,
             password: password,
           );
-      _syncDeviceToken();
+      unawaited(_syncDeviceToken());
       return AuthState(user: user, isAuthenticated: true);
     });
   }
@@ -109,7 +128,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final user = await ref.read(authRepositoryProvider).googleSignIn(idToken);
-      _syncDeviceToken();
+      unawaited(_syncDeviceToken());
       return AuthState(user: user, isAuthenticated: true);
     });
   }

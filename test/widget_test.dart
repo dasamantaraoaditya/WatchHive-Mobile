@@ -10,7 +10,7 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 1500));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(WatchHiveApp), findsOneWidget);
   });
 }

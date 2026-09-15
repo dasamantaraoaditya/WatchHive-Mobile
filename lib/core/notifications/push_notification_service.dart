@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -24,7 +25,7 @@ class PushNotificationService {
   PushNotificationService._();
   static final PushNotificationService instance = PushNotificationService._();
 
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  FirebaseMessaging get _fcm => FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
 
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
@@ -38,9 +39,31 @@ class PushNotificationService {
 
   String? _currentToken;
   bool _isInitialized = false;
+  final _tokenController = StreamController<String>.broadcast();
 
   String? get currentToken => _currentToken;
   bool get isInitialized => _isInitialized;
+  Stream<String> get onTokenRefresh => _tokenController.stream;
+
+  /// Retrieves the current cached FCM token or actively fetches it from Firebase Messaging
+  Future<String?> getOrFetchToken() async {
+    if (_currentToken != null && _currentToken!.isNotEmpty) {
+      return _currentToken;
+    }
+    try {
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp();
+      }
+      _currentToken = await _fcm.getToken();
+      if (_currentToken != null && _currentToken!.isNotEmpty) {
+        _tokenController.add(_currentToken!);
+      }
+      return _currentToken;
+    } catch (e) {
+      debugPrint('[PushNotificationService] Error fetching FCM token: $e');
+      return null;
+    }
+  }
 
   /// Initialize Firebase Messaging, Local Notifications, channels, and event listeners
   Future<void> initialize({Future<void> Function(String token)? onTokenRefresh}) async {
@@ -56,7 +79,10 @@ class PushNotificationService {
     }
 
     try {
-      // 1. Initialize local notifications plugin for foreground banners
+      // 1. Request notification permissions early (Android 13+ & iOS)
+      await requestPermission();
+
+      // 2. Initialize local notifications plugin for foreground banners
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const darwinSettings = DarwinInitializationSettings(
         requestAlertPermission: false,
@@ -78,42 +104,43 @@ class PushNotificationService {
         },
       );
 
-      // 2. Create the Android notification channel
+      // 3. Create the Android notification channel
       final androidImplementation = _localNotifications
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       await androidImplementation?.createNotificationChannel(_channel);
 
-      // 3. Foreground presentation options (iOS / Android heads-up)
+      // 4. Foreground presentation options (iOS / Android heads-up)
       await _fcm.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,
         sound: true,
       );
 
-      // 4. Foreground Message Listener -> Display as local notification banner
+      // 5. Foreground Message Listener -> Display as local notification banner
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         debugPrint('[PushNotificationService] Foreground message received: ${message.messageId}');
         _showForegroundNotification(message);
       });
 
-      // 5. Notification tapped when app is running in background
+      // 6. Notification tapped when app is running in background
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         debugPrint('[PushNotificationService] Notification opened from background: ${message.messageId}');
         _handleRemoteMessageNavigation(message);
       });
 
-      // 6. Notification tapped when app was terminated
+      // 7. Notification tapped when app was terminated
       final initialMessage = await _fcm.getInitialMessage();
       if (initialMessage != null) {
         debugPrint('[PushNotificationService] App launched from terminated state via notification: ${initialMessage.messageId}');
         _handleRemoteMessageNavigation(initialMessage);
       }
 
-      // 7. Get device FCM Token and register refresh callback
+      // 8. Get device FCM Token and register refresh callback
       try {
         _currentToken = await _fcm.getToken();
-        if (_currentToken != null) {
+        if (_currentToken != null && _currentToken!.isNotEmpty) {
           debugPrint('[PushNotificationService] FCM Device Token obtained: ${_currentToken!.substring(0, 10)}...');
+          _tokenController.add(_currentToken!);
           if (onTokenRefresh != null) {
             await onTokenRefresh(_currentToken!);
           }
@@ -125,6 +152,7 @@ class PushNotificationService {
       _fcm.onTokenRefresh.listen((String newToken) async {
         debugPrint('[PushNotificationService] FCM Device Token refreshed');
         _currentToken = newToken;
+        _tokenController.add(newToken);
         if (onTokenRefresh != null) {
           await onTokenRefresh(newToken);
         }
@@ -139,6 +167,7 @@ class PushNotificationService {
   /// Request user notification permission (runtime dialog on Android 13+ and iOS)
   Future<bool> requestPermission() async {
     try {
+      if (Firebase.apps.isEmpty) return false;
       final settings = await _fcm.requestPermission(
         alert: true,
         announcement: false,
@@ -160,6 +189,7 @@ class PushNotificationService {
   /// Check current notification permission status
   Future<bool> isPermissionGranted() async {
     try {
+      if (Firebase.apps.isEmpty) return false;
       final settings = await _fcm.getNotificationSettings();
       return settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional;

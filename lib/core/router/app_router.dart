@@ -42,18 +42,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);
-      final isAuthenticated = authState.value?.isAuthenticated ?? false;
       final isLoading = authState.isLoading;
-
-      if (isLoading) return null;
+      final isAuthenticated = authState.value?.isAuthenticated ?? false;
 
       final isSplash = state.matchedLocation == '/splash';
       final isAuthPage = state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/signup') ||
           state.matchedLocation.startsWith('/forgot-password');
 
-      if (!isAuthenticated && !isAuthPage && !isSplash) return '/login';
-      if (isAuthenticated && (isAuthPage || isSplash)) return '/feed';
+      // 1. If currently on splash screen:
+      if (isSplash) {
+        // While still resolving initial session / auto-login, STAY on splash screen
+        if (isLoading) return null;
+        // Once resolved, go to /feed if authenticated, or /login if not
+        return isAuthenticated ? '/feed' : '/login';
+      }
+
+      // 2. If session restore is in flight and user is on a protected route:
+      if (isLoading && !isAuthPage) {
+        return '/splash';
+      }
+
+      // 3. User is not authenticated and attempting to view a protected page:
+      if (!isAuthenticated && !isAuthPage) {
+        return '/login';
+      }
+
+      // 4. User is authenticated and attempting to view auth pages:
+      if (isAuthenticated && isAuthPage) {
+        return '/feed';
+      }
 
       return null;
     },

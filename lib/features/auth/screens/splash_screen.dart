@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,19 +14,32 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
+  bool _minBrandingElapsed = false;
+  Timer? _brandingTimer;
+
   @override
   void initState() {
     super.initState();
-    _navigateNext();
+    _brandingTimer = Timer(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      setState(() => _minBrandingElapsed = true);
+      _checkAndNavigate();
+    });
   }
 
-  Future<void> _navigateNext() async {
-    // Show smooth splash branding for 1.2s
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
+  @override
+  void dispose() {
+    _brandingTimer?.cancel();
+    super.dispose();
+  }
 
+  void _checkAndNavigate() {
+    if (!_minBrandingElapsed) return;
     final authState = ref.read(authStateProvider);
+    if (authState.isLoading) return; // Keep waiting while auto-login is active!
+
     final isAuthenticated = authState.value?.isAuthenticated ?? false;
+    if (!mounted) return;
 
     if (isAuthenticated) {
       context.go('/feed');
@@ -36,19 +50,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Also listen to authStateProvider changes in case auth check takes a moment
+    // Listen for auth state resolution
     ref.listen(authStateProvider, (previous, next) {
       if (!next.isLoading) {
-        final isAuthenticated = next.value?.isAuthenticated ?? false;
-        if (mounted) {
-          if (isAuthenticated) {
-            context.go('/feed');
-          } else {
-            context.go('/login');
-          }
-        }
+        _checkAndNavigate();
       }
     });
+
+    final authState = ref.watch(authStateProvider);
+    final isResolvingSession = authState.isLoading;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -89,17 +99,38 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 color: AppColors.textSecondary,
               ),
             ),
-            const SizedBox(height: 64),
-            WHSkeleton(
-              child: Container(
-                width: 120,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(2),
+            const SizedBox(height: 52),
+            if (isResolvingSession) ...[
+              const SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: AppColors.primary,
                 ),
               ),
-            ),
+              const SizedBox(height: 16),
+              const Text(
+                'Signing you in...',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ] else ...[
+              WHSkeleton(
+                child: Container(
+                  width: 120,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
