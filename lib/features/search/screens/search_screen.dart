@@ -169,7 +169,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   Widget build(BuildContext context) {
     final showResults = _query.trim().length >= 2;
 
-    return Scaffold(
+    return PopScope(
+      canPop: _query.trim().isEmpty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_query.trim().isNotEmpty) {
+          _searchController.clear();
+          _search('');
+        }
+      },
+      child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: TextField(
@@ -245,6 +254,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                 _loadRecentSearches();
               },
             ),
+      ),
     );
   }
 }

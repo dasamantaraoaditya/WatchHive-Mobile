@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/navigation_extensions.dart';
 import '../../../shared/models/models.dart' as wh;
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/notifications_provider.dart';
@@ -169,10 +170,20 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   Widget build(BuildContext context) {
     final notifState = ref.watch(notificationsProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        context.safePop();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            onPressed: () => context.safePop(),
+          ),
+          title: const Text(
           'Notifications',
           style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w800, fontSize: 18),
         ),
@@ -330,6 +341,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         ],
                       ),
                     ),
+      ),
     );
   }
 }

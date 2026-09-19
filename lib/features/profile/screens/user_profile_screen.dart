@@ -17,6 +17,7 @@ import '../widgets/follow_list_sheet.dart';
 import '../widgets/user_rankings_tab.dart';
 import 'edit_profile_dialog.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../../core/utils/navigation_extensions.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -411,10 +412,22 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     }
 
     if (_error != null || _user == null) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(title: const Text('Profile')),
-        body: Center(
+      return PopScope(
+        canPop: context.canPop(),
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          context.safePop();
+        },
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            title: const Text('Profile'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded),
+              onPressed: () => context.safePop(),
+            ),
+          ),
+          body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -459,22 +472,33 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
     final canView = _canViewContent();
     final visibleTabs = _getVisibleTabs();
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverAppBar(
-              floating: false,
-              pinned: true,
-              backgroundColor: AppColors.background,
-              title: Text(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        context.safePop();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
+            return [
+              SliverAppBar(
+                floating: false,
+                pinned: true,
+                backgroundColor: AppColors.background,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+                  onPressed: () => context.safePop(),
+                ),
+                title: Text(
                 _isMe ? 'My Public Profile' : _user!.name,
                 style: const TextStyle(
                   fontFamily: 'Inter',
@@ -579,8 +603,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 : _buildNoPublicSectionsView())
             : _buildPrivateLockView(_user!),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildUserHeroCard(User user) {
     return Container(

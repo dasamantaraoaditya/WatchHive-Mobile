@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../../core/utils/navigation_extensions.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/models/entry.dart';
@@ -296,18 +297,15 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       isScrollControlled: true,
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ProviderScope(
-        parent: ProviderScope.containerOf(context),
-        child: AddEntrySheet(
-          editEntry: entryToEdit,
-          prefillTmdbId: widget.tmdbId,
-          prefillType: widget.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
-          prefillSuggestor: widget.suggestedByUser,
-          prefillSuggestedByUserId: widget.suggestedByUserId,
-          onSuccess: () {
-            _checkUserEntry();
-          },
-        ),
+      builder: (_) => AddEntrySheet(
+        editEntry: entryToEdit,
+        prefillTmdbId: widget.tmdbId,
+        prefillType: widget.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
+        prefillSuggestor: widget.suggestedByUser,
+        prefillSuggestedByUserId: widget.suggestedByUserId,
+        onSuccess: () {
+          _checkUserEntry();
+        },
       ),
     );
   }
@@ -443,17 +441,23 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     }
 
     if (_error != null || _details == null) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
-            onPressed: () => context.pop(),
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          context.safePop();
+        },
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+              onPressed: () => context.safePop(),
+            ),
           ),
-        ),
-        body: Center(
+          body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -481,8 +485,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
     final details = _details!;
     final title = (details['title'] ?? details['name'] ?? 'Untitled').toString();
@@ -521,29 +526,35 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     // Seasons List
     final seasons = details['seasons'] as List<dynamic>? ?? [];
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          // 1. Cinematic Hero Backdrop Header
-          SliverAppBar(
-            expandedHeight: 340,
-            pinned: true,
-            backgroundColor: AppColors.background,
-            leading: Padding(
-              padding: const EdgeInsets.only(left: 12),
-              child: Center(
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundColor: Colors.black.withValues(alpha: 0.55),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
-                    onPressed: () => context.pop(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        context.safePop();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: CustomScrollView(
+          slivers: [
+            // 1. Cinematic Hero Backdrop Header
+            SliverAppBar(
+              expandedHeight: 340,
+              pinned: true,
+              backgroundColor: AppColors.background,
+              leading: Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: Center(
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.black.withValues(alpha: 0.55),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                      onPressed: () => context.safePop(),
+                    ),
                   ),
                 ),
               ),
-            ),
             actions: [
               Padding(
                 padding: const EdgeInsets.only(right: 12),
@@ -1507,8 +1518,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildLoggedReviewCard({
     required BuildContext context,

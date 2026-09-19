@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/router/navigation_history_manager.dart';
 
 import 'wh_quick_add_fab.dart';
 
@@ -15,6 +16,7 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell> {
   int _currentIndex = 0;
+  String? _lastRecordedRoute;
 
   static const List<_NavItem> _navItems = [
     _NavItem(label: 'Home', icon: Icons.home_outlined, activeIcon: Icons.home_rounded, route: '/feed'),
@@ -26,8 +28,12 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   void _onItemTapped(int index) {
     if (_currentIndex == index) return;
+    final targetRoute = _navItems[index].route;
+    if (targetRoute == '/feed') {
+      ref.read(navigationHistoryProvider).clear();
+    }
     setState(() => _currentIndex = index);
-    context.go(_navItems[index].route);
+    context.go(targetRoute);
   }
 
   int _routeToIndex(String location) {
@@ -42,13 +48,28 @@ class _AppShellState extends ConsumerState<AppShell> {
     final location = GoRouterState.of(context).matchedLocation;
     _currentIndex = _routeToIndex(location);
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          widget.child,
-          const WHQuickAddFAB(),
-        ],
-      ),
+    if (_lastRecordedRoute != location) {
+      _lastRecordedRoute = location;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(navigationHistoryProvider).recordLocation(location);
+        }
+      });
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        ref.read(navigationHistoryProvider).handleBack(context);
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            widget.child,
+            const WHQuickAddFAB(),
+          ],
+        ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.border, width: 1)),
@@ -67,8 +88,9 @@ class _AppShellState extends ConsumerState<AppShell> {
               .toList(),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _NavItem {

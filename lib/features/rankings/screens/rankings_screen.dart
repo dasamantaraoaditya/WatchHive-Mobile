@@ -12,6 +12,7 @@ import '../../../shared/models/models.dart';
 import '../models/ranking_stack.dart';
 import '../providers/rankings_provider.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../../core/utils/navigation_extensions.dart';
 
 class RankingsScreen extends ConsumerStatefulWidget {
   final String? initialStackId;
@@ -65,13 +66,13 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) {
         return StatefulBuilder(
-          builder: (context, setModalState) {
+          builder: (modalCtx, setModalState) {
             return Padding(
               padding: EdgeInsets.only(
                 left: 20,
                 right: 20,
                 top: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -160,7 +161,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                           : () async {
                               final name = nameController.text.trim();
                               if (name.isEmpty) {
-                                WHAlert.showWarning(context, 'Please enter a stack name');
+                                WHAlert.showWarning(modalCtx, 'Please enter a stack name');
                                 return;
                               }
                               setModalState(() => isSubmitting = true);
@@ -173,8 +174,10 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                                         isPublic: isPublic,
                                       );
                                   await ref.read(activeStackProvider.notifier).loadStack(stack.id);
-                                  if (mounted) {
+                                  if (ctx.mounted) {
                                     Navigator.pop(ctx);
+                                  }
+                                  if (mounted) {
                                     WHAlert.showSuccess(context, 'Stack updated! ✨');
                                   }
                                 } else {
@@ -183,8 +186,10 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                                         description: descController.text.trim(),
                                         isPublic: isPublic,
                                       );
-                                  if (mounted && newStack != null) {
+                                  if (ctx.mounted) {
                                     Navigator.pop(ctx);
+                                  }
+                                  if (mounted && newStack != null) {
                                     _onStackSelected(newStack.id);
                                     WHAlert.showSuccess(context, 'Created "${newStack.name}"! 🏆');
                                   }
@@ -200,7 +205,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                                   );
                                 }
                               } finally {
-                                if (mounted) setModalState(() => isSubmitting = false);
+                                if (modalCtx.mounted) setModalState(() => isSubmitting = false);
                               }
                             },
                       style: ElevatedButton.styleFrom(
@@ -276,15 +281,21 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
       });
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        context.safePop();
+      },
+      child: Scaffold(
         backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: () => context.pop(),
-        ),
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+            onPressed: () => context.safePop(),
+          ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -432,8 +443,9 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                     ],
                   ),
                 ),
-    );
-  }
+        ),
+      );
+    }
 
   Widget _buildErrorState(String error) {
     return Center(

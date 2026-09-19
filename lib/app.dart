@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
+import 'core/router/navigation_back_interceptor.dart';
 
 class WatchHiveApp extends ConsumerWidget {
   const WatchHiveApp({super.key});
@@ -15,6 +16,11 @@ class WatchHiveApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: router,
+      builder: (context, child) {
+        return NavigationBackInterceptor(
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }

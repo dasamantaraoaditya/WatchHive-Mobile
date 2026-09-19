@@ -10,6 +10,7 @@ import '../../entries/widgets/suggest_movie_modal.dart';
 import '../models/compare_result.dart';
 import '../repositories/user_repository.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../../core/utils/navigation_extensions.dart';
 
 class CompareHistoryScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -138,15 +139,21 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
     final friendFirstName = friendDisplayName.split(' ').first;
     final friendAvatarUrl = friendUser?.profilePictureUrl ?? widget.initialUser?.profilePictureUrl;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        context.safePop();
+      },
+      child: Scaffold(
         backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: AppColors.textPrimary),
-          onPressed: () => context.pop(),
-        ),
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: AppColors.textPrimary),
+            onPressed: () => context.safePop(),
+          ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -205,8 +212,9 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
               : _error != null
                   ? _buildErrorView()
                   : _buildComparisonContent(currentUser, friendFirstName, friendDisplayName, friendUsername, friendAvatarUrl),
-    );
-  }
+        ),
+      );
+    }
 
   Widget _buildPrivacyRestrictedView() {
     return Center(
@@ -249,7 +257,7 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
               ),
               const SizedBox(height: 22),
               ElevatedButton(
-                onPressed: () => context.pop(),
+                onPressed: () => context.safePop(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.black,

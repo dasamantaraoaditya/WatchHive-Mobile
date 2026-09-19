@@ -8,7 +8,7 @@
         android:label="WatchHive"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:enableOnBackInvokedCallback="true">
+        android:enableOnBackInvokedCallback="false">
 
         <!-- Default FCM notification channel and icon -->
         <meta-data
