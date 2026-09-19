@@ -53,10 +53,9 @@ key.properties
 .env.*
 .env.local
 pc-api-key.json
-google-services.json
-lib/firebase_options.dart
 watchhive-release.apk
 *.png
 !assets/images/*.png
+!android/app/src/main/res/drawable/*.png
 **/xcshareddata/swiftpm/
 .kotlin/

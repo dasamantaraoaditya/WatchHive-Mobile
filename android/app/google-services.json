@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "672257580593",
+    "project_id": "studio-9462568570-5a4a5",
+    "storage_bucket": "studio-9462568570-5a4a5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:672257580593:android:8f3075079b8565f625ff10",
+        "android_client_info": {
+          "package_name": "com.watchhive.watchhive_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCtWc9rgM2yC9Fq0vypl0XB-PX_z7mklpU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
