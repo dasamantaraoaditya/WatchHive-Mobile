@@ -166,36 +166,66 @@ class PushNotificationService {
 
   /// Request user notification permission (runtime dialog on Android 13+ and iOS)
   Future<bool> requestPermission() async {
-    try {
-      if (Firebase.apps.isEmpty) return false;
-      final settings = await _fcm.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
+    bool isGranted = false;
 
-      return settings.authorizationStatus == AuthorizationStatus.authorized ||
-          settings.authorizationStatus == AuthorizationStatus.provisional;
+    // 1. Try FCM requestPermission (standard for Firebase Messaging)
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final settings = await _fcm.requestPermission(
+          alert: true,
+          announcement: false,
+          badge: true,
+          carPlay: false,
+          criticalAlert: false,
+          provisional: false,
+          sound: true,
+        );
+
+        isGranted = settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional;
+      }
     } catch (e) {
-      debugPrint('[PushNotificationService] Error requesting notification permission: $e');
-      return false;
+      debugPrint('[PushNotificationService] Error requesting notification permission via FCM: $e');
     }
+
+    // 2. Android 13+ fallback via flutter_local_notifications if not yet granted
+    if (!isGranted) {
+      try {
+        final androidPlugin = _localNotifications
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        final androidGranted = await androidPlugin?.requestNotificationsPermission();
+        if (androidGranted == true) {
+          isGranted = true;
+        }
+      } catch (e) {
+        debugPrint('[PushNotificationService] Error requesting notification permission via Android plugin: $e');
+      }
+    }
+
+    return isGranted;
   }
 
-  /// Check current notification permission status
+  /// Check current notification permission status across FCM and native OS
   Future<bool> isPermissionGranted() async {
     try {
-      if (Firebase.apps.isEmpty) return false;
-      final settings = await _fcm.getNotificationSettings();
-      return settings.authorizationStatus == AuthorizationStatus.authorized ||
-          settings.authorizationStatus == AuthorizationStatus.provisional;
-    } catch (_) {
-      return false;
-    }
+      if (Firebase.apps.isNotEmpty) {
+        final settings = await _fcm.getNotificationSettings();
+        if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional) {
+          return true;
+        }
+      }
+    } catch (_) {}
+
+    // Check Android native permission status
+    try {
+      final androidPlugin = _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      final enabled = await androidPlugin?.areNotificationsEnabled();
+      if (enabled != null) return enabled;
+    } catch (_) {}
+
+    return false;
   }
 
   /// Display a heads-up local notification when a push arrives while app is in foreground
