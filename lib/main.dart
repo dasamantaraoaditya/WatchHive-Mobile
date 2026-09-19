@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/notifications/push_notification_service.dart';
+import 'firebase_options.dart';
 import 'app.dart';
 
 Future<void> main() async {
@@ -19,7 +20,9 @@ Future<void> main() async {
   // Initialize Firebase & Push Notifications (safely catch if config not yet provided)
   try {
     if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
     }
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await PushNotificationService.instance.initialize();

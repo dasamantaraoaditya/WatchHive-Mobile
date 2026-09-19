@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
+import '../../firebase_options.dart';
 import '../router/app_router.dart';
 
 /// Top-level background message handler required by FirebaseMessaging.
@@ -13,7 +14,9 @@ import '../router/app_router.dart';
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
     }
   } catch (e) {
     debugPrint('[PushNotificationService] Background Firebase init skipped: $e');
@@ -38,28 +41,34 @@ class PushNotificationService {
   );
 
   String? _currentToken;
+  String? _lastTokenError;
   bool _isInitialized = false;
   final _tokenController = StreamController<String>.broadcast();
 
   String? get currentToken => _currentToken;
+  String? get lastTokenError => _lastTokenError;
   bool get isInitialized => _isInitialized;
   Stream<String> get onTokenRefresh => _tokenController.stream;
 
   /// Retrieves the current cached FCM token or actively fetches it from Firebase Messaging
-  Future<String?> getOrFetchToken() async {
-    if (_currentToken != null && _currentToken!.isNotEmpty) {
+  Future<String?> getOrFetchToken({bool forceRefresh = false}) async {
+    if (!forceRefresh && _currentToken != null && _currentToken!.isNotEmpty) {
       return _currentToken;
     }
     try {
       if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp();
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
       }
       _currentToken = await _fcm.getToken();
+      _lastTokenError = null;
       if (_currentToken != null && _currentToken!.isNotEmpty) {
         _tokenController.add(_currentToken!);
       }
       return _currentToken;
     } catch (e) {
+      _lastTokenError = e.toString();
       debugPrint('[PushNotificationService] Error fetching FCM token: $e');
       return null;
     }
@@ -71,7 +80,9 @@ class PushNotificationService {
 
     try {
       if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp();
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
       }
     } catch (e) {
       debugPrint('[PushNotificationService] Firebase not configured yet: $e');
@@ -83,7 +94,7 @@ class PushNotificationService {
       await requestPermission();
 
       // 2. Initialize local notifications plugin for foreground banners
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings('@drawable/ic_notification');
       const darwinSettings = DarwinInitializationSettings(
         requestAlertPermission: false,
         requestBadgePermission: false,
@@ -246,7 +257,7 @@ class PushNotificationService {
       channelDescription: _channel.description,
       importance: Importance.high,
       priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
+      icon: '@drawable/ic_notification',
       color: const Color(0xFFFFB700),
       playSound: true,
     );
@@ -284,7 +295,7 @@ class PushNotificationService {
       channelDescription: _channel.description,
       importance: Importance.high,
       priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
+      icon: '@drawable/ic_notification',
       color: const Color(0xFFFFB700),
       playSound: true,
     );

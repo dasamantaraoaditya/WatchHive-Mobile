@@ -429,6 +429,88 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                       ],
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              pushService.currentToken != null
+                                  ? Icons.cloud_done_rounded
+                                  : Icons.cloud_off_rounded,
+                              size: 18,
+                              color: pushService.currentToken != null ? Colors.green : Colors.amber,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                pushService.currentToken != null
+                                    ? 'FCM Device Token Connected'
+                                    : 'FCM Token Not Yet Obtained',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: pushService.currentToken != null
+                                      ? Colors.green
+                                      : Colors.amber[800],
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: isSending
+                                  ? null
+                                  : () async {
+                                      setModalState(() => isSending = true);
+                                      final token = await pushService.getOrFetchToken(forceRefresh: true);
+                                      if (token != null && token.isNotEmpty) {
+                                        final success = await ref.read(pushRepositoryProvider).registerDeviceToken(token);
+                                        setModalState(() => isSending = false);
+                                        if (ctx.mounted) {
+                                          if (success) {
+                                            WHAlert.showSuccess(ctx, 'Device registered successfully! 🚀');
+                                          } else {
+                                            WHAlert.showError(ctx, 'Backend rejected device token registration.');
+                                          }
+                                        }
+                                      } else {
+                                        setModalState(() => isSending = false);
+                                        if (ctx.mounted) {
+                                          WHAlert.showError(
+                                            ctx,
+                                            'Failed to obtain FCM token: ${pushService.lastTokenError ?? "Unknown error"}',
+                                          );
+                                        }
+                                      }
+                                    },
+                              child: const Text('Sync Token', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                        if (pushService.lastTokenError != null && pushService.currentToken == null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            pushService.lastTokenError!,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.redAccent,
+                              fontFamily: 'monospace',
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 14),
                   const Text(
                     'Stay in the loop with instant alerts when friends like your reviews, reply to your comments, or suggest movies.',
@@ -448,17 +530,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                           ? null
                           : () async {
                               setModalState(() => isSending = true);
+                              // Ensure permission and token first
+                              if (!hasPermission) {
+                                final granted = await pushService.requestPermission();
+                                setModalState(() => hasPermission = granted);
+                              }
+                              final token = await pushService.getOrFetchToken();
+                              if (token != null && token.isNotEmpty) {
+                                await ref.read(pushRepositoryProvider).registerDeviceToken(token);
+                              }
+
                               // Send local test banner
                               await pushService.showLocalNotification(
                                 title: '🐝 WatchHive Buzz',
                                 body: 'Push notification system is alive and buzzing!',
                                 data: {'type': 'LIKE'},
                               );
-                              // Also attempt backend test endpoint
-                              await ref.read(pushRepositoryProvider).sendTestPush();
+                              // Also dispatch backend push
+                              final sent = await ref.read(pushRepositoryProvider).sendTestPush();
                               if (ctx.mounted) {
                                 setModalState(() => isSending = false);
-                                WHAlert.showSuccess(ctx, 'Test notification dispatched! 🔔');
+                                if (sent) {
+                                  WHAlert.showSuccess(ctx, 'Test notification dispatched! 🔔');
+                                } else {
+                                  WHAlert.showError(ctx, 'Backend test push failed.');
+                                }
                               }
                             },
                       icon: isSending
