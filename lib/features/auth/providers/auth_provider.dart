@@ -67,7 +67,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
     try {
       final user = await ref.read(authRepositoryProvider).getMe();
-      unawaited(_syncDeviceToken());
+      unawaited(syncDeviceToken());
       return AuthState(user: user, isAuthenticated: true);
     } catch (e) {
       // Only logout if explicitly unauthorized (401/403) and refresh failed
@@ -78,12 +78,12 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       }
       // For network errors / connection drops / offline mode,
       // keep the user authenticated so saved tokens are never wiped!
-      unawaited(_syncDeviceToken());
+      unawaited(syncDeviceToken());
       return const AuthState(isAuthenticated: true);
     }
   }
 
-  Future<void> _syncDeviceToken() async {
+  Future<void> syncDeviceToken() async {
     try {
       final token = await PushNotificationService.instance.getOrFetchToken();
       if (token != null && token.isNotEmpty) {
@@ -102,7 +102,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
             email: email,
             password: password,
           );
-      unawaited(_syncDeviceToken());
+      unawaited(syncDeviceToken());
       return AuthState(user: user, isAuthenticated: true);
     });
   }
@@ -119,7 +119,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
             email: email,
             password: password,
           );
-      unawaited(_syncDeviceToken());
+      unawaited(syncDeviceToken());
       return AuthState(user: user, isAuthenticated: true);
     });
   }
@@ -128,7 +128,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final user = await ref.read(authRepositoryProvider).googleSignIn(idToken);
-      unawaited(_syncDeviceToken());
+      unawaited(syncDeviceToken());
       return AuthState(user: user, isAuthenticated: true);
     });
   }

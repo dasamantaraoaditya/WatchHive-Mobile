@@ -202,6 +202,12 @@ class PushNotificationService {
       }
     }
 
+    if (isGranted) {
+      try {
+        await getOrFetchToken();
+      } catch (_) {}
+    }
+
     return isGranted;
   }
 

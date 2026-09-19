@@ -16,6 +16,7 @@ import '../../search/repositories/search_repository.dart';
 import '../../onboarding/services/tour_service.dart';
 import '../../onboarding/widgets/quick_guide_tour_dialog.dart';
 import '../../notifications/providers/notifications_provider.dart';
+import '../../../core/notifications/push_notification_service.dart';
 
 
 // Feed state
@@ -179,11 +180,27 @@ class FeedScreen extends ConsumerStatefulWidget {
 class _FeedScreenState extends ConsumerState<FeedScreen> {
   final _scrollController = ScrollController();
   bool _hasCheckedTour = false;
+  bool _hasSyncedPush = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+  }
+
+  void _syncPushNotificationsOnce() {
+    if (_hasSyncedPush) return;
+    final auth = ref.read(authStateProvider).value;
+    if (auth != null && auth.isAuthenticated) {
+      _hasSyncedPush = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final granted = await PushNotificationService.instance.requestPermission();
+        if (granted) {
+          ref.read(authStateProvider.notifier).syncDeviceToken();
+        }
+      });
+    }
   }
 
   void _checkTourOnce() {
@@ -227,12 +244,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   Widget build(BuildContext context) {
     ref.listen<AsyncValue<AuthState>>(authStateProvider, (prev, next) {
       final u = next.value?.user;
-      if (u != null && u.id.isNotEmpty && !_hasCheckedTour) {
-        _checkTourOnce();
+      if (u != null && u.id.isNotEmpty) {
+        if (!_hasCheckedTour) _checkTourOnce();
+        if (!_hasSyncedPush) _syncPushNotificationsOnce();
       }
     });
 
     _checkTourOnce();
+    _syncPushNotificationsOnce();
 
     final feedState = ref.watch(feedProvider);
     final currentUser = ref.watch(authStateProvider).value?.user;
