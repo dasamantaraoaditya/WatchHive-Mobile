@@ -53,6 +53,8 @@ class AddEntrySheet extends ConsumerStatefulWidget {
   final Entry? editEntry;
   final int? prefillTmdbId;
   final String? prefillType;
+  final String? prefillTitle;
+  final String? prefillPosterPath;
   final User? prefillSuggestor;
   final String? prefillSuggestedByUserId;
   final bool? prefillIsWatching;
@@ -63,6 +65,8 @@ class AddEntrySheet extends ConsumerStatefulWidget {
     this.editEntry,
     this.prefillTmdbId,
     this.prefillType,
+    this.prefillTitle,
+    this.prefillPosterPath,
     this.prefillSuggestor,
     this.prefillSuggestedByUserId,
     this.prefillIsWatching,
@@ -128,6 +132,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       _watchedDate = e.watchedAt.toLocal();
       if (_tmdbId > 0) _loadMediaDetails(_tmdbId, _type);
     } else {
+      if (widget.prefillTitle != null && widget.prefillTitle!.trim().isNotEmpty) {
+        _titleController.text = widget.prefillTitle!.trim();
+      }
       if (widget.prefillIsWatching != null) {
         _isWatching = widget.prefillIsWatching!;
       }
@@ -169,7 +176,23 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       final details = mediaType == 'tv'
           ? await ref.read(searchRepositoryProvider).getTvDetails(tmdbId)
           : await ref.read(searchRepositoryProvider).getMovieDetails(tmdbId);
-      if (mounted) setState(() => _mediaDetails = details);
+      if (mounted) {
+        setState(() {
+          _mediaDetails = details;
+          if (_titleController.text.trim().isEmpty) {
+            final fetched = (details['title'] ??
+                    details['name'] ??
+                    details['original_title'] ??
+                    details['original_name'] ??
+                    '')
+                .toString()
+                .trim();
+            if (fetched.isNotEmpty) {
+              _titleController.text = fetched;
+            }
+          }
+        });
+      }
     } catch (_) {}
   }
 
@@ -333,7 +356,21 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   }
 
   Future<void> _save() async {
-    final title = _titleController.text.trim();
+    var title = _titleController.text.trim();
+    if (title.isEmpty) {
+      final fallbackTitle = _selectedMedia?.title ??
+          (_mediaDetails?['title'] ??
+                  _mediaDetails?['name'] ??
+                  _mediaDetails?['original_title'] ??
+                  _mediaDetails?['original_name'])
+              ?.toString()
+              .trim() ??
+          widget.prefillTitle?.trim();
+      if (fallbackTitle != null && fallbackTitle.isNotEmpty) {
+        title = fallbackTitle;
+        _titleController.text = fallbackTitle;
+      }
+    }
     if (title.isEmpty) {
       WHAlert.showWarning(context, 'Please enter or select a movie or TV show title');
       return;
@@ -391,7 +428,21 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
 
   @override
   Widget build(BuildContext context) {
-    final posterPath = _selectedMedia?.posterPath ?? _mediaDetails?['poster_path'] as String? ?? widget.editEntry?.posterPath;
+    final posterPath = _selectedMedia?.posterPath ??
+        _mediaDetails?['poster_path'] as String? ??
+        widget.prefillPosterPath ??
+        widget.editEntry?.posterPath;
+    final displayTitle = _titleController.text.trim().isNotEmpty
+        ? _titleController.text.trim()
+        : (_selectedMedia?.title ??
+            (_mediaDetails?['title'] ??
+                    _mediaDetails?['name'] ??
+                    _mediaDetails?['original_title'] ??
+                    _mediaDetails?['original_name'])
+                ?.toString()
+                .trim() ??
+            widget.prefillTitle ??
+            'Selected Title');
     final releaseYear = _selectedMedia?.year ?? (_mediaDetails?['release_date'] as String? ?? _mediaDetails?['first_air_date'] as String?)?.split('-').first ?? '';
     final runtime = _mediaDetails?['runtime'] != null ? '${_mediaDetails!['runtime']} min' : _mediaDetails?['number_of_seasons'] != null ? '${_mediaDetails!['number_of_seasons']} Season${_mediaDetails!['number_of_seasons'] > 1 ? 's' : ''}' : '';
     final voteAverage = _selectedMedia?.voteAverage ?? (_mediaDetails?['vote_average'] as num?)?.toDouble();
@@ -504,7 +555,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                   ],
                                 ),
                                 const SizedBox(height: 6),
-                                Text(_titleController.text.isNotEmpty ? _titleController.text : (_selectedMedia?.title ?? 'Selected Title'), style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                Text(displayTitle, style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
                                 if (voteAverage != null && voteAverage > 0) ...[
                                   const SizedBox(height: 4),
                                   Row(children: [const Icon(Icons.star_rounded, size: 14, color: AppColors.primary), const SizedBox(width: 4), Text(voteAverage.toStringAsFixed(1), style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)), const Text(' TMDB Score', style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted))]),

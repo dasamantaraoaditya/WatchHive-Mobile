@@ -98,8 +98,36 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
     }
   }
 
-  Future<void> _handleMarkAsWatched() async {
+  Future<void> _handleMarkAsWatched([String? title, String? posterPath]) async {
     final firstSuggestor = widget.group.suggestors.isNotEmpty ? widget.group.suggestors.first : null;
+    final isTv = widget.group.mediaType == 'tv';
+    String effectiveTitle = (title ?? '').trim();
+
+    if ((effectiveTitle.isEmpty || effectiveTitle == 'Untitled' || effectiveTitle.toLowerCase() == 'this title' || effectiveTitle.startsWith('Movie #')) && widget.group.tmdbId > 0) {
+      try {
+        final searchRepo = ref.read(searchRepositoryProvider);
+        final details = isTv
+            ? await searchRepo.getTvDetails(widget.group.tmdbId)
+            : await searchRepo.getMovieDetails(widget.group.tmdbId);
+        final realTitle = (details['title'] as String?) ??
+            (details['name'] as String?) ??
+            (details['original_title'] as String?) ??
+            (details['original_name'] as String?);
+        if (realTitle != null && realTitle.trim().isNotEmpty) {
+          effectiveTitle = realTitle.trim();
+        }
+        if (posterPath == null || posterPath.isEmpty) {
+          posterPath = details['poster_path'] as String?;
+        }
+      } catch (_) {}
+    }
+
+    final cleanTitle = effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title' && !effectiveTitle.startsWith('Movie #')
+        ? effectiveTitle
+        : null;
+
+    if (!mounted) return;
+
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -108,6 +136,8 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       builder: (ctx) => AddEntrySheet(
         prefillTmdbId: widget.group.tmdbId,
         prefillType: widget.group.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
+        prefillTitle: cleanTitle,
+        prefillPosterPath: posterPath,
         prefillSuggestedByUserId: firstSuggestor?.id,
         onSuccess: () async {
           final suggRepo = ref.read(suggestionsRepositoryProvider);
@@ -218,7 +248,11 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
         resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
       ),
       onMoveToWatching: () => _handleAddToWatching(title),
-      onMarkWatched: _handleMarkAsWatched,
+      onMarkWatchedWithTitle: (resolvedTitle) => _handleMarkAsWatched(
+        resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+        posterPath,
+      ),
+      onMarkWatched: () => _handleMarkAsWatched(title, posterPath),
       onDeleteWithTitle: (resolvedTitle) => _handleDelete(
         resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
       ),

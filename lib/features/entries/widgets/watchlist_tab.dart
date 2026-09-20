@@ -217,6 +217,10 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       builder: (_) => AddEntrySheet(
         prefillTmdbId: tmdbId > 0 ? tmdbId : null,
         prefillType: mediaType,
+        prefillTitle: effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title'
+            ? effectiveTitle
+            : null,
+        prefillPosterPath: (item['posterPath'] ?? item['poster_path']) as String?,
         prefillSuggestedByUserId: suggestedByUserId,
         onSuccess: () {
           ref.read(watchlistRepositoryProvider).removeFromWatchlist(

@@ -291,6 +291,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     if (details == null) return;
 
     final entryToEdit = _isMyEntry ? _loggedEntry : _myOwnEntry;
+    final title = (details['title'] ?? details['name'] ?? details['original_title'] ?? details['original_name'])?.toString().trim();
+    final posterPath = details['poster_path'] as String?;
 
     showModalBottomSheet(
       context: context,
@@ -301,6 +303,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         editEntry: entryToEdit,
         prefillTmdbId: widget.tmdbId,
         prefillType: widget.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
+        prefillTitle: title,
+        prefillPosterPath: posterPath,
         prefillSuggestor: widget.suggestedByUser,
         prefillSuggestedByUserId: widget.suggestedByUserId,
         onSuccess: () {
