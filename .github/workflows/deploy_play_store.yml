@@ -17,6 +17,8 @@ jobs:
     env:
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       PLAY_STORE_JSON_KEY_BASE64: ${{ secrets.PLAY_STORE_JSON_KEY_BASE64 }}
+      GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+      FIREBASE_OPTIONS_DART_BASE64: ${{ secrets.FIREBASE_OPTIONS_DART_BASE64 }}
 
     steps:
       - name: Checkout Code
@@ -37,6 +39,24 @@ jobs:
         run: |
           if [ ! -f ".env" ]; then
             cp .env.example .env
+          fi
+
+      - name: Setup Firebase Configuration from Secrets
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            python3 -c "import os, base64; raw=os.environ['GOOGLE_SERVICES_JSON_BASE64'].strip(); open('android/app/google-services.json', 'wb').write(base64.b64decode(raw))"
+            echo "google-services.json decoded successfully from secret."
+          elif [ -f "android/app/google-services.json.example" ] && [ ! -f "android/app/google-services.json" ]; then
+            cp android/app/google-services.json.example android/app/google-services.json
+            echo "Using google-services.json.example fallback template."
+          fi
+
+          if [ -n "$FIREBASE_OPTIONS_DART_BASE64" ]; then
+            python3 -c "import os, base64; raw=os.environ['FIREBASE_OPTIONS_DART_BASE64'].strip(); open('lib/firebase_options.dart', 'wb').write(base64.b64decode(raw))"
+            echo "firebase_options.dart decoded successfully from secret."
+          elif [ -f "lib/firebase_options.dart.example" ] && [ ! -f "lib/firebase_options.dart" ]; then
+            cp lib/firebase_options.dart.example lib/firebase_options.dart
+            echo "Using firebase_options.dart.example fallback template."
           fi
 
       - name: Install Dependencies

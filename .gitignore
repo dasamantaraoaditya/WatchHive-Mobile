@@ -53,6 +53,8 @@ key.properties
 .env.*
 .env.local
 pc-api-key.json
+android/app/google-services.json
+lib/firebase_options.dart
 watchhive-release.apk
 *.png
 !assets/images/*.png
