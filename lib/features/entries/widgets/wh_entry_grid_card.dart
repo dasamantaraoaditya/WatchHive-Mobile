@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/wh_alert.dart';
 import '../../search/repositories/search_repository.dart';
 
 enum WHEntryCardMode {
@@ -27,6 +28,8 @@ class WHEntryGridCard extends ConsumerWidget {
   final DateTime? suggestedAt;
   final String? suggestedByUsername;
   final String? suggestedByAvatarUrl;
+  final String? suggestionComment;
+  final int suggestionCommentCount;
   final String? watchLocation;
   final List<String> tags;
   final VoidCallback onTap;
@@ -52,6 +55,8 @@ class WHEntryGridCard extends ConsumerWidget {
     this.suggestedAt,
     this.suggestedByUsername,
     this.suggestedByAvatarUrl,
+    this.suggestionComment,
+    this.suggestionCommentCount = 0,
     this.watchLocation,
     this.tags = const [],
     required this.onTap,
@@ -321,6 +326,83 @@ class WHEntryGridCard extends ConsumerWidget {
                               ],
                             ),
                           ),
+                        if (mode == WHEntryCardMode.suggestion &&
+                            suggestionComment != null &&
+                            suggestionComment!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              final sender = (suggestedByUsername != null && suggestedByUsername!.isNotEmpty)
+                                  ? '@$suggestedByUsername'
+                                  : 'Friend';
+                              WHAlert.alert(
+                                context,
+                                title: 'Suggestion from $sender',
+                                message: '"${suggestionComment!.trim()}"',
+                                icon: Icons.lightbulb_outline_rounded,
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.8),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.amber.withValues(alpha: 0.4), width: 0.8),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    '“',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.amber,
+                                      height: 1.0,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Expanded(
+                                    child: Text(
+                                      suggestionComment!.trim(),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 9.5,
+                                        fontStyle: FontStyle.italic,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.white,
+                                        height: 1.2,
+                                      ),
+                                    ),
+                                  ),
+                                  if (suggestionCommentCount > 1) ...[
+                                    const SizedBox(width: 3),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.withValues(alpha: 0.25),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '+${suggestionCommentCount - 1}',
+                                        style: const TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.amber,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                         if (tags.isNotEmpty) ...[
                           const SizedBox(height: 3),
                           Text(

@@ -233,6 +233,13 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
         ? DateTime.tryParse(firstSuggestion.createdAt)
         : null;
 
+    final suggestionsWithComments = widget.group.suggestions
+        .where((s) => s.message != null && s.message!.trim().isNotEmpty)
+        .toList();
+    final firstComment = suggestionsWithComments.isNotEmpty
+        ? suggestionsWithComments.first.message!.trim()
+        : null;
+
     return WHEntryGridCard(
       tmdbId: tmdbId,
       title: title,
@@ -243,6 +250,8 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       suggestedAt: suggestedDate,
       suggestedByUsername: suggestorDisplay,
       suggestedByAvatarUrl: firstSuggestor?.profilePictureUrl,
+      suggestionComment: firstComment,
+      suggestionCommentCount: suggestionsWithComments.length,
       onTap: () => widget.onTapMedia?.call(tmdbId, mediaType),
       onMoveToWatchingWithTitle: (resolvedTitle) => _handleAddToWatching(
         resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
