@@ -20,6 +20,7 @@ import '../../features/rankings/screens/rankings_screen.dart';
 import '../../features/profile/screens/privacy_policy_screen.dart';
 import '../../shared/models/user.dart';
 import '../../shared/models/entry.dart';
+import '../../features/entries/screens/entry_detail_screen.dart';
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -124,6 +125,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const NotificationsScreen(),
       ),
       GoRoute(
+        path: '/entry/:id',
+        builder: (context, state) {
+          final entryId = state.pathParameters['id']!;
+          final openComments = state.uri.queryParameters['openComments'] == 'true';
+          final initialEntry = state.extra is Entry ? state.extra as Entry : null;
+          return EntryDetailScreen(
+            entryId: entryId,
+            initialEntry: initialEntry,
+            openComments: openComments,
+          );
+        },
+      ),
+      GoRoute(
         path: '/privacy-policy',
         builder: (context, state) => const PrivacyPolicyScreen(),
       ),
@@ -138,6 +152,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/profile/:id',
         builder: (context, state) => UserProfileScreen(
           userId: state.pathParameters['id']!,
+          initialUser: state.extra as User?,
         ),
       ),
       GoRoute(

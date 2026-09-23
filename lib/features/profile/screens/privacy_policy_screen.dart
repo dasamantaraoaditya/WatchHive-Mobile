@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/config/web_urls.dart';
 import '../../../core/utils/navigation_extensions.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
-  static const String webPrivacyPolicyUrl = 'https://watchhive-web.vercel.app/privacy';
+  static final String webPrivacyPolicyUrl = WebUrls.privacyPolicy();
   static const String contactEmail = 'privacy@watchhive.app';
 
   const PrivacyPolicyScreen({super.key});

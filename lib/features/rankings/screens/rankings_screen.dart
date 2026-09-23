@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/config/web_urls.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../../shared/models/models.dart';
@@ -615,8 +616,11 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
               // Share Button
               IconButton.filledTonal(
                 onPressed: () {
-                  final text = 'Check out my "${stack.name}" ranked stack on WatchHive! 🐝🎬';
-                  Share.share(text);
+                  final url = stack.userId.isNotEmpty
+                      ? WebUrls.userRankings(stack.userId)
+                      : WebUrls.rankings();
+                  final text = 'Check out my "${stack.name}" ranked stack on WatchHive! 🐝🎬\n\n$url';
+                  Share.share(text, subject: 'WatchHive: ${stack.name}');
                 },
                 tooltip: 'Share Stack',
                 style: IconButton.styleFrom(

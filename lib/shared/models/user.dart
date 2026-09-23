@@ -17,6 +17,8 @@ class User {
   final bool showRankings;
   final List<dynamic> badges;
   final int entriesCount;
+  final int? watchingCount;
+  final int? watchlistCount;
   final int followersCount;
   final int followingCount;
   final bool isFollowing;
@@ -45,6 +47,8 @@ class User {
     this.level = 1,
     this.badges = const [],
     this.entriesCount = 0,
+    this.watchingCount,
+    this.watchlistCount,
     this.followersCount = 0,
     this.followingCount = 0,
     this.isFollowing = false,
@@ -96,8 +100,14 @@ class User {
       level: _parseInt(json['level']) > 0 ? _parseInt(json['level']) : 1,
       badges: json['badges'] as List<dynamic>? ?? [],
       entriesCount: _parseInt(
-        countData?['entries'] ?? countData?['entriesCount'] ?? json['entriesCount'] ?? json['entries'],
+        countData?['entries'] ?? countData?['watches'] ?? countData?['entriesCount'] ?? json['entriesCount'] ?? json['entries'],
       ),
+      watchingCount: countData?['watching'] != null || countData?['watchingCount'] != null || json['watchingCount'] != null
+          ? _parseInt(countData?['watching'] ?? countData?['watchingCount'] ?? json['watchingCount'])
+          : null,
+      watchlistCount: countData?['watchlist'] != null || countData?['watchlistCount'] != null || json['watchlistCount'] != null
+          ? _parseInt(countData?['watchlist'] ?? countData?['watchlistCount'] ?? json['watchlistCount'])
+          : null,
       followersCount: _parseInt(
         countData?['followers'] ?? countData?['followersCount'] ?? json['followersCount'] ?? json['followers'],
       ),
@@ -134,6 +144,8 @@ class User {
         'level': level,
         'badges': badges,
         'entriesCount': entriesCount,
+        if (watchingCount != null) 'watchingCount': watchingCount,
+        if (watchlistCount != null) 'watchlistCount': watchlistCount,
         'followersCount': followersCount,
         'followingCount': followingCount,
         'createdAt': createdAt.toIso8601String(),
@@ -158,6 +170,8 @@ class User {
     bool? showRankings,
     List<dynamic>? badges,
     int? entriesCount,
+    int? watchingCount,
+    int? watchlistCount,
     int? followersCount,
     int? followingCount,
     bool? isFollowing,
@@ -186,6 +200,8 @@ class User {
       showRankings: showRankings ?? this.showRankings,
       badges: badges ?? this.badges,
       entriesCount: entriesCount ?? this.entriesCount,
+      watchingCount: watchingCount ?? this.watchingCount,
+      watchlistCount: watchlistCount ?? this.watchlistCount,
       followersCount: followersCount ?? this.followersCount,
       followingCount: followingCount ?? this.followingCount,
       isFollowing: isFollowing ?? this.isFollowing,

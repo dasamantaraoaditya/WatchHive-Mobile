@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/config/web_urls.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/models/entry.dart';
+import '../../../shared/models/models.dart';
 import '../../../shared/widgets/shared_widgets.dart';
+
 import '../../auth/providers/auth_provider.dart';
 import '../../entries/repositories/entries_repository.dart';
 import '../../entries/repositories/watchlist_repository.dart';
@@ -19,10 +23,20 @@ import 'edit_profile_dialog.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
 
+const _emptyEntriesResult = (
+  entries: <Entry>[],
+  pagination: Pagination(total: 0, limit: 50, offset: 0, hasMore: false),
+);
+
 class UserProfileScreen extends ConsumerStatefulWidget {
   final String userId;
+  final User? initialUser;
 
-  const UserProfileScreen({super.key, required this.userId});
+  const UserProfileScreen({
+    super.key,
+    required this.userId,
+    this.initialUser,
+  });
 
   @override
   ConsumerState<UserProfileScreen> createState() => _UserProfileScreenState();
@@ -51,11 +65,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   List<Entry> _historyEntries = [];
   List<Entry> _watchingEntries = [];
   List<dynamic> _watchlistItems = [];
+  bool _hasLoadedTabs = false;
   bool _isLoadingTabsData = false;
 
   @override
   void initState() {
     super.initState();
+    if (widget.initialUser != null) {
+      _user = widget.initialUser;
+      _isFollowing = widget.initialUser!.isFollowing;
+      _isRequested = widget.initialUser!.isRequested;
+      _isIncomingRequest = widget.initialUser!.isIncomingRequest;
+      _incomingRequestId = widget.initialUser!.incomingRequestId;
+    }
     _fetchProfile();
   }
 
@@ -66,22 +88,46 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   }
 
   Future<void> _fetchProfile() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    if (_user == null) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
 
     try {
       final repo = ref.read(userRepositoryProvider);
+      final entriesRepo = ref.read(entriesRepositoryProvider);
+
       final results = await Future.wait([
         repo.getUserProfile(widget.userId),
         repo.getFollowStats(widget.userId),
+        entriesRepo.getEntries(userId: widget.userId, isWatching: false, limit: 50).catchError((_) => _emptyEntriesResult),
+        entriesRepo.getEntries(userId: widget.userId, isWatching: true, limit: 50).catchError((_) => _emptyEntriesResult),
+        repo.getUserWatchlist(widget.userId).catchError((_) => <String, dynamic>{}),
       ]);
+
       final user = results[0] as User;
       final stats = results[1] as ({int followersCount, int followingCount});
+      final historyRes = results[2] as ({List<Entry> entries, dynamic pagination});
+      final watchingRes = results[3] as ({List<Entry> entries, dynamic pagination});
+      final watchlistMap = results[4] as Map<String, dynamic>;
+      final rawWatchlist = (watchlistMap['items'] as List<dynamic>?) ?? [];
+
+      final historyTotal = historyRes.pagination?.total != null && historyRes.pagination.total > 0
+          ? historyRes.pagination.total
+          : (user.entriesCount > 0 ? user.entriesCount : historyRes.entries.length);
+      final watchingTotal = watchingRes.pagination?.total != null && watchingRes.pagination.total > 0
+          ? watchingRes.pagination.total
+          : (user.watchingCount ?? watchingRes.entries.length);
+      final watchlistTotal = user.watchlistCount ?? rawWatchlist.length;
+
       final userWithStats = user.copyWith(
         followersCount: stats.followersCount > 0 ? stats.followersCount : user.followersCount,
         followingCount: stats.followingCount > 0 ? stats.followingCount : user.followingCount,
+        entriesCount: historyTotal,
+        watchingCount: watchingTotal,
+        watchlistCount: watchlistTotal,
       );
 
       if (mounted) {
@@ -91,16 +137,25 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           _isRequested = user.isRequested;
           _isIncomingRequest = user.isIncomingRequest;
           _incomingRequestId = user.incomingRequestId;
+          _historyEntries = historyRes.entries;
+          _watchingEntries = watchingRes.entries;
+          _watchlistItems = rawWatchlist;
+          _hasLoadedTabs = true;
+          _isLoadingTabsData = false;
           _isLoading = false;
         });
 
-        _setupTabsAndLoadData();
+        _initOrUpdateTabController();
+        if (rawWatchlist.isNotEmpty) {
+          _enrichWatchlistItems(rawWatchlist);
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _error = AppErrorHandler.toUserFriendlyMessage(e, defaultMessage: 'Unable to load profile.');
           _isLoading = false;
+          _hasLoadedTabs = true;
         });
       }
     }
@@ -125,24 +180,50 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     } catch (_) {}
   }
 
+  void _shareProfile() {
+    if (_user == null) return;
+    final name = _user!.displayName?.isNotEmpty == true ? _user!.displayName! : _user!.name;
+    final profileUrl = WebUrls.userProfile(_user!.id, refUsername: _user!.username);
+    final text = _isMe
+        ? 'Join me on WatchHive! Check out my profile and cinematic journey: 🐝🎥\n\n$profileUrl'
+        : 'Check out $name\'s profile on WatchHive! 🐝🎬\n\n$profileUrl';
+    Share.share(text, subject: 'WatchHive: $name');
+  }
+
+  String _formatTabLabel({required String baseLabel, required int? count}) {
+    if (count == null) {
+      return baseLabel;
+    }
+    return '$baseLabel ($count)';
+  }
+
   List<_ProfileTabConfig> _getVisibleTabs() {
     if (_user == null) return [];
     final list = <_ProfileTabConfig>[];
     if (_user!.showWatchEntries) {
+      final count = _hasLoadedTabs
+          ? (_user!.entriesCount > 0 ? _user!.entriesCount : _historyEntries.length)
+          : (_user!.entriesCount > 0 ? _user!.entriesCount : null);
       list.add(_ProfileTabConfig(
-        label: 'Watches (${_historyEntries.length})',
+        label: _formatTabLabel(baseLabel: 'Watches', count: count),
         view: _buildUserHistoryTab(),
       ));
     }
     if (_user!.showCurrentlyWatching) {
+      final count = _hasLoadedTabs
+          ? (_user!.watchingCount ?? _watchingEntries.length)
+          : _user!.watchingCount;
       list.add(_ProfileTabConfig(
-        label: 'Watching (${_watchingEntries.length})',
+        label: _formatTabLabel(baseLabel: 'Watching', count: count),
         view: _buildUserWatchingTab(),
       ));
     }
     if (_user!.showWatchlist) {
+      final count = _hasLoadedTabs
+          ? (_user!.watchlistCount ?? _watchlistItems.length)
+          : _user!.watchlistCount;
       list.add(_ProfileTabConfig(
-        label: 'Watchlist (${_watchlistItems.length})',
+        label: _formatTabLabel(baseLabel: 'Watchlist', count: count),
         view: _buildUserWatchlistTab(),
       ));
     }
@@ -155,18 +236,31 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     return list;
   }
 
-  void _setupTabsAndLoadData() {
+  void _initOrUpdateTabController() {
     if (_user == null) return;
-    final canView = _canViewContent();
-
-    if (canView) {
+    if (_canViewContent()) {
       final tabs = _getVisibleTabs();
-      _tabController?.dispose();
       if (tabs.isNotEmpty) {
-        _tabController = TabController(length: tabs.length, vsync: this);
+        if (_tabController == null || _tabController!.length != tabs.length) {
+          final oldIndex = _tabController?.index ?? 0;
+          _tabController?.dispose();
+          _tabController = TabController(
+            length: tabs.length,
+            vsync: this,
+            initialIndex: oldIndex < tabs.length ? oldIndex : 0,
+          );
+        }
       } else {
+        _tabController?.dispose();
         _tabController = null;
       }
+    }
+  }
+
+  void _setupTabsAndLoadData() {
+    if (_user == null) return;
+    if (_canViewContent()) {
+      _initOrUpdateTabController();
       _loadTabContents();
     }
   }
@@ -187,37 +281,57 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
       final results = await Future.wait([
         if (_user!.showWatchEntries)
-          entriesRepo.getEntries(userId: widget.userId, isWatching: false, limit: 50)
+          entriesRepo.getEntries(userId: widget.userId, isWatching: false, limit: 50).catchError((_) => _emptyEntriesResult)
         else
-          Future.value((entries: <Entry>[], pagination: null)),
+          Future.value(_emptyEntriesResult),
         if (_user!.showCurrentlyWatching)
-          entriesRepo.getEntries(userId: widget.userId, isWatching: true, limit: 50)
+          entriesRepo.getEntries(userId: widget.userId, isWatching: true, limit: 50).catchError((_) => _emptyEntriesResult)
         else
-          Future.value((entries: <Entry>[], pagination: null)),
+          Future.value(_emptyEntriesResult),
         if (_user!.showWatchlist)
-          userRepo.getUserWatchlist(widget.userId)
+          userRepo.getUserWatchlist(widget.userId).catchError((_) => <String, dynamic>{})
         else
           Future.value(<String, dynamic>{}),
       ]);
 
       if (mounted) {
-        final historyEntries = (results[0] as ({List<Entry> entries, dynamic pagination})).entries;
-        final watchingEntries = (results[1] as ({List<Entry> entries, dynamic pagination})).entries;
+        final historyRes = results[0] as ({List<Entry> entries, dynamic pagination});
+        final watchingRes = results[1] as ({List<Entry> entries, dynamic pagination});
         final watchlistMap = results[2] as Map<String, dynamic>;
         final rawWatchlist = (watchlistMap['items'] as List<dynamic>?) ?? [];
 
+        final historyTotal = historyRes.pagination?.total != null && historyRes.pagination.total > 0
+            ? historyRes.pagination.total
+            : (_user!.entriesCount > 0 ? _user!.entriesCount : historyRes.entries.length);
+        final watchingTotal = watchingRes.pagination?.total != null && watchingRes.pagination.total > 0
+            ? watchingRes.pagination.total
+            : (_user!.watchingCount ?? watchingRes.entries.length);
+        final watchlistTotal = _user!.watchlistCount ?? rawWatchlist.length;
+
         setState(() {
-          _historyEntries = historyEntries;
-          _watchingEntries = watchingEntries;
+          _historyEntries = historyRes.entries;
+          _watchingEntries = watchingRes.entries;
           _watchlistItems = rawWatchlist;
+          _hasLoadedTabs = true;
           _isLoadingTabsData = false;
+          _user = _user!.copyWith(
+            entriesCount: historyTotal,
+            watchingCount: watchingTotal,
+            watchlistCount: watchlistTotal,
+          );
         });
+        _initOrUpdateTabController();
         if (rawWatchlist.isNotEmpty) {
           _enrichWatchlistItems(rawWatchlist);
         }
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoadingTabsData = false);
+      if (mounted) {
+        setState(() {
+          _hasLoadedTabs = true;
+          _isLoadingTabsData = false;
+        });
+      }
     }
   }
 
@@ -413,7 +527,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
     if (_error != null || _user == null) {
       return PopScope(
-        canPop: context.canPop(),
+        canPop: context.safeCanPop,
         onPopInvokedWithResult: (didPop, _) {
           if (didPop) return;
           context.safePop();
@@ -508,6 +622,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 ),
               ),
               actions: [
+                if (_user != null)
+                  IconButton(
+                    icon: const Icon(Icons.share_outlined, color: AppColors.textPrimary),
+                    tooltip: 'Share Profile',
+                    onPressed: _shareProfile,
+                  ),
                 if (_isMe)
                   IconButton(
                     icon: const Icon(Icons.tune_rounded, color: AppColors.primaryDark),
@@ -1127,7 +1247,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   }
 
   Widget _buildUserHistoryTab() {
-    if (_isLoadingTabsData) {
+    if (!_hasLoadedTabs || _isLoadingTabsData) {
       return const WHSkeletonGrid(itemCount: 4);
     }
     if (_historyEntries.isEmpty) {
@@ -1175,7 +1295,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   }
 
   Widget _buildUserWatchingTab() {
-    if (_isLoadingTabsData) {
+    if (!_hasLoadedTabs || _isLoadingTabsData) {
       return const WHSkeletonGrid(itemCount: 4);
     }
     if (_watchingEntries.isEmpty) {
@@ -1224,7 +1344,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   }
 
   Widget _buildUserWatchlistTab() {
-    if (_isLoadingTabsData) {
+    if (!_hasLoadedTabs || _isLoadingTabsData) {
       return const WHSkeletonGrid(itemCount: 4);
     }
     if (_watchlistItems.isEmpty) {

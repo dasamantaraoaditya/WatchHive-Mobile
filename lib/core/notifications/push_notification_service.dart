@@ -364,15 +364,28 @@ class PushNotificationService {
 
     switch (type) {
       case 'LIKE':
+        final entryId = data['entryId']?.toString();
+        if (entryId != null && entryId.isNotEmpty) {
+          context.push('/entry/$entryId');
+        } else {
+          context.go('/feed');
+        }
+        break;
+
       case 'COMMENT':
       case 'REPLY':
-        context.go('/feed');
+        final entryId = data['entryId']?.toString();
+        if (entryId != null && entryId.isNotEmpty) {
+          context.push('/entry/$entryId?openComments=true');
+        } else {
+          context.go('/feed');
+        }
         break;
 
       case 'SUGGESTION':
         final tmdbId = data['tmdbId'];
-        final mediaType = data['mediaType'] ?? 'movie';
-        if (tmdbId != null) {
+        final mediaType = (data['mediaType'] ?? 'movie').toString().toLowerCase();
+        if (tmdbId != null && int.tryParse(tmdbId.toString()) != null && int.parse(tmdbId.toString()) > 0) {
           context.push('/details/$mediaType/$tmdbId');
         } else {
           context.go('/entries');

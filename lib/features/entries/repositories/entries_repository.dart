@@ -61,6 +61,13 @@ class EntriesRepository {
     await _api.delete(ApiEndpoints.entry(id));
   }
 
+  Future<Entry> getEntryById(String id) async {
+    final response = await _api.get(ApiEndpoints.entry(id));
+    final body = response.data as Map<String, dynamic>;
+    final entryData = body.containsKey('entry') ? body['entry'] : body;
+    return Entry.fromJson(entryData as Map<String, dynamic>);
+  }
+
   Future<Map<String, dynamic>> getStats() async {
     final response = await _api.get(ApiEndpoints.entryStats);
     final data = response.data as Map<String, dynamic>;

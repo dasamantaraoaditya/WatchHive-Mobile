@@ -113,7 +113,20 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       }
     }
 
-    // 2. Media / review interactions -> Navigate to movie details
+    final entryId = content['entryId']?.toString();
+
+    // 2. Post interactions (LIKE, COMMENT, REPLY) -> Navigate to post
+    if (n.type == 'LIKE' && entryId != null && entryId.isNotEmpty) {
+      context.push('/entry/$entryId');
+      return;
+    }
+
+    if ((n.type == 'COMMENT' || n.type == 'REPLY') && entryId != null && entryId.isNotEmpty) {
+      context.push('/entry/$entryId?openComments=true');
+      return;
+    }
+
+    // 3. Media / suggestion interactions -> Navigate to movie details
     final tmdbId = content['tmdbId'] is num
         ? (content['tmdbId'] as num).toInt()
         : int.tryParse(content['tmdbId']?.toString() ?? '');
@@ -124,10 +137,25 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       return;
     }
 
-    // 3. Fallback to actor's profile if available
+    // 4. Suggestion without tmdbId -> go to entries
+    if (n.type == 'SUGGESTION') {
+      context.go('/entries');
+      return;
+    }
+
+    // 5. Entry fallback
+    if (entryId != null && entryId.isNotEmpty) {
+      context.push('/entry/$entryId');
+      return;
+    }
+
+    // 6. Fallback to actor's profile if available
     if (actorId != null && actorId.isNotEmpty) {
       context.push('/profile/$actorId');
+      return;
     }
+
+    context.go('/feed');
   }
 
   IconData _iconForType(String type) => switch (type) {
@@ -154,14 +182,24 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         content['senderName'] as String? ??
         content['actorUsername'] as String? ??
         'Someone';
+    final title = (content['title'] as String?) ??
+        (content['mediaTitle'] as String?) ??
+        (content['name'] as String?) ??
+        (content['entryTitle'] as String?);
     return switch (n.type) {
-      'LIKE' => '$actorName liked your entry',
-      'COMMENT' => '$actorName commented on your entry',
+      'LIKE' => title != null && title.isNotEmpty
+          ? '$actorName liked your entry for "$title"'
+          : '$actorName liked your entry',
+      'COMMENT' => title != null && title.isNotEmpty
+          ? '$actorName commented on "$title"'
+          : '$actorName commented on your entry',
       'REPLY' => '$actorName replied to your comment',
       'FOLLOW' => '$actorName started following you',
       'FOLLOW_REQUEST' => '$actorName requested to follow you',
       'FOLLOW_ACCEPT' => '$actorName accepted your follow request',
-      'SUGGESTION' => '$actorName suggested "${content['mediaTitle'] ?? 'something'}"',
+      'SUGGESTION' => title != null && title.isNotEmpty
+          ? '$actorName suggested "$title"'
+          : '$actorName suggested a title for you',
       _ => 'New notification',
     };
   }
@@ -617,6 +655,28 @@ class _NotificationTile extends StatelessWidget {
                           color: AppColors.textPrimary,
                         ),
                       ),
+                      if ((content['message'] ?? content['note'])?.toString().trim().isNotEmpty == true) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Text(
+                            '"${(content['message'] ?? content['note']).toString().trim()}"',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11.5,
+                              fontStyle: FontStyle.italic,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 3),
                       Text(
                         _timeAgo(notification.createdAt),

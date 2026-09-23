@@ -29,4 +29,15 @@ extension SafeNavigationExtension on BuildContext {
       // Fallback
     }
   }
+
+  /// Safely checks if current context can pop without throwing if GoRouter is not available.
+  bool get safeCanPop {
+    try {
+      if (canPop()) return true;
+    } catch (_) {}
+    try {
+      if (Navigator.of(this).canPop()) return true;
+    } catch (_) {}
+    return false;
+  }
 }

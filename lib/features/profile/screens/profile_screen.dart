@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/config/web_urls.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -213,8 +214,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
   }
 
   void _handleInviteFriends(User user) {
-    final inviteUrl = 'https://watchhive-web.vercel.app/signup?ref=${user.username}';
-    final text = 'Join me on WatchHive! Check out my cinematic journey and let\'s build our movie hive together. 🐝🎥\n$inviteUrl';
+    final profileUrl = WebUrls.userProfile(user.id, refUsername: user.username);
+    final text = 'Join me on WatchHive! Check out my profile and cinematic journey: 🐝🎥\n\n$profileUrl';
     Share.share(text, subject: 'Join me on WatchHive');
   }
 

@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/config/web_urls.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
 import '../../../shared/models/models.dart';
@@ -368,8 +369,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
 
   void _shareMovie() {
     final title = (_details?['title'] ?? _details?['name'] ?? 'Movie/Show').toString();
+    final url = WebUrls.movieDetails(widget.mediaType, widget.tmdbId);
     Share.share(
-      'Check out "$title" on WatchHive! Track movies, series & anime together 🎬🐝',
+      'Check out "$title" on WatchHive! Track movies, series & anime together 🎬🐝\n\n$url',
       subject: 'WatchHive: $title',
     );
   }
