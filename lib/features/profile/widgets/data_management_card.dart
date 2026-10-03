@@ -63,8 +63,8 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
 
       await Share.shareXFiles(
         [xFile],
-        subject: 'WatchHive Data Export ($filename)',
-        text: 'My WatchHive data exported on $dateStr',
+        subject: 'WatchersHive Data Export ($filename)',
+        text: 'My WatchersHive data exported on $dateStr',
       );
 
       if (mounted) {

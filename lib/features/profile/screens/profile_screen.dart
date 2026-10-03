@@ -215,15 +215,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
 
   void _handleInviteFriends(User user) {
     final profileUrl = WebUrls.userProfile(user.id, refUsername: user.username);
-    final text = 'Join me on WatchHive! Check out my profile and cinematic journey: 🐝🎥\n\n$profileUrl';
-    Share.share(text, subject: 'Join me on WatchHive');
+    final text = 'Join me on WatchersHive! Check out my profile and cinematic journey: 🐝🎥\n\n$profileUrl';
+    Share.share(text, subject: 'Join me on WatchersHive');
   }
 
   Future<void> _confirmSignOut() async {
     final confirm = await WHAlert.confirm(
       context,
       title: 'Sign Out',
-      message: 'Are you sure you want to sign out of WatchHive?',
+      message: 'Are you sure you want to sign out of WatchersHive?',
       confirmText: 'Sign Out',
       severity: WHAlertSeverity.danger,
       icon: Icons.logout_rounded,
@@ -543,7 +543,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
 
                               // Send local test banner
                               await pushService.showLocalNotification(
-                                title: '🐝 WatchHive Buzz',
+                                title: '🐝 WatchersHive Buzz',
                                 body: 'Push notification system is alive and buzzing!',
                                 data: {'type': 'LIKE'},
                               );
@@ -1265,7 +1265,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                 const Divider(height: 1, color: AppColors.border),
                 _buildActionTile(
                   icon: Icons.person_add_outlined,
-                  title: 'Invite Friends to WatchHive',
+                  title: 'Invite Friends to WatchersHive',
                   subtitle: 'Share your personal invite link',
                   onTap: () => _handleInviteFriends(user),
                 ),
@@ -1280,7 +1280,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                 _buildActionTile(
                   icon: Icons.explore_outlined,
                   title: 'App Guide Tour',
-                  subtitle: 'Walkthrough of features & how to use WatchHive',
+                  subtitle: 'Walkthrough of features & how to use WatchersHive',
                   onTap: () => QuickGuideTourDialog.show(
                     context,
                     userId: user.id,

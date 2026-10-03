@@ -50,8 +50,8 @@ void main() {
         ),
       );
 
-      // Verify WatchHive branding
-      expect(find.text('WatchHive'), findsOneWidget);
+      // Verify WatchersHive branding
+      expect(find.text('WatchersHive'), findsOneWidget);
       expect(find.text('Track Movies, Anime, K-Drama & Series'), findsOneWidget);
 
       // Verify loader indicator and "Signing you in..." text are present
@@ -80,7 +80,7 @@ void main() {
 
       // "Signing you in..." should not be displayed when auth is no longer loading
       expect(find.text('Signing you in...'), findsNothing);
-      expect(find.text('WatchHive'), findsOneWidget);
+      expect(find.text('WatchersHive'), findsOneWidget);
     });
   });
 

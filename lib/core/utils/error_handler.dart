@@ -21,7 +21,7 @@ class AppErrorHandler {
     // 2. Handle SocketException (network failure)
     if (error is SocketException) {
       return _formatWithAction(
-        'Unable to connect to WatchHive. Please check your internet connection and try again.',
+        'Unable to connect to WatchersHive. Please check your internet connection and try again.',
         action: action,
       );
     }
@@ -55,7 +55,7 @@ class AppErrorHandler {
 
       case DioExceptionType.connectionError:
         return _formatWithAction(
-          'Unable to reach WatchHive servers. Please check your internet connection.',
+          'Unable to reach WatchersHive servers. Please check your internet connection.',
           action: action,
         );
 
@@ -93,7 +93,7 @@ class AppErrorHandler {
           } else if (statusCode == 429) {
             return 'Too many requests. Please slow down and try again in a few seconds.';
           } else if (statusCode >= 500) {
-            return 'WatchHive servers are temporarily unavailable. Please try again shortly.';
+            return 'WatchersHive servers are temporarily unavailable. Please try again shortly.';
           }
         }
         break;

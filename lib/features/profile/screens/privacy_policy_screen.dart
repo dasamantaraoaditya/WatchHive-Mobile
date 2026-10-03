@@ -26,7 +26,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
   }
 
   Future<void> _sendEmail(BuildContext context) async {
-    final uri = Uri.parse('mailto:$contactEmail?subject=WatchHive%20Privacy%20Inquiry');
+    final uri = Uri.parse('mailto:$contactEmail?subject=WatchersHive%20Privacy%20Inquiry');
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
@@ -114,7 +114,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               number: '1',
               title: 'Introduction',
               content:
-                  'Welcome to WatchHive. We respect your privacy and are committed to protecting your personal data. This privacy policy explains how we handle your personal data when you use the WatchHive mobile app, our web application, and engage with other members of the hive.',
+                  'Welcome to WatchersHive. We respect your privacy and are committed to protecting your personal data. This privacy policy explains how we handle your personal data when you use the WatchersHive mobile app, our web application, and engage with other members of the hive.',
             ),
 
             // 2. The Data We Collect
@@ -158,7 +158,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               number: '3',
               title: 'Core Feature Analytics & MindLens',
               content:
-                  'WatchHive processes your cinematic logs to formulate the MindLens Psychological Profile:',
+                  'WatchersHive processes your cinematic logs to formulate the MindLens Psychological Profile:',
               extra: Container(
                 margin: const EdgeInsets.only(top: 12),
                 padding: const EdgeInsets.all(16),
@@ -235,7 +235,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               number: '5',
               title: 'Local Cache & Offline Logging',
               content:
-                  'To ensure high resilience, WatchHive stores entries in local app storage when you log offline. Once network connectivity is restored, these records sync automatically to our secure database servers.',
+                  'To ensure high resilience, WatchersHive stores entries in local app storage when you log offline. Once network connectivity is restored, these records sync automatically to our secure database servers.',
             ),
 
             // 6. Google OAuth Integration
@@ -243,7 +243,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               number: '6',
               title: 'Google OAuth Integration',
               content:
-                  'WatchHive allows you to sign in using Google. When you use Google OAuth, we receive only your email address, name, and profile picture to create and manage your WatchHive account. We do not access contacts, files, or any other Google service data.',
+                  'WatchersHive allows you to sign in using Google. When you use Google OAuth, we receive only your email address, name, and profile picture to create and manage your WatchersHive account. We do not access contacts, files, or any other Google service data.',
             ),
 
             // 7. Data Security & Encryption

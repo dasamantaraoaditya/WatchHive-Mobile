@@ -42,7 +42,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           );
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
         context.go('/feed');
-        WHAlert.showSuccess(context, 'Welcome to WatchHive! 🐝✨');
+        WHAlert.showSuccess(context, 'Welcome to WatchersHive! 🐝✨');
       }
     } catch (e) {
       if (mounted) {

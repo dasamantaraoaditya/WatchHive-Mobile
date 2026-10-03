@@ -81,7 +81,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'WatchHive',
+              'WatchersHive',
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 32,

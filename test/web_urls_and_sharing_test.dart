@@ -58,7 +58,7 @@ void main() {
     test('movie share message contains title and valid details link', () {
       const title = 'Inception';
       final url = WebUrls.movieDetails('movie', 27205);
-      final message = 'Check out "$title" on WatchHive! Track movies, series & anime together 🎬🐝\n\n$url';
+      final message = 'Check out "$title" on WatchersHive! Track movies, series & anime together 🎬🐝\n\n$url';
 
       expect(message, contains('Inception'));
       expect(message, contains('https://watchhive-web.vercel.app/watch-hive/details/movie/27205'));
@@ -69,7 +69,7 @@ void main() {
       const userId = 'u_456';
       const username = 'filmfan';
       final profileUrl = WebUrls.userProfile(userId, refUsername: username);
-      final message = 'Join me on WatchHive! Check out my profile and cinematic journey: 🐝🎥\n\n$profileUrl';
+      final message = 'Join me on WatchersHive! Check out my profile and cinematic journey: 🐝🎥\n\n$profileUrl';
 
       expect(message, contains('https://watchhive-web.vercel.app/watch-hive/profile/u_456?ref=filmfan'));
       expect(Uri.tryParse(profileUrl)?.hasScheme, true);
@@ -79,7 +79,7 @@ void main() {
       const stackName = 'Top Sci-Fi 2024';
       const userId = 'user_789';
       final url = WebUrls.userRankings(userId);
-      final message = 'Check out my "$stackName" ranked stack on WatchHive! 🐝🎬\n\n$url';
+      final message = 'Check out my "$stackName" ranked stack on WatchersHive! 🐝🎬\n\n$url';
 
       expect(message, contains('Top Sci-Fi 2024'));
       expect(message, contains('https://watchhive-web.vercel.app/watch-hive/profile/user_789?tab=rankings'));

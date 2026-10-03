@@ -185,9 +185,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     final name = _user!.displayName?.isNotEmpty == true ? _user!.displayName! : _user!.name;
     final profileUrl = WebUrls.userProfile(_user!.id, refUsername: _user!.username);
     final text = _isMe
-        ? 'Join me on WatchHive! Check out my profile and cinematic journey: 🐝🎥\n\n$profileUrl'
-        : 'Check out $name\'s profile on WatchHive! 🐝🎬\n\n$profileUrl';
-    Share.share(text, subject: 'WatchHive: $name');
+        ? 'Join me on WatchersHive! Check out my profile and cinematic journey: 🐝🎥\n\n$profileUrl'
+        : 'Check out $name\'s profile on WatchersHive! 🐝🎬\n\n$profileUrl';
+    Share.share(text, subject: 'WatchersHive: $name');
   }
 
   String _formatTabLabel({required String baseLabel, required int? count}) {

@@ -371,8 +371,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     final title = (_details?['title'] ?? _details?['name'] ?? 'Movie/Show').toString();
     final url = WebUrls.movieDetails(widget.mediaType, widget.tmdbId);
     Share.share(
-      'Check out "$title" on WatchHive! Track movies, series & anime together 🎬🐝\n\n$url',
-      subject: 'WatchHive: $title',
+      'Check out "$title" on WatchersHive! Track movies, series & anime together 🎬🐝\n\n$url',
+      subject: 'WatchersHive: $title',
     );
   }
 

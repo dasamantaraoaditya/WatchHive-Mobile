@@ -1,4 +1,4 @@
-/// Centralized registry for all WatchHive web URLs and shareable deep links.
+/// Centralized registry for all WatchersHive web URLs and shareable deep links.
 class WebUrls {
   WebUrls._();
 
@@ -40,7 +40,7 @@ class WebUrls {
     return '$baseUrl/watch-hive/signup$query';
   }
 
-  /// URL for the WatchHive privacy policy.
+  /// URL for the WatchersHive privacy policy.
   /// Example: https://watchhive-web.vercel.app/watch-hive/privacy
   static String privacyPolicy() => '$baseUrl/watch-hive/privacy';
 }

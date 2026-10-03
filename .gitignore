@@ -61,3 +61,4 @@ watchhive-release.apk
 !android/app/src/main/res/drawable/*.png
 **/xcshareddata/swiftpm/
 .kotlin/
+release_builds/

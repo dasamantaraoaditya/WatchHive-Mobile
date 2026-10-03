@@ -38,7 +38,7 @@ void main() {
         requestOptions: RequestOptions(path: '/test'),
       );
       final msg = AppErrorHandler.toUserFriendlyMessage(dioError);
-      expect(msg, contains('Unable to reach WatchHive servers'));
+      expect(msg, contains('Unable to reach WatchersHive servers'));
     });
 
     test('Extracts backend JSON message from Dio 400 response', () {

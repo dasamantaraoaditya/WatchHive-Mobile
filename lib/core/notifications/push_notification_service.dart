@@ -33,7 +33,7 @@ class PushNotificationService {
 
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'watchhive_high_importance_channel',
-    'WatchHive Activity & Buzz',
+    'WatchersHive Activity & Buzz',
     description: 'Notifications for likes, comments, follows, and movie suggestions.',
     importance: Importance.high,
     playSound: true,
@@ -248,7 +248,7 @@ class PushNotificationService {
   /// Display a heads-up local notification when a push arrives while app is in foreground
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     final notification = message.notification;
-    final title = notification?.title ?? message.data['title'] ?? 'WatchHive';
+    final title = notification?.title ?? message.data['title'] ?? 'WatchersHive';
     final body = notification?.body ?? message.data['body'] ?? 'You have a new update in the Hive';
 
     final androidDetails = AndroidNotificationDetails(

@@ -619,8 +619,8 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                   final url = stack.userId.isNotEmpty
                       ? WebUrls.userRankings(stack.userId)
                       : WebUrls.rankings();
-                  final text = 'Check out my "${stack.name}" ranked stack on WatchHive! 🐝🎬\n\n$url';
-                  Share.share(text, subject: 'WatchHive: ${stack.name}');
+                  final text = 'Check out my "${stack.name}" ranked stack on WatchersHive! 🐝🎬\n\n$url';
+                  Share.share(text, subject: 'WatchersHive: ${stack.name}');
                 },
                 tooltip: 'Share Stack',
                 style: IconButton.styleFrom(
