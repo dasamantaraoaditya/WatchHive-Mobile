@@ -12,7 +12,7 @@ class WatchHiveApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: 'WatchHive',
+      title: 'WatchersHive',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: router,

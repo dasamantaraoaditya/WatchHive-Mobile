@@ -29,7 +29,7 @@ class TourStep {
       badgeText: 'WELCOME ABOARD',
       title: 'Your Ultimate Movie & TV Sanctuary',
       description:
-          'Welcome to WatchHive! Track everything you watch across movies, anime, K-dramas, and series. Discover what is buzzing and share your love of cinema.',
+          'Welcome to WatchersHive! Track everything you watch across movies, anime, K-dramas, and series. Discover what is buzzing and share your love of cinema.',
       highlights: [
         'Track all media types in one unified place',
         'Follow friends and discover their authentic ratings',

@@ -70,7 +70,7 @@ class WHFeedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isSuggestion = entry.isSuggestion || entry.user == null;
     final displayName = () {
-      if (isSuggestion) return 'WatchHive';
+      if (isSuggestion) return 'WatchersHive';
       final dn = entry.user?.displayName?.trim();
       if (dn != null && dn.isNotEmpty) return dn;
       final un = entry.user?.username.trim();

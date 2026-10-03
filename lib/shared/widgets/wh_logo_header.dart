@@ -32,7 +32,7 @@ class WHLogoHeader extends StatelessWidget {
               text: const TextSpan(
                 children: [
                   TextSpan(
-                    text: 'Watch',
+                    text: 'Watchers',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 22,

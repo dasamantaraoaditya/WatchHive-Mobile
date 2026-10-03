@@ -222,7 +222,7 @@ class _ComparePickerModalState extends ConsumerState<ComparePickerModal> {
                               Text(
                                 isQueryActive
                                     ? 'No users found matching "${_searchController.text}"'
-                                    : 'Follow friends on WatchHive to compare your taste overlap!',
+                                    : 'Follow friends on WatchersHive to compare your taste overlap!',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                               ),

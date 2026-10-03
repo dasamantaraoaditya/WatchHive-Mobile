@@ -441,7 +441,7 @@ class _QuickGuideTourDialogState extends ConsumerState<QuickGuideTourDialog> {
                             children: [
                               Text(
                                 isLastPage
-                                    ? 'Explore WatchHive 🚀'
+                                    ? 'Explore WatchersHive 🚀'
                                     : 'Next Step',
                                 style: TextStyle(
                                   fontFamily: 'Inter',

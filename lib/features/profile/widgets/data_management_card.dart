@@ -124,11 +124,11 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
       try {
         decoded = jsonDecode(jsonString);
       } catch (_) {
-        throw Exception('Invalid JSON file. Please upload a valid WatchHive export file.');
+        throw Exception('Invalid JSON file. Please upload a valid WatchersHive export file.');
       }
 
       if (decoded is! Map<String, dynamic>) {
-        throw Exception('Invalid format. File must contain a valid WatchHive JSON export object.');
+        throw Exception('Invalid format. File must contain a valid WatchersHive JSON export object.');
       }
 
       final hasEntries = decoded.containsKey('entries') && decoded['entries'] is List;

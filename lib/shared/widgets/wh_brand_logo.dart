@@ -44,7 +44,7 @@ class WHBrandLogo extends StatelessWidget {
               text: TextSpan(
                 children: [
                   TextSpan(
-                    text: 'Watch',
+                    text: 'Watchers',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: fontSize,
