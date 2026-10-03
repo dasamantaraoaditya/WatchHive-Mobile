@@ -6,7 +6,7 @@ import '../../../core/utils/navigation_extensions.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   static final String webPrivacyPolicyUrl = WebUrls.privacyPolicy();
-  static const String contactEmail = 'privacy@watchhive.app';
+  static const String contactEmail = 'privacy@watchershive.com';
 
   const PrivacyPolicyScreen({super.key});
 
@@ -34,7 +34,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reach us at privacy@watchhive.app')),
+          const SnackBar(content: Text('Reach us at privacy@watchershive.com')),
         );
       }
     }

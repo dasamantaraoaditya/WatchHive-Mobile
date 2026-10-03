@@ -53,8 +53,8 @@ void main() {
     });
 
     test('static URLs and contact email are valid', () {
-      expect(PrivacyPolicyScreen.webPrivacyPolicyUrl, 'https://watchhive-web.vercel.app/watch-hive/privacy');
-      expect(PrivacyPolicyScreen.contactEmail, 'privacy@watchhive.app');
+      expect(PrivacyPolicyScreen.webPrivacyPolicyUrl, 'https://watchershive.com/watch-hive/privacy');
+      expect(PrivacyPolicyScreen.contactEmail, 'privacy@watchershive.com');
     });
   });
 }

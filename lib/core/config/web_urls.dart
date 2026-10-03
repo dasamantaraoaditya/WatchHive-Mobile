@@ -3,7 +3,7 @@ class WebUrls {
   WebUrls._();
 
   /// Canonical web base domain
-  static const String baseUrl = 'https://watchhive-web.vercel.app';
+  static const String baseUrl = 'https://watchershive.com';
 
   /// Deep link URL for a movie or TV show details page.
   /// Example: https://watchhive-web.vercel.app/watch-hive/details/movie/550
