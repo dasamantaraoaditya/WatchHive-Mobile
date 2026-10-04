@@ -10,6 +10,7 @@ import 'add_entry_sheet.dart';
 import '../widgets/suggestions_tab.dart';
 import '../widgets/watchlist_tab.dart';
 import '../widgets/wh_entry_grid_card.dart';
+import '../../feed/providers/feed_provider.dart';
 
 // ─── Providers ───────────────────────────────────────────────────────────────
 
@@ -230,7 +231,10 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
           const _EntriesListTab(isWatching: false),
           const WatchlistTab(),
           SuggestionsTab(
-            onTapMedia: (tmdbId, type) => context.push('/details/$type/$tmdbId'),
+            onTapMedia: (tmdbId, type, suggestor) => context.push(
+              '/details/$type/$tmdbId',
+              extra: suggestor != null ? {'suggestedByUser': suggestor, 'suggestedByUserId': suggestor.id} : null,
+            ),
           ),
         ],
       ),
@@ -415,6 +419,7 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
                   ref
                       .read(entriesProvider(!widget.isWatching).notifier)
                       .removeEntry(entry.id);
+                  ref.read(feedProvider.notifier).removeEntry(entry.id);
                   if (context.mounted) {
                     WHAlert.showSuccess(context, 'Deleted "${entry.title}"');
                   }

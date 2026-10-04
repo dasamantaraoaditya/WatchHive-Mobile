@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../shared/models/suggestion.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/suggestions_repository.dart';
 import 'suggestion_card.dart';
 
 class SuggestionsTab extends ConsumerStatefulWidget {
-  final Function(int tmdbId, String mediaType)? onTapMedia;
+  final Function(int tmdbId, String mediaType, User? suggestor)? onTapMedia;
 
   const SuggestionsTab({super.key, this.onTapMedia});
 

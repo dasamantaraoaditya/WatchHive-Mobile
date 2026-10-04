@@ -23,6 +23,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../widgets/suggest_movie_modal.dart';
 import '../repositories/watchlist_repository.dart';
 import '../../rankings/widgets/add_to_stack_sheet.dart';
+import '../../feed/providers/feed_provider.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -96,9 +97,15 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
           title: title,
         );
         if (mounted && entry != null) {
+          final effectiveEntry = (entry.suggestedByUser == null && widget.suggestedByUser != null)
+              ? entry.copyWith(
+                  suggestedByUser: widget.suggestedByUser,
+                  suggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id,
+                )
+              : entry;
           setState(() {
-            _loggedEntry = entry;
-            _authorUser = entry.user ?? currentUser;
+            _loggedEntry = effectiveEntry;
+            _authorUser = effectiveEntry.user ?? currentUser;
           });
         }
       } else if (currentUser != null && _loggedEntry!.userId != currentUser.id) {
@@ -267,6 +274,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       });
 
       ref.read(entriesProvider(true).notifier).addEntry(entry);
+      ref.read(feedProvider.notifier).prependEntry(entry);
 
       // Remove from watchlist if it was in watchlist
       if (_inWatchlist) {
@@ -335,6 +343,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       await ref.read(entriesRepositoryProvider).deleteEntry(entry.id);
       ref.read(entriesProvider(true).notifier).removeEntry(entry.id);
       ref.read(entriesProvider(false).notifier).removeEntry(entry.id);
+      ref.read(feedProvider.notifier).removeEntry(entry.id);
       if (mounted) {
         setState(() {
           if (_isMyEntry) {

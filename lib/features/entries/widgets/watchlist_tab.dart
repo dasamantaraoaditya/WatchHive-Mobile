@@ -12,6 +12,7 @@ import 'wh_entry_grid_card.dart';
 
 
 import '../../search/repositories/search_repository.dart';
+import '../../feed/providers/feed_provider.dart';
 
 class WatchlistTab extends ConsumerStatefulWidget {
   const WatchlistTab({super.key});
@@ -298,6 +299,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       });
 
       ref.read(entriesProvider(true).notifier).addEntry(entry);
+      ref.read(feedProvider.notifier).prependEntry(entry);
 
       await ref.read(watchlistRepositoryProvider).removeFromWatchlist(
         tmdbId > 0 ? tmdbId : itemId,

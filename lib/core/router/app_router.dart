@@ -160,18 +160,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           Entry? initialEntry;
           User? authorUser;
+          User? suggestedByUser;
+          String? suggestedByUserId;
           if (state.extra is Entry) {
             initialEntry = state.extra as Entry;
             authorUser = initialEntry.user;
+            suggestedByUser = initialEntry.suggestedByUser;
+            suggestedByUserId = initialEntry.suggestedByUserId;
           } else if (state.extra is Map) {
             final map = state.extra as Map;
             if (map['entry'] is Entry) {
               initialEntry = map['entry'] as Entry;
+              suggestedByUser = initialEntry.suggestedByUser;
+              suggestedByUserId = initialEntry.suggestedByUserId;
             }
             if (map['user'] is User) {
               authorUser = map['user'] as User;
             } else {
               authorUser = initialEntry?.user;
+            }
+            if (map['suggestedByUser'] is User) {
+              suggestedByUser = map['suggestedByUser'] as User;
+            }
+            if (map['suggestedByUserId'] is String) {
+              suggestedByUserId = map['suggestedByUserId'] as String;
             }
           }
           return MovieDetailsScreen(
@@ -179,6 +191,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             tmdbId: int.parse(state.pathParameters['tmdbId']!),
             initialEntry: initialEntry,
             authorUser: authorUser,
+            suggestedByUser: suggestedByUser,
+            suggestedByUserId: suggestedByUserId,
           );
         },
       ),

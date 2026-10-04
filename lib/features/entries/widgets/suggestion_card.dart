@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/models/suggestion.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
 import '../repositories/suggestions_repository.dart';
@@ -14,7 +15,7 @@ import '../../../core/utils/error_handler.dart';
 class SuggestionCard extends ConsumerStatefulWidget {
   final GroupedSuggestion group;
   final VoidCallback onRefresh;
-  final Function(int tmdbId, String mediaType)? onTapMedia;
+  final Function(int tmdbId, String mediaType, User? suggestor)? onTapMedia;
 
   const SuggestionCard({
     super.key,
@@ -252,7 +253,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       suggestedByAvatarUrl: firstSuggestor?.profilePictureUrl,
       suggestionComment: firstComment,
       suggestionCommentCount: suggestionsWithComments.length,
-      onTap: () => widget.onTapMedia?.call(tmdbId, mediaType),
+      onTap: () => widget.onTapMedia?.call(tmdbId, mediaType, firstSuggestor),
       onMoveToWatchingWithTitle: (resolvedTitle) => _handleAddToWatching(
         resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
       ),

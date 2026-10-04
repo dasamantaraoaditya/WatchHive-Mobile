@@ -14,6 +14,7 @@ import '../repositories/suggestions_repository.dart';
 import 'entries_screen.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../feed/providers/feed_provider.dart';
 
 class _LocationPreset {
   final String label;
@@ -396,10 +397,12 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         final updated = await ref.read(entriesRepositoryProvider).updateEntry(widget.editEntry!.id, data);
         ref.read(entriesProvider(true).notifier).updateEntry(updated);
         ref.read(entriesProvider(false).notifier).updateEntry(updated);
+        ref.read(feedProvider.notifier).updateEntry(updated);
       } else {
         final entry = await ref.read(entriesRepositoryProvider).createEntry(data);
         ref.read(entriesProvider(true).notifier).addEntry(entry);
         ref.read(entriesProvider(false).notifier).addEntry(entry);
+        ref.read(feedProvider.notifier).prependEntry(entry);
       }
       if (mounted) {
         widget.onSuccess?.call();

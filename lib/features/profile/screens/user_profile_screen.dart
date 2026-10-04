@@ -22,6 +22,7 @@ import '../widgets/user_rankings_tab.dart';
 import 'edit_profile_dialog.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
+import '../../feed/providers/feed_provider.dart';
 
 const _emptyEntriesResult = (
   entries: <Entry>[],
@@ -1471,6 +1472,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         'startedAt': DateTime.now().toIso8601String(),
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
       });
+
+      ref.read(feedProvider.notifier).prependEntry(entry);
 
       if (mounted) {
         ref.read(watchlistRepositoryProvider).removeFromWatchlist(

@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/error_handler.dart';
-import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
-import '../repositories/feed_repository.dart';
+import '../providers/feed_provider.dart';
 import '../widgets/comments_sheet.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../onboarding/services/tour_service.dart';
@@ -14,155 +13,7 @@ import '../../notifications/providers/notifications_provider.dart';
 import '../../../core/notifications/push_notification_service.dart';
 import '../widgets/wh_feed_card.dart';
 
-
-// Feed state
-class FeedState {
-  final List<Entry> entries;
-  final bool isLoading;
-  final bool isLoadingMore;
-  final bool hasMore;
-  final String? error;
-  final Set<String> likedEntryIds;
-
-  const FeedState({
-    this.entries = const [],
-    this.isLoading = false,
-    this.isLoadingMore = false,
-    this.hasMore = true,
-    this.error,
-    this.likedEntryIds = const {},
-  });
-
-  FeedState copyWith({
-    List<Entry>? entries,
-    bool? isLoading,
-    bool? isLoadingMore,
-    bool? hasMore,
-    String? error,
-    Set<String>? likedEntryIds,
-  }) =>
-      FeedState(
-        entries: entries ?? this.entries,
-        isLoading: isLoading ?? this.isLoading,
-        isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-        hasMore: hasMore ?? this.hasMore,
-        error: error,
-        likedEntryIds: likedEntryIds ?? this.likedEntryIds,
-      );
-}
-
-final feedProvider = StateNotifierProvider<FeedNotifier, FeedState>((ref) {
-  return FeedNotifier(ref.read(feedRepositoryProvider));
-});
-
-class FeedNotifier extends StateNotifier<FeedState> {
-  final FeedRepository _repo;
-  static const _pageSize = 20;
-
-  FeedNotifier(this._repo) : super(const FeedState()) {
-    loadFeed();
-  }
-
-  Future<void> loadFeed() async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final result = await _repo.getFeed(limit: _pageSize, offset: 0);
-      final initialLiked = result.entries.where((e) => e.isLiked).map((e) => e.id).toSet();
-      state = state.copyWith(
-        entries: result.entries,
-        likedEntryIds: initialLiked,
-        isLoading: false,
-        hasMore: result.pagination.hasMore,
-      );
-    } catch (e, stackTrace) {
-      debugPrint('Feed load error: $e');
-      debugPrint('Feed stack trace: $stackTrace');
-      state = state.copyWith(isLoading: false, error: AppErrorHandler.toUserFriendlyMessage(e));
-    }
-  }
-
-  Future<void> loadMore() async {
-    if (!state.hasMore || state.isLoadingMore) return;
-    state = state.copyWith(isLoadingMore: true);
-    try {
-      final result = await _repo.getFeed(limit: _pageSize, offset: state.entries.length);
-      final moreLiked = result.entries.where((e) => e.isLiked).map((e) => e.id);
-      state = state.copyWith(
-        entries: [...state.entries, ...result.entries],
-        likedEntryIds: {...state.likedEntryIds, ...moreLiked},
-        isLoadingMore: false,
-        hasMore: result.pagination.hasMore,
-      );
-    } catch (_) {
-      state = state.copyWith(isLoadingMore: false);
-    }
-  }
-
-  Future<void> toggleLike(String entryId) async {
-    final targetIndex = state.entries.indexWhere((e) => e.id == entryId);
-    if (targetIndex == -1) return;
-
-    final targetEntry = state.entries[targetIndex];
-    final wasLiked = state.likedEntryIds.contains(entryId) || targetEntry.isLiked;
-    final newIsLiked = !wasLiked;
-    final newLikesCount = newIsLiked
-        ? targetEntry.likesCount + (targetEntry.isLiked ? 0 : 1)
-        : (targetEntry.likesCount > 0 ? targetEntry.likesCount - (targetEntry.isLiked ? 1 : 0) : 0);
-
-    final updatedEntries = [...state.entries];
-    updatedEntries[targetIndex] = targetEntry.copyWith(
-      isLiked: newIsLiked,
-      likesCount: newLikesCount,
-    );
-
-    final newLiked = Set<String>.from(state.likedEntryIds);
-    if (newIsLiked) {
-      newLiked.add(entryId);
-    } else {
-      newLiked.remove(entryId);
-    }
-
-    state = state.copyWith(entries: updatedEntries, likedEntryIds: newLiked);
-
-    try {
-      if (wasLiked) {
-        await _repo.unlikeEntry(entryId);
-      } else {
-        await _repo.likeEntry(entryId);
-      }
-    } catch (_) {
-      // Revert on failure
-      final revertedEntries = [...state.entries];
-      revertedEntries[targetIndex] = targetEntry;
-      state = state.copyWith(
-        entries: revertedEntries,
-        likedEntryIds: Set<String>.from(state.likedEntryIds)..toggle(entryId),
-      );
-    }
-  }
-
-  void updateCommentsCount(String entryId, int newCount) {
-    final targetIndex = state.entries.indexWhere((e) => e.id == entryId);
-    if (targetIndex != -1) {
-      final updatedEntries = [...state.entries];
-      updatedEntries[targetIndex] = updatedEntries[targetIndex].copyWith(
-        commentsCount: newCount,
-        isCommented: newCount > 0,
-      );
-      state = state.copyWith(entries: updatedEntries);
-    }
-  }
-}
-
-extension on Set<String> {
-  void toggle(String value) {
-    if (contains(value)) {
-      remove(value);
-    } else {
-      add(value);
-    }
-  }
-}
+export '../providers/feed_provider.dart';
 
 // ─── Screen ─────────────────────────────────────────────────────────────────
 
@@ -173,7 +24,7 @@ class FeedScreen extends ConsumerStatefulWidget {
   ConsumerState<FeedScreen> createState() => _FeedScreenState();
 }
 
-class _FeedScreenState extends ConsumerState<FeedScreen> {
+class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObserver {
   final _scrollController = ScrollController();
   bool _hasCheckedTour = false;
   bool _hasSyncedPush = false;
@@ -181,7 +32,22 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
+
+    // Check if feed needs fresh data when arriving on feed screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(feedProvider.notifier).onArrivedAtFeed();
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.read(feedProvider.notifier).onArrivedAtFeed();
+    }
   }
 
   void _syncPushNotificationsOnce() {
@@ -224,6 +90,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   void _onScroll() {
+    final isNearTop = !_scrollController.hasClients || _scrollController.offset <= 80;
+    ref.read(feedProvider.notifier).setNearTop(isNearTop);
+
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 300) {
       ref.read(feedProvider.notifier).loadMore();
@@ -232,6 +101,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     super.dispose();
   }
@@ -246,122 +116,225 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       }
     });
 
+    // Listen to Home tab taps in bottom nav or external triggers to scroll to top & refresh
+    ref.listen<int>(feedRefreshTriggerProvider, (prev, next) {
+      if (next > (prev ?? 0)) {
+        if (_scrollController.hasClients && _scrollController.offset > 0) {
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+          );
+        }
+        ref.read(feedProvider.notifier).loadFeed(isRefresh: true);
+      }
+    });
+
     _checkTourOnce();
     _syncPushNotificationsOnce();
 
     final feedState = ref.watch(feedProvider);
     final currentUser = ref.watch(authStateProvider).value?.user;
+    final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          SliverAppBar(
-            floating: true,
-            title: const WHBrandLogo(logoSize: 30, fontSize: 21),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
-                tooltip: 'Quick Guide Tour',
-                onPressed: () {
-                  final user = ref.read(authStateProvider).value?.user;
-                  QuickGuideTourDialog.show(
-                    context,
-                    userId: user?.id ?? 'guest',
-                    isReplay: true,
-                  );
-                },
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            color: Colors.black,
+            backgroundColor: AppColors.primary,
+            edgeOffset: topPadding + kToolbarHeight,
+            onRefresh: () async {
+              HapticFeedback.lightImpact();
+              await ref.read(feedProvider.notifier).loadFeed(isRefresh: true);
+            },
+            child: CustomScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-              IconButton(
-                icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),
-                tooltip: 'MindLens AI',
-                onPressed: () => context.push('/mindlens'),
-              ),
-              IconButton(
-                icon: Consumer(
-                  builder: (context, ref, child) {
-                    final unreadCount = ref.watch(unreadNotificationsCountProvider);
-                    return Badge(
-                      isLabelVisible: unreadCount > 0,
-                      backgroundColor: AppColors.primary,
-                      textColor: Colors.black,
-                      label: Text(
-                        unreadCount > 99 ? '99+' : unreadCount.toString(),
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                        ),
+              slivers: [
+                SliverAppBar(
+                  floating: true,
+                  title: const WHBrandLogo(logoSize: 30, fontSize: 21),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+                      tooltip: 'Quick Guide Tour',
+                      onPressed: () {
+                        final user = ref.read(authStateProvider).value?.user;
+                        QuickGuideTourDialog.show(
+                          context,
+                          userId: user?.id ?? 'guest',
+                          isReplay: true,
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),
+                      tooltip: 'MindLens AI',
+                      onPressed: () => context.push('/mindlens'),
+                    ),
+                    IconButton(
+                      icon: Consumer(
+                        builder: (context, ref, child) {
+                          final unreadCount = ref.watch(unreadNotificationsCountProvider);
+                          return Badge(
+                            isLabelVisible: unreadCount > 0,
+                            backgroundColor: AppColors.primary,
+                            textColor: Colors.black,
+                            label: Text(
+                              unreadCount > 99 ? '99+' : unreadCount.toString(),
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            child: const Icon(Icons.notifications_outlined),
+                          );
+                        },
                       ),
-                      child: const Icon(Icons.notifications_outlined),
-                    );
+                      tooltip: 'Notifications',
+                      onPressed: () => context.push('/notifications'),
+                    ),
+                  ],
+                ),
+                if (feedState.isLoading && feedState.entries.isEmpty)
+                  const SliverToBoxAdapter(child: WHSkeletonFeed(itemCount: 3))
+                else if (feedState.error != null && feedState.entries.isEmpty)
+                  SliverFillRemaining(
+                    child: _ErrorFeed(
+                      errorMessage: feedState.error!,
+                      onRefresh: () => ref.read(feedProvider.notifier).loadFeed(isRefresh: true),
+                    ),
+                  )
+                else if (feedState.entries.isEmpty)
+                  SliverFillRemaining(
+                    child: _EmptyFeed(
+                      onRefresh: () => ref.read(feedProvider.notifier).loadFeed(isRefresh: true),
+                    ),
+                  )
+                else ...[
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    sliver: SliverList.builder(
+                      itemCount: feedState.entries.length + (feedState.isLoadingMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == feedState.entries.length) {
+                          return const WHSkeletonFeedFooter();
+                        }
+                        final entry = feedState.entries[index];
+                        final isLiked = feedState.likedEntryIds.contains(entry.id) || entry.isLiked;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: WHFeedCard(
+                            entry: entry,
+                            isLiked: isLiked,
+                            isOwnEntry: currentUser?.id == entry.userId,
+                            onLike: () => ref.read(feedProvider.notifier).toggleLike(entry.id),
+                            onCommentTap: () => CommentsSheet.show(
+                              context,
+                              entryId: entry.id,
+                              entryTitle: entry.title,
+                              entryAuthorId: entry.userId,
+                              onCommentCountChanged: (count) => ref.read(feedProvider.notifier).updateCommentsCount(entry.id, count),
+                            ),
+                            onUserTap: () {
+                              final targetId = (entry.user?.id != null && entry.user!.id.isNotEmpty)
+                                  ? entry.user!.id
+                                  : entry.userId;
+                              if (targetId.isNotEmpty) {
+                                context.push('/profile/$targetId');
+                              }
+                            },
+                            onMediaTap: () => context.push(
+                              '/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}',
+                              extra: entry,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (feedState.newPostsCount > 0)
+            Positioned(
+              top: topPadding + kToolbarHeight + 8,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: _NewPostsPill(
+                  count: feedState.newPostsCount,
+                  onTap: () {
+                    if (_scrollController.hasClients) {
+                      _scrollController.animateTo(
+                        0,
+                        duration: const Duration(milliseconds: 320),
+                        curve: Curves.easeOutCubic,
+                      );
+                    }
+                    ref.read(feedProvider.notifier).applyPendingEntries();
                   },
                 ),
-                tooltip: 'Notifications',
-                onPressed: () => context.push('/notifications'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NewPostsPill extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+
+  const _NewPostsPill({
+    required this.count,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          if (feedState.isLoading)
-            const SliverToBoxAdapter(child: WHSkeletonFeed(itemCount: 3))
-          else if (feedState.error != null && feedState.entries.isEmpty)
-            SliverFillRemaining(
-              child: _ErrorFeed(
-                errorMessage: feedState.error!,
-                onRefresh: () => ref.read(feedProvider.notifier).loadFeed(),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.arrow_upward_rounded, size: 16, color: Colors.black),
+              const SizedBox(width: 8),
+              Text(
+                '$count new update${count > 1 ? 's' : ''} available',
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black,
+                ),
               ),
-            )
-          else if (feedState.entries.isEmpty)
-            SliverFillRemaining(
-              child: _EmptyFeed(
-                onRefresh: () => ref.read(feedProvider.notifier).loadFeed(),
-              ),
-            )
-          else ...[
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              sliver: SliverList.builder(
-                itemCount: feedState.entries.length + (feedState.isLoadingMore ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index == feedState.entries.length) {
-                    return const WHSkeletonFeedFooter();
-                  }
-                  final entry = feedState.entries[index];
-                  final isLiked = feedState.likedEntryIds.contains(entry.id) || entry.isLiked;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: WHFeedCard(
-                      entry: entry,
-                      isLiked: isLiked,
-                      isOwnEntry: currentUser?.id == entry.userId,
-                      onLike: () => ref.read(feedProvider.notifier).toggleLike(entry.id),
-                      onCommentTap: () => CommentsSheet.show(
-                        context,
-                        entryId: entry.id,
-                        entryTitle: entry.title,
-                        entryAuthorId: entry.userId,
-                        onCommentCountChanged: (count) => ref.read(feedProvider.notifier).updateCommentsCount(entry.id, count),
-                      ),
-                      onUserTap: () {
-                        final targetId = (entry.user?.id != null && entry.user!.id.isNotEmpty)
-                            ? entry.user!.id
-                            : entry.userId;
-                        if (targetId.isNotEmpty) {
-                          context.push('/profile/$targetId');
-                        }
-                      },
-                      onMediaTap: () => context.push(
-                        '/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}',
-                        extra: entry,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -459,4 +432,3 @@ class _EmptyFeed extends StatelessWidget {
     );
   }
 }
-

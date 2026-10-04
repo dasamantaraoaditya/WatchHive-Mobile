@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/router/navigation_history_manager.dart';
+import '../../features/feed/providers/feed_provider.dart';
 
 import 'wh_quick_add_fab.dart';
 
@@ -27,10 +28,17 @@ class _AppShellState extends ConsumerState<AppShell> {
   ];
 
   void _onItemTapped(int index) {
-    if (_currentIndex == index) return;
+    if (_currentIndex == index) {
+      if (index == 0) {
+        // Tapping Home while already on Home scrolls to top and triggers refresh!
+        ref.read(feedRefreshTriggerProvider.notifier).state++;
+      }
+      return;
+    }
     final targetRoute = _navItems[index].route;
     if (targetRoute == '/feed') {
       ref.read(navigationHistoryProvider).clear();
+      ref.read(feedProvider.notifier).onArrivedAtFeed();
     }
     setState(() => _currentIndex = index);
     context.go(targetRoute);
@@ -49,10 +57,14 @@ class _AppShellState extends ConsumerState<AppShell> {
     _currentIndex = _routeToIndex(location);
 
     if (_lastRecordedRoute != location) {
+      final prev = _lastRecordedRoute;
       _lastRecordedRoute = location;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           ref.read(navigationHistoryProvider).recordLocation(location);
+          if (location == '/feed' && prev != null && prev != '/feed') {
+            ref.read(feedProvider.notifier).onArrivedAtFeed();
+          }
         }
       });
     }
