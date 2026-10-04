@@ -6,7 +6,6 @@ import 'package:watchhive_mobile/shared/models/entry.dart';
 import 'package:watchhive_mobile/shared/models/models.dart';
 import 'package:watchhive_mobile/shared/models/user.dart';
 import 'package:watchhive_mobile/features/feed/repositories/feed_repository.dart';
-import 'package:watchhive_mobile/features/feed/providers/feed_provider.dart';
 import 'package:watchhive_mobile/features/feed/screens/feed_screen.dart';
 
 class _FakeFeedRepo implements FeedRepository {
