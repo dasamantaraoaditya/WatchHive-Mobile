@@ -449,44 +449,74 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     final overview = _selectedMedia?.overview ?? _mediaDetails?['overview'] as String?;
     final hasSelectedMedia = _tmdbId > 0 || _selectedMedia != null || isEditing;
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.border, width: 0.8)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.hive_rounded, color: AppColors.primary, size: 20),
+    return SafeArea(
+      bottom: false,
+      minimum: const EdgeInsets.only(top: 8),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 8, bottom: 4),
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isEditing ? 'Edit Watch Entry ✨' : (_isWatching ? 'Track What You\'re Watching 👁️' : 'Log a Watch to Hive 🐝'),
-                        style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text('Record your cinematic rating, thoughts & review', style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.textMuted)),
-                    ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 8, 16, 12),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.border, width: 0.8)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.hive_rounded, color: AppColors.primary, size: 20),
                   ),
-                ),
-                IconButton(icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 22), onPressed: () => Navigator.of(context).pop()),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isEditing ? 'Edit Watch Entry ✨' : (_isWatching ? 'Track What You\'re Watching 👁️' : 'Log a Watch to Hive 🐝'),
+                          style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text('Record your cinematic rating, thoughts & review', style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.textMuted)),
+                      ],
+                    ),
+                  ),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceElevated,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border, width: 0.8),
+                        ),
+                        child: const Icon(Icons.close_rounded, color: AppColors.textPrimary, size: 18),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
           Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -841,23 +871,108 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            decoration: const BoxDecoration(color: AppColors.surface, border: Border(top: BorderSide(color: AppColors.border, width: 0.8))),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border(top: BorderSide(color: AppColors.border, width: 0.8)),
+            ),
             child: SafeArea(
               top: false,
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _save,
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, elevation: 4, shadowColor: AppColors.primary.withValues(alpha: 0.4), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                  child: _isLoading ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black)) : Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(isEditing ? Icons.save_rounded : Icons.hive_rounded, color: Colors.black, size: 20), const SizedBox(width: 8), Text(isEditing ? 'Save Changes ✨' : (_isWatching ? 'Track Currently Watching 👁️' : 'Log to Your Hive 🐝🎬'), style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black, letterSpacing: 0.2))]),
-                ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    height: 52,
+                    child: OutlinedButton(
+                      onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: AppColors.surfaceElevated,
+                        foregroundColor: AppColors.textPrimary,
+                        side: const BorderSide(color: AppColors.border, width: 1.2),
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.close_rounded, size: 18, color: AppColors.textSecondary),
+                          SizedBox(width: 6),
+                          Text(
+                            'Close',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _save,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          elevation: 4,
+                          shadowColor: AppColors.primary.withValues(alpha: 0.4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.black,
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    isEditing ? Icons.save_rounded : Icons.hive_rounded,
+                                    color: Colors.black,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      isEditing
+                                          ? 'Save Changes ✨'
+                                          : (_isWatching
+                                              ? 'Track Watching 👁️'
+                                              : 'Log to Hive 🐝🎬'),
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.black,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ],
       ),
+    ),
     );
   }
 }

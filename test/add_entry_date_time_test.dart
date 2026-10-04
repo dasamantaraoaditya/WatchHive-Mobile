@@ -83,5 +83,57 @@ void main() {
       expect(find.text(DateFormat('MMM dd, yyyy').format(specificDate)), findsOneWidget);
       expect(find.text(DateFormat('h:mm a').format(specificDate)), findsOneWidget);
     });
+
+    testWidgets('renders friendly Close button beside Save Changes and dismisses sheet on tap', (tester) async {
+      final mockEntry = Entry(
+        id: 'entry-123',
+        userId: 'user-1',
+        tmdbId: 0,
+        title: 'Interstellar',
+        type: 'MOVIE',
+        watchedAt: DateTime.now(),
+        createdAt: DateTime.now(),
+      );
+
+      bool sheetDismissed = false;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: ElevatedButton(
+                  onPressed: () async {
+                    await showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) => AddEntrySheet(editEntry: mockEntry),
+                    );
+                    sheetDismissed = true;
+                  },
+                  child: const Text('Open Sheet'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Open the sheet
+      await tester.tap(find.text('Open Sheet'));
+      await tester.pumpAndSettle();
+
+      // Verify Save Changes button and friendly Close button are both visible
+      expect(find.text('Save Changes ✨'), findsOneWidget);
+      expect(find.text('Close'), findsOneWidget);
+
+      // Tap the friendly Close button
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+
+      // Verify the sheet closed
+      expect(sheetDismissed, isTrue);
+      expect(find.text('Save Changes ✨'), findsNothing);
+    });
   });
 }

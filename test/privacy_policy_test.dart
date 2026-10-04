@@ -54,7 +54,7 @@ void main() {
 
     test('static URLs and contact email are valid', () {
       expect(PrivacyPolicyScreen.webPrivacyPolicyUrl, 'https://watchershive.com/watch-hive/privacy');
-      expect(PrivacyPolicyScreen.contactEmail, 'privacy@watchershive.com');
+      expect(PrivacyPolicyScreen.contactEmail, 'watchershive@gmail.com');
     });
   });
 }
