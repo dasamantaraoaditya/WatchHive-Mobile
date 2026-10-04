@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -32,7 +33,9 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen>
     with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
+  final _focusNode = FocusNode();
   late final TabController _tabController;
+  Timer? _debounceTimer;
 
   List<MediaResult> _mediaResults = [];
   List<User> _userResults = [];
@@ -52,6 +55,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadInitialDiscovery();
+    _focusNode.addListener(() {
+      if (mounted) setState(() {});
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _focusNode.requestFocus();
+      }
+    });
   }
 
   Future<void> _loadInitialDiscovery() async {
@@ -116,19 +127,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
     }
   }
 
-  Future<void> _search(String query) async {
+  void _onQueryChanged(String query) {
     setState(() {
       _query = query;
-      _mediaResults = [];
-      _userResults = [];
     });
-    if (query.trim().length < 2) return;
 
+    _debounceTimer?.cancel();
+
+    if (query.trim().length < 2) {
+      setState(() {
+        _mediaResults = [];
+        _userResults = [];
+        _isSearching = false;
+      });
+      return;
+    }
+
+    setState(() => _isSearching = true);
+
+    _debounceTimer = Timer(const Duration(seconds: 2), () {
+      _executeSearch(query.trim());
+    });
+  }
+
+  Future<void> _executeSearch(String trimmedQuery) async {
+    if (!mounted) return;
     setState(() => _isSearching = true);
     try {
       final futures = await Future.wait([
-        ref.read(searchRepositoryProvider).searchMedia(query.trim()),
-        ref.read(searchRepositoryProvider).searchUsers(query.trim()),
+        ref.read(searchRepositoryProvider).searchMedia(trimmedQuery),
+        ref.read(searchRepositoryProvider).searchUsers(trimmedQuery),
       ]);
       if (mounted) {
         setState(() {
@@ -143,11 +171,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   }
 
   void _onSubmittedSearch(String query) {
-    if (query.trim().isNotEmpty) {
-      ref.read(searchRepositoryProvider).addRecentSearch(query.trim());
+    _debounceTimer?.cancel();
+    final trimmed = query.trim();
+    if (trimmed.isNotEmpty) {
+      ref.read(searchRepositoryProvider).addRecentSearch(trimmed);
       _loadRecentSearches();
     }
-    _search(query);
+    if (trimmed.length >= 2) {
+      _executeSearch(trimmed);
+    }
   }
 
   void _selectSearchTerm(String term) {
@@ -155,12 +187,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
     _searchController.selection = TextSelection.fromPosition(
       TextPosition(offset: term.length),
     );
+    setState(() {
+      _query = term;
+    });
     _onSubmittedSearch(term);
+    _focusNode.requestFocus();
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
+    _focusNode.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -174,86 +212,220 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         if (_query.trim().isNotEmpty) {
+          _debounceTimer?.cancel();
           _searchController.clear();
-          _search('');
+          _onQueryChanged('');
+          _focusNode.requestFocus();
         }
       },
       child: Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: TextField(
-          controller: _searchController,
-          onChanged: _search,
-          onSubmitted: _onSubmittedSearch,
-          autofocus: false,
-          style: const TextStyle(fontFamily: 'Inter', fontSize: 15, color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            hintText: 'Search movies, TV shows, cinephiles...',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-            prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted),
-            suffixIcon: _query.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear_rounded, color: AppColors.textMuted),
-                    onPressed: () {
-                      _searchController.clear();
-                      _search('');
-                    },
-                  )
-                : null,
-            contentPadding: const EdgeInsets.symmetric(vertical: 10),
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  showResults ? Icons.search_rounded : Icons.explore_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  showResults ? 'Results for "$_query"' : 'Explore & Search',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        bottom: showResults
-            ? TabBar(
-                controller: _tabController,
-                indicatorColor: AppColors.primary,
-                labelColor: AppColors.primary,
-                unselectedLabelColor: AppColors.textMuted,
-                tabs: [
-                  Tab(text: 'Media (${_mediaResults.length})'),
-                  Tab(text: 'People (${_userResults.length})'),
-                ],
-              )
-            : null,
-      ),
-      body: showResults
-          ? TabBarView(
-              controller: _tabController,
-              children: [
-                _isSearching
-                    ? const WHSkeletonMediaSearchList(count: 6)
-                    : _MediaResultsList(
-                        results: _mediaResults,
-                        onSelectMedia: (m) => ref.read(searchRepositoryProvider).addRecentSearch(m.title),
-                      ),
-                _isSearching
-                    ? const WHSkeletonUserList(count: 6)
-                    : _UserResultsList(
-                        users: _userResults,
-                        onSelectUser: (u) => ref.read(searchRepositoryProvider).addRecentSearch(u.username),
-                      ),
-              ],
-            )
-          : _DiscoveryView(
-              discoveryMedia: _discoveryMedia,
-              suggestedUsers: _suggestedUsers,
-              communityBuzz: _communityBuzz,
-              recentSearches: _recentSearches,
-              selectedFilter: _selectedFilter,
-              isDiscoveryLoading: _isDiscoveryLoading,
-              isSuggestedUsersLoading: _isSuggestedUsersLoading,
-              onFilterChanged: _loadDiscoveryMedia,
-              onRefreshUsers: _loadSuggestedUsers,
-              onSelectRecentSearch: _selectSearchTerm,
-              onRemoveRecentSearch: (query) async {
-                await ref.read(searchRepositoryProvider).removeRecentSearch(query);
-                _loadRecentSearches();
-              },
-              onClearRecentSearches: () async {
-                await ref.read(searchRepositoryProvider).clearRecentSearches();
-                _loadRecentSearches();
-              },
+        body: Column(
+          children: [
+            Expanded(
+              child: showResults
+                  ? Column(
+                      children: [
+                        Container(
+                          decoration: const BoxDecoration(
+                            color: AppColors.background,
+                            border: Border(
+                              bottom: BorderSide(color: AppColors.border, width: 0.8),
+                            ),
+                          ),
+                          child: TabBar(
+                            controller: _tabController,
+                            indicatorColor: AppColors.primary,
+                            indicatorWeight: 3,
+                            labelColor: AppColors.primary,
+                            unselectedLabelColor: AppColors.textMuted,
+                            labelStyle: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                            ),
+                            tabs: [
+                              Tab(text: 'Media (${_mediaResults.length})'),
+                              Tab(text: 'People (${_userResults.length})'),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: [
+                              _isSearching
+                                  ? const WHSkeletonMediaSearchList(count: 6)
+                                  : _MediaResultsList(
+                                      results: _mediaResults,
+                                      onSelectMedia: (m) => ref
+                                          .read(searchRepositoryProvider)
+                                          .addRecentSearch(m.title),
+                                    ),
+                              _isSearching
+                                  ? const WHSkeletonUserList(count: 6)
+                                  : _UserResultsList(
+                                      users: _userResults,
+                                      onSelectUser: (u) => ref
+                                          .read(searchRepositoryProvider)
+                                          .addRecentSearch(u.username),
+                                    ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : _DiscoveryView(
+                      discoveryMedia: _discoveryMedia,
+                      suggestedUsers: _suggestedUsers,
+                      communityBuzz: _communityBuzz,
+                      recentSearches: _recentSearches,
+                      selectedFilter: _selectedFilter,
+                      isDiscoveryLoading: _isDiscoveryLoading,
+                      isSuggestedUsersLoading: _isSuggestedUsersLoading,
+                      onFilterChanged: _loadDiscoveryMedia,
+                      onRefreshUsers: _loadSuggestedUsers,
+                      onSelectRecentSearch: _selectSearchTerm,
+                      onRemoveRecentSearch: (query) async {
+                        await ref
+                            .read(searchRepositoryProvider)
+                            .removeRecentSearch(query);
+                        _loadRecentSearches();
+                      },
+                      onClearRecentSearches: () async {
+                        await ref
+                            .read(searchRepositoryProvider)
+                            .clearRecentSearches();
+                        _loadRecentSearches();
+                      },
+                    ),
             ),
+            _buildBottomSearchBox(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomSearchBox() {
+    final hasFocus = _focusNode.hasFocus;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: const Border(
+          top: BorderSide(color: AppColors.border, width: 0.8),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: hasFocus ? AppColors.primary : AppColors.border,
+              width: hasFocus ? 1.4 : 1.0,
+            ),
+          ),
+          child: TextField(
+            controller: _searchController,
+            focusNode: _focusNode,
+            autofocus: true,
+            onChanged: _onQueryChanged,
+            onSubmitted: _onSubmittedSearch,
+            textInputAction: TextInputAction.search,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Search movies, TV shows, cinephiles...',
+              hintStyle: const TextStyle(
+                fontFamily: 'Inter',
+                color: AppColors.textMuted,
+                fontSize: 14,
+              ),
+              border: InputBorder.none,
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                color: hasFocus ? AppColors.primary : AppColors.textMuted,
+                size: 22,
+              ),
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_isSearching)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  if (_query.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(Icons.clear_rounded, color: AppColors.textMuted, size: 20),
+                      onPressed: () {
+                        _debounceTimer?.cancel();
+                        _searchController.clear();
+                        _onQueryChanged('');
+                        _focusNode.requestFocus();
+                      },
+                    ),
+                ],
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -558,7 +730,7 @@ class _DiscoveryView extends StatelessWidget {
           else
             SliverToBoxAdapter(
               child: SizedBox(
-                height: 148,
+                height: 156,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -811,7 +983,7 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
       child: Container(
         width: 140,
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(18),

@@ -79,7 +79,7 @@ class _AppShellState extends ConsumerState<AppShell> {
         body: Stack(
           children: [
             widget.child,
-            const WHQuickAddFAB(),
+            if (location != '/search') const WHQuickAddFAB(),
           ],
         ),
       bottomNavigationBar: Container(

@@ -1038,7 +1038,7 @@ class WHSkeletonSuggestedUsersHorizontal extends StatelessWidget {
   Widget build(BuildContext context) {
     return WHSkeleton(
       child: SizedBox(
-        height: 148,
+        height: 156,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
