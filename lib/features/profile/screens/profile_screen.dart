@@ -14,6 +14,7 @@ import '../widgets/profile_stats_view.dart';
 import '../widgets/compare_picker_modal.dart';
 import '../widgets/data_management_card.dart';
 import 'edit_profile_dialog.dart';
+import '../widgets/avatar_viewer_dialog.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/notifications/push_notification_service.dart';
 import '../../notifications/repositories/push_repository.dart';
@@ -650,7 +651,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
               Stack(
                 children: [
                   GestureDetector(
-                    onTap: _pickAndUploadAvatar,
+                    onTap: () {
+                      AvatarViewerDialog.show(
+                        context,
+                        imageUrl: user.profilePictureUrl,
+                        name: user.name,
+                        username: user.username,
+                      );
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(

@@ -20,6 +20,7 @@ import '../repositories/user_repository.dart';
 import '../widgets/follow_list_sheet.dart';
 import '../widgets/user_rankings_tab.dart';
 import 'edit_profile_dialog.dart';
+import '../widgets/avatar_viewer_dialog.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
 import '../../feed/providers/feed_provider.dart';
@@ -790,10 +791,27 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           // Avatar & User Info
           Row(
             children: [
-              WHAvatar(
-                imageUrl: user.profilePictureUrl,
-                name: user.name,
-                radius: 36,
+              GestureDetector(
+                onTap: () {
+                  AvatarViewerDialog.show(
+                    context,
+                    imageUrl: user.profilePictureUrl,
+                    name: user.name,
+                    username: user.username,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primary, width: 2),
+                  ),
+                  child: WHAvatar(
+                    imageUrl: user.profilePictureUrl,
+                    name: user.name,
+                    radius: 36,
+                  ),
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
