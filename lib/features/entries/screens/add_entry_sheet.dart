@@ -277,11 +277,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       lastDate: maxDate,
       builder: (context, child) {
         return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
               primary: AppColors.primary,
               onPrimary: Colors.black,
-              surface: AppColors.surfaceElevated,
+              surface: AppColors.surface,
               onSurface: AppColors.textPrimary,
             ),
             dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
@@ -300,11 +300,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       initialTime: initialTime,
       builder: (context, child) {
         return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
               primary: AppColors.primary,
               onPrimary: Colors.black,
-              surface: AppColors.surfaceElevated,
+              surface: AppColors.surface,
               onSurface: AppColors.textPrimary,
             ),
             dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
@@ -345,11 +345,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       initialTime: initialTime,
       builder: (context, child) {
         return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
               primary: AppColors.primary,
               onPrimary: Colors.black,
-              surface: AppColors.surfaceElevated,
+              surface: AppColors.surface,
               onSurface: AppColors.textPrimary,
             ),
             dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
