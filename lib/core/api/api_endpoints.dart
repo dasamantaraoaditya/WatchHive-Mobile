@@ -29,12 +29,36 @@ class ApiEndpoints {
   }
 
   static String resolveAvatarUrl(String? path) {
-    if (path == null || path.isEmpty) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    if (path == null || path.trim().isEmpty) return '';
+    final trimmed = path.trim();
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      final avatarMatch = RegExp(r'avatars/([^?&#]+)').firstMatch(trimmed);
+      if (avatarMatch != null && (trimmed.contains('storageapi.dev') || trimmed.contains('amazonaws.com') || trimmed.contains('railway.app'))) {
+        final filename = avatarMatch.group(1);
+        final cleanBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+        return '$cleanBase/avatars/$filename';
+      }
+      return trimmed;
+    }
+
+    String filename = trimmed;
+    if (filename.startsWith('/uploads/avatars/')) {
+      filename = filename.replaceFirst('/uploads/avatars/', '');
+    } else if (filename.startsWith('uploads/avatars/')) {
+      filename = filename.replaceFirst('uploads/avatars/', '');
+    } else if (filename.startsWith('/uploads/')) {
+      filename = filename.replaceFirst('/uploads/', '');
+    } else if (filename.startsWith('avatars/')) {
+      filename = filename.replaceFirst('avatars/', '');
+    } else if (filename.startsWith('/avatars/')) {
+      filename = filename.replaceFirst('/avatars/', '');
+    } else if (filename.startsWith('/')) {
+      filename = filename.substring(1);
+    }
+
     final cleanBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
-    final rootOrigin = cleanBase.contains('/api/v1') ? cleanBase.replaceAll('/api/v1', '') : cleanBase;
-    final cleanPath = path.startsWith('/') ? path : '/$path';
-    return '$rootOrigin$cleanPath';
+    return '$cleanBase/avatars/$filename';
   }
 
   // Auth

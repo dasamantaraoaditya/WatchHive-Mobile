@@ -69,16 +69,7 @@ class WHAvatar extends StatelessWidget {
 
   const WHAvatar({super.key, this.imageUrl, this.name, this.radius = 20});
 
-  @override
-  Widget build(BuildContext context) {
-    final resolvedUrl = ApiEndpoints.resolveAvatarUrl(imageUrl);
-    if (resolvedUrl.isNotEmpty) {
-      return CircleAvatar(
-        radius: radius,
-        backgroundImage: CachedNetworkImageProvider(resolvedUrl),
-        backgroundColor: AppColors.surfaceElevated,
-      );
-    }
+  Widget _buildFallback() {
     return CircleAvatar(
       radius: radius,
       backgroundColor: AppColors.primary.withValues(alpha: 0.2),
@@ -92,6 +83,24 @@ class WHAvatar extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedUrl = ApiEndpoints.resolveAvatarUrl(imageUrl);
+    if (resolvedUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: resolvedUrl,
+        imageBuilder: (context, imageProvider) => CircleAvatar(
+          radius: radius,
+          backgroundImage: imageProvider,
+          backgroundColor: AppColors.surfaceElevated,
+        ),
+        placeholder: (context, url) => _buildFallback(),
+        errorWidget: (context, url, error) => _buildFallback(),
+      );
+    }
+    return _buildFallback();
   }
 }
 
