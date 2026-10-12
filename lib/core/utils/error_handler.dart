@@ -70,6 +70,12 @@ class AppErrorHandler {
         final statusCode = response?.statusCode;
         final path = dioError.requestOptions.path.toLowerCase();
 
+        // Try extracting backend error message first
+        final backendMessage = _extractBackendMessage(response?.data);
+        if (backendMessage != null && backendMessage.isNotEmpty) {
+          return backendMessage;
+        }
+
         // If it's a 404, provide contextual, graceful message
         if (statusCode == 404) {
           if (path.contains('/entries') || path.contains('/entry')) {
@@ -99,12 +105,6 @@ class AppErrorHandler {
           );
         }
 
-        // Try extracting backend error message
-        final backendMessage = _extractBackendMessage(response?.data);
-        if (backendMessage != null && backendMessage.isNotEmpty) {
-          return backendMessage;
-        }
-
         if (statusCode != null) {
           if (statusCode == 400) {
             return _formatWithAction('Invalid request details. Please check and try again.', action: action);
@@ -121,7 +121,7 @@ class AppErrorHandler {
           } else if (statusCode == 429) {
             return 'Too many requests. Please slow down and try again in a few seconds.';
           } else if (statusCode >= 500) {
-            return 'Our hive is experiencing high traffic. Please try again shortly.';
+            return 'Our hive is temporarily unavailable due to high traffic. Please try again shortly.';
           }
         }
         break;
