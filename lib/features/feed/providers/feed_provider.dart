@@ -109,8 +109,8 @@ class FeedNotifier extends StateNotifier<FeedState> {
     final lastFetch = state.lastFetchedAt;
     final isStale = state.isStale;
 
-    // Refresh automatically if never fetched, marked stale, or fetched > 30 seconds ago
-    if (lastFetch == null || isStale || now.difference(lastFetch) > const Duration(seconds: 30)) {
+    // Refresh automatically if never fetched, marked stale, or fetched > 15 seconds ago
+    if (lastFetch == null || isStale || now.difference(lastFetch) > const Duration(seconds: 15)) {
       loadFeed(isSilent: state.entries.isNotEmpty);
     }
   }
@@ -119,13 +119,18 @@ class FeedNotifier extends StateNotifier<FeedState> {
     state = state.copyWith(isStale: true);
   }
 
-  /// Instantly prepends a freshly created entry at index 0 of the feed.
+  /// Instantly prepends a freshly created entry at index 0 of the feed if not imported.
   void prependEntry(Entry entry) {
+    if (entry.isImported || entry.tags.contains('imported')) {
+      // Imported history or bulk CSV imports must never flood the community feed
+      return;
+    }
     if (state.entries.any((e) => e.id == entry.id)) {
       updateEntry(entry);
       return;
     }
-    final updatedEntries = [entry, ...state.entries];
+    final updatedEntries = [entry, ...state.entries]
+      ..sort((a, b) => b.activityDate.compareTo(a.activityDate));
     final updatedLiked = Set<String>.from(state.likedEntryIds);
     if (entry.isLiked) updatedLiked.add(entry.id);
 
@@ -144,10 +149,15 @@ class FeedNotifier extends StateNotifier<FeedState> {
   }
 
   void updateEntry(Entry updated) {
+    if (updated.isImported || updated.tags.contains('imported')) {
+      removeEntry(updated.id);
+      return;
+    }
     final targetIndex = state.entries.indexWhere((e) => e.id == updated.id);
     if (targetIndex != -1) {
       final updatedEntries = [...state.entries];
       updatedEntries[targetIndex] = updated;
+      updatedEntries.sort((a, b) => b.activityDate.compareTo(a.activityDate));
       state = state.copyWith(entries: updatedEntries);
     }
   }
@@ -164,7 +174,10 @@ class FeedNotifier extends StateNotifier<FeedState> {
 
     try {
       final result = await _repo.getFeed(limit: _pageSize, offset: 0);
-      final incoming = result.entries;
+      final incoming = result.entries
+          .where((e) => !e.isImported && !e.tags.contains('imported'))
+          .toList()
+        ..sort((a, b) => b.activityDate.compareTo(a.activityDate));
       final initialLiked = incoming.where((e) => e.isLiked).map((e) => e.id).toSet();
 
       // If silent refresh and user is scrolled down into feed, don't disorient them:
@@ -214,9 +227,14 @@ class FeedNotifier extends StateNotifier<FeedState> {
     state = state.copyWith(isLoadingMore: true);
     try {
       final result = await _repo.getFeed(limit: _pageSize, offset: state.entries.length);
-      final moreLiked = result.entries.where((e) => e.isLiked).map((e) => e.id);
+      final moreEntries = result.entries
+          .where((e) => !e.isImported && !e.tags.contains('imported'))
+          .toList();
+      final combined = [...state.entries, ...moreEntries]
+        ..sort((a, b) => b.activityDate.compareTo(a.activityDate));
+      final moreLiked = moreEntries.where((e) => e.isLiked).map((e) => e.id);
       state = state.copyWith(
-        entries: [...state.entries, ...result.entries],
+        entries: combined,
         likedEntryIds: {...state.likedEntryIds, ...moreLiked},
         isLoadingMore: false,
         hasMore: result.pagination.hasMore,

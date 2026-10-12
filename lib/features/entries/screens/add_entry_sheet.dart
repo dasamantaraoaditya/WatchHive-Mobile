@@ -131,6 +131,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       _locationController.text = _watchLocation;
       _tags = List<String>.from(e.tags);
       _watchedDate = e.watchedAt.toLocal();
+      if (_watchedDate.isAfter(DateTime.now())) {
+        _watchedDate = DateTime.now();
+      }
       if (_tmdbId > 0) _loadMediaDetails(_tmdbId, _type);
     } else {
       if (widget.prefillTitle != null && widget.prefillTitle!.trim().isNotEmpty) {
@@ -264,7 +267,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
-    final maxDate = now.add(const Duration(days: 365));
+    final maxDate = DateTime(now.year, now.month, now.day);
     final initial = _watchedDate.isAfter(maxDate) ? maxDate : _watchedDate;
 
     final pickedDate = await showDatePicker(
@@ -280,7 +283,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
               onPrimary: Colors.black,
               surface: AppColors.surfaceElevated,
               onSurface: AppColors.textPrimary,
-            ), dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
           ),
           child: child!,
         );
@@ -302,7 +306,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
               onPrimary: Colors.black,
               surface: AppColors.surfaceElevated,
               onSurface: AppColors.textPrimary,
-            ), dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
           ),
           child: child!,
         );
@@ -310,20 +315,30 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     );
 
     final resolvedTime = pickedTime ?? initialTime;
+    var candidateDateTime = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      resolvedTime.hour,
+      resolvedTime.minute,
+    );
+
+    if (candidateDateTime.isAfter(now)) {
+      candidateDateTime = now;
+      if (mounted) {
+        WHAlert.showWarning(context, 'Future time not allowed (set to current time).');
+      }
+    }
+
     if (mounted) {
       setState(() {
-        _watchedDate = DateTime(
-          pickedDate.year,
-          pickedDate.month,
-          pickedDate.day,
-          resolvedTime.hour,
-          resolvedTime.minute,
-        );
+        _watchedDate = candidateDateTime;
       });
     }
   }
 
   Future<void> _pickTime() async {
+    final now = DateTime.now();
     final initialTime = TimeOfDay.fromDateTime(_watchedDate);
     final pickedTime = await showTimePicker(
       context: context,
@@ -336,7 +351,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
               onPrimary: Colors.black,
               surface: AppColors.surfaceElevated,
               onSurface: AppColors.textPrimary,
-            ), dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
           ),
           child: child!,
         );
@@ -344,14 +360,19 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     );
 
     if (pickedTime != null && mounted) {
+      var candidate = DateTime(
+        _watchedDate.year,
+        _watchedDate.month,
+        _watchedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+      if (candidate.isAfter(now)) {
+        candidate = now;
+        WHAlert.showWarning(context, 'Future time not allowed (set to current time).');
+      }
       setState(() {
-        _watchedDate = DateTime(
-          _watchedDate.year,
-          _watchedDate.month,
-          _watchedDate.day,
-          pickedTime.hour,
-          pickedTime.minute,
-        );
+        _watchedDate = candidate;
       });
     }
   }
@@ -375,6 +396,10 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     if (title.isEmpty) {
       WHAlert.showWarning(context, 'Please enter or select a movie or TV show title');
       return;
+    }
+    final now = DateTime.now();
+    if (_watchedDate.isAfter(now)) {
+      _watchedDate = now;
     }
     setState(() => _isLoading = true);
     try {

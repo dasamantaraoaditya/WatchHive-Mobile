@@ -170,7 +170,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to remove "$cleanTitle": $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to remove "$cleanTitle"'));
       }
     }
   }
@@ -315,7 +315,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to add to currently watching: $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to add to currently watching'));
       }
     }
   }

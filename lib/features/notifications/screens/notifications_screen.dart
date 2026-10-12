@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
 import '../../../shared/models/models.dart' as wh;
 import '../../../shared/widgets/shared_widgets.dart';
@@ -72,7 +73,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to accept follow request: $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to accept follow request'));
       }
     }
   }
@@ -91,7 +92,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to decline follow request: $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to decline follow request'));
       }
     }
   }

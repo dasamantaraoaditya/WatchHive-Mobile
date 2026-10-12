@@ -68,6 +68,36 @@ class AppErrorHandler {
       case DioExceptionType.badResponse:
         final response = dioError.response;
         final statusCode = response?.statusCode;
+        final path = dioError.requestOptions.path.toLowerCase();
+
+        // If it's a 404, provide contextual, graceful message
+        if (statusCode == 404) {
+          if (path.contains('/entries') || path.contains('/entry')) {
+            return _formatWithAction(
+              'This post is no longer available or has been deleted.',
+              action: action,
+            );
+          } else if (path.contains('/users') || path.contains('/user')) {
+            return _formatWithAction(
+              'This user profile could not be found.',
+              action: action,
+            );
+          } else if (path.contains('/tmdb') || path.contains('/movie') || path.contains('/tv')) {
+            return _formatWithAction(
+              'Movie or show details could not be found.',
+              action: action,
+            );
+          } else if (path.contains('/comments')) {
+            return _formatWithAction(
+              'This comment is no longer available.',
+              action: action,
+            );
+          }
+          return _formatWithAction(
+            'The requested item is no longer available or could not be found.',
+            action: action,
+          );
+        }
 
         // Try extracting backend error message
         final backendMessage = _extractBackendMessage(response?.data);
@@ -81,9 +111,7 @@ class AppErrorHandler {
           } else if (statusCode == 401) {
             return 'Your session has expired. Please log in again to continue.';
           } else if (statusCode == 403) {
-            return 'You do not have permission to perform this action.';
-          } else if (statusCode == 404) {
-            return _formatWithAction('The requested item could not be found.', action: action);
+            return 'This content is private or you do not have permission to view it.';
           } else if (statusCode == 409) {
             return _formatWithAction('This item is already added or in conflict.', action: action);
           } else if (statusCode == 413) {
@@ -93,7 +121,7 @@ class AppErrorHandler {
           } else if (statusCode == 429) {
             return 'Too many requests. Please slow down and try again in a few seconds.';
           } else if (statusCode >= 500) {
-            return 'WatchersHive servers are temporarily unavailable. Please try again shortly.';
+            return 'Our hive is experiencing high traffic. Please try again shortly.';
           }
         }
         break;
@@ -195,23 +223,35 @@ class AppErrorHandler {
       return 'You do not have permission for this action.';
     }
 
-    if (lower.contains('404') || lower.contains('not found')) {
-      return _formatWithAction('Item not found.', action: action);
+    // Mask 404 / not found
+    if (lower.contains('404') || lower.contains('not found') || lower.contains('not_found') || lower.contains('cannot find')) {
+      if (lower.contains('post') || lower.contains('entry')) {
+        return _formatWithAction('This post is no longer available or has been deleted.', action: action);
+      }
+      if (lower.contains('user') || lower.contains('profile')) {
+        return _formatWithAction('This user profile could not be found.', action: action);
+      }
+      return _formatWithAction('This item is no longer available or could not be found.', action: action);
     }
 
     if (lower.contains('500') ||
         lower.contains('502') ||
         lower.contains('503') ||
         lower.contains('internal server error') ||
-        lower.contains('bad gateway')) {
-      return 'Server error. Our hive is experiencing high traffic, please try again shortly.';
+        lower.contains('bad gateway') ||
+        lower.contains('server error')) {
+      return 'Our hive is experiencing high traffic. Please try again shortly.';
     }
 
     if (lower.contains('null check operator used on a null value') ||
         lower.contains('rangeerror') ||
-        lower.contains('nosuchmethoderror')) {
+        lower.contains('nosuchmethoderror') ||
+        lower.contains('unhandled') ||
+        lower.contains('stack trace') ||
+        lower.contains('closure') ||
+        lower.contains('typeerror')) {
       return _formatWithAction(
-        defaultMessage ?? 'Could not process data. Please try again.',
+        defaultMessage ?? 'Something went wrong. Please try again.',
         action: action,
       );
     }
@@ -229,16 +269,39 @@ class AppErrorHandler {
       final parts = cleaned.split(': ');
       if (parts.length > 1) {
         final lastPart = parts.last.trim();
-        // If the last part is a clean human message, use it
-        if (!lastPart.contains('[') && !lastPart.contains('Exception') && lastPart.length < 90) {
+        // If the last part is a clean human message without technical jargon, use it
+        if (!lastPart.contains('[') &&
+            !lastPart.contains('Exception') &&
+            !lastPart.contains('Error') &&
+            !lastPart.contains('Dio') &&
+            !lastPart.contains('http') &&
+            lastPart.length < 80) {
           cleaned = lastPart;
+        } else {
+          // If the last part is technical, return the action prefix with a friendly message
+          final actionPrefix = parts.first.trim();
+          return '$actionPrefix. Please try again.';
         }
       }
     }
 
+    // If the message still looks like a raw technical error or code
+    if (cleaned.contains('Exception') ||
+        cleaned.contains('Dio') ||
+        cleaned.contains('Http') ||
+        cleaned.contains('Socket') ||
+        cleaned.contains('Error: ') ||
+        cleaned.contains('failed host') ||
+        cleaned.startsWith('{') ||
+        cleaned.contains('XMLHttpRequest') ||
+        cleaned.contains('dart:') ||
+        cleaned.contains('.dart')) {
+      return defaultMessage ?? 'An unexpected issue occurred. Please try again.';
+    }
+
     // Cap length to avoid wall of text
-    if (cleaned.length > 120) {
-      cleaned = '${cleaned.substring(0, 117)}...';
+    if (cleaned.length > 100) {
+      cleaned = '${cleaned.substring(0, 97)}...';
     }
 
     return _cleanMessage(cleaned);

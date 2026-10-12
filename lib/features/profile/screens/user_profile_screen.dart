@@ -470,7 +470,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         _isRequested = origRequested;
       });
       if (mounted) {
-        WHAlert.showError(context, 'Action failed: $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Action failed'));
       }
     } finally {
       if (mounted) setState(() => _isActionLoading = false);
@@ -491,7 +491,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to accept request: $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to accept request'));
       }
     } finally {
       if (mounted) setState(() => _isActionLoading = false);
@@ -512,7 +512,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to decline request: $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to decline request'));
       }
     } finally {
       if (mounted) setState(() => _isActionLoading = false);
@@ -1615,7 +1615,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to remove "$cleanTitle": $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to remove "$cleanTitle"'));
       }
     }
   }

@@ -86,6 +86,92 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
     }
   }
 
+  List<Map<String, dynamic>> _parseCsvToEntries(String csvText) {
+    final lines = csvText.split(RegExp(r'\r?\n')).map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+    if (lines.length < 2) return [];
+
+    int headerIndex = -1;
+    for (int i = 0; i < lines.length; i++) {
+      final l = lines[i].toLowerCase();
+      if (l.contains('title') && (l.contains('tmdb') || l.contains('rating') || l.contains('type') || l.contains('watched') || l.contains('date'))) {
+        headerIndex = i;
+        break;
+      }
+    }
+    if (headerIndex == -1) return [];
+
+    List<String> parseCsvRow(String row) {
+      final result = <String>[];
+      var insideQuote = false;
+      var entry = StringBuffer();
+      for (int i = 0; i < row.length; i++) {
+        final char = row[i];
+        if (char == '"') {
+          if (insideQuote && i + 1 < row.length && row[i + 1] == '"') {
+            entry.write('"');
+            i++;
+          } else {
+            insideQuote = !insideQuote;
+          }
+        } else if (char == ',' && !insideQuote) {
+          result.add(entry.toString());
+          entry = StringBuffer();
+        } else {
+          entry.write(char);
+        }
+      }
+      result.add(entry.toString());
+      return result;
+    }
+
+    final headers = parseCsvRow(lines[headerIndex]).map((h) => h.trim().toLowerCase()).toList();
+    final entries = <Map<String, dynamic>>[];
+
+    for (int i = headerIndex + 1; i < lines.length; i++) {
+      if (lines[i].startsWith('#')) break;
+      final values = parseCsvRow(lines[i]);
+      if (values.length < 2) continue;
+
+      final row = <String, String>{};
+      for (int j = 0; j < headers.length; j++) {
+        row[headers[j]] = j < values.length ? values[j].trim() : '';
+      }
+
+      final title = row['title'] ?? row['name'] ?? '';
+      if (title.isEmpty) continue;
+
+      final tmdbId = int.tryParse(row['tmdbid'] ?? row['tmdb_id'] ?? '0') ?? 0;
+      final rawType = (row['type'] ?? 'MOVIE').toUpperCase();
+      final type = rawType.contains('TV') ? 'TV_SHOW' : 'MOVIE';
+      final rating = double.tryParse(row['rating'] ?? '');
+      final watchedAt = row['watchedat'] ?? row['watched at'] ?? row['watched date'] ?? row['date'];
+      final review = row['review'];
+      final rawTags = row['tags'];
+      final tags = rawTags != null && rawTags.isNotEmpty
+          ? rawTags.split('|').map((t) => t.trim()).where((t) => t.isNotEmpty).toList()
+          : <String>[];
+      final isRewatch = row['isrewatch'] == 'true' || row['is_rewatch'] == 'true';
+      final isWatching = row['iswatching'] == 'true' || row['is_watching'] == 'true';
+      final watchLocation = row['watchlocation'] ?? row['watch_location'];
+
+      entries.add({
+        'tmdbId': tmdbId,
+        'title': title,
+        'type': type,
+        if (rating != null) 'rating': rating,
+        if (watchedAt != null && watchedAt.isNotEmpty) 'watchedAt': watchedAt,
+        if (review != null && review.isNotEmpty) 'review': review,
+        'tags': tags,
+        'isRewatch': isRewatch,
+        'isWatching': isWatching,
+        if (watchLocation != null && watchLocation.isNotEmpty) 'watchLocation': watchLocation,
+        'isImported': true,
+      });
+    }
+
+    return entries;
+  }
+
   Future<void> _handleImport() async {
     setState(() {
       _isImporting = true;
@@ -95,7 +181,7 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
     try {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['json'],
+        allowedExtensions: ['json', 'csv'],
         withData: true,
       );
 
@@ -119,27 +205,40 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
         throw Exception('The selected file is empty or could not be read.');
       }
 
-      final jsonString = utf8.decode(fileBytes);
-      dynamic decoded;
-      try {
-        decoded = jsonDecode(jsonString);
-      } catch (_) {
-        throw Exception('Invalid JSON file. Please upload a valid WatchersHive export file.');
-      }
+      final fileText = utf8.decode(fileBytes);
+      final isCsv = file.name.toLowerCase().endsWith('.csv');
 
-      if (decoded is! Map<String, dynamic>) {
-        throw Exception('Invalid format. File must contain a valid WatchersHive JSON export object.');
-      }
+      Map<String, dynamic> payload;
+      if (isCsv) {
+        final parsedEntries = _parseCsvToEntries(fileText);
+        if (parsedEntries.isEmpty) {
+          throw Exception('No valid watch entries found in the selected CSV file.');
+        }
+        payload = {'entries': parsedEntries};
+      } else {
+        dynamic decoded;
+        try {
+          decoded = jsonDecode(fileText);
+        } catch (_) {
+          throw Exception('Invalid file. Please upload a valid WatchersHive JSON or CSV export file.');
+        }
 
-      final hasEntries = decoded.containsKey('entries') && decoded['entries'] is List;
-      final hasLists = decoded.containsKey('lists') && decoded['lists'] is List;
+        if (decoded is! Map<String, dynamic>) {
+          throw Exception('Invalid format. File must contain a valid WatchersHive JSON export object.');
+        }
 
-      if (!hasEntries && !hasLists) {
-        throw Exception('File must contain an "entries" and/or "lists" array.');
+        final hasEntries = decoded.containsKey('entries') && decoded['entries'] is List;
+        final hasLists = decoded.containsKey('lists') && decoded['lists'] is List;
+
+        if (!hasEntries && !hasLists) {
+          throw Exception('File must contain an "entries" and/or "lists" array.');
+        }
+
+        payload = decoded;
       }
 
       final repo = ref.read(userRepositoryProvider);
-      final importRes = await repo.importData(decoded);
+      final importRes = await repo.importData(payload);
 
       if (mounted) {
         setState(() => _importResult = importRes);
@@ -246,6 +345,36 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+
+          // Feed Protection Info Banner
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.shield_outlined, size: 18, color: AppColors.primaryDark),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Feed Protection: Imported watch history and entries are added to your personal library & stats only and will not flood the community feed.',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
 

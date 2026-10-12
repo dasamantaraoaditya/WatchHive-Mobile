@@ -425,7 +425,7 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    WHAlert.showError(context, 'Failed to delete entry: $e');
+                    WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to delete entry'));
                   }
                 }
               }

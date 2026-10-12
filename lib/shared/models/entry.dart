@@ -28,6 +28,7 @@ class Entry {
   final bool isSuggestion;
   final String? suggestionReason;
   final DateTime? updatedAt;
+  final bool isImported;
 
   const Entry({
     required this.id,
@@ -48,6 +49,7 @@ class Entry {
     this.watchLocation,
     required this.createdAt,
     this.updatedAt,
+    this.isImported = false,
     this.user,
     this.likesCount = 0,
     this.commentsCount = 0,
@@ -58,6 +60,13 @@ class Entry {
     this.isSuggestion = false,
     this.suggestionReason,
   });
+
+  /// Computes the effective latest activity date for feed sorting and status display.
+  DateTime get activityDate {
+    if (isWatching) return startedAt ?? updatedAt ?? createdAt;
+    if (completedAt != null) return completedAt!;
+    return updatedAt ?? watchedAt;
+  }
 
   String get typeLabel => switch (type) {
         'MOVIE' => '🎬 Movie',
@@ -142,6 +151,15 @@ class Entry {
       createdAt: dataMap['createdAt'] != null
           ? (DateTime.tryParse(dataMap['createdAt'].toString())?.toLocal() ?? DateTime.now())
           : DateTime.now(),
+      updatedAt: dataMap['updatedAt'] != null
+          ? DateTime.tryParse(dataMap['updatedAt'].toString())?.toLocal()
+          : (json['timestamp'] != null
+              ? DateTime.tryParse(json['timestamp'].toString())?.toLocal()
+              : null),
+      isImported: dataMap['isImported'] == true ||
+          dataMap['is_imported'] == true ||
+          json['isImported'] == true ||
+          (dataMap['tags'] as List<dynamic>?)?.contains('imported') == true,
       user: dataMap['user'] != null
           ? User.fromJson(dataMap['user'] as Map<String, dynamic>)
           : null,
@@ -187,6 +205,7 @@ class Entry {
     String? watchLocation,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? isImported,
     User? user,
     int? likesCount,
     int? commentsCount,
@@ -216,6 +235,7 @@ class Entry {
       watchLocation: watchLocation ?? this.watchLocation,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isImported: isImported ?? this.isImported,
       user: user ?? this.user,
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,

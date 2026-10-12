@@ -83,8 +83,9 @@ class WHFeedCard extends StatelessWidget {
     final actionText = () {
       if (isSuggestion) return 'recommends';
       if (entry.isWatching) return 'started watching';
-      if (entry.startedAt != null) return 'completed watching';
-      return entry.review != null && entry.review!.isNotEmpty ? 'reviewed' : 'watched';
+      if (entry.completedAt != null || entry.startedAt != null) return 'completed watching';
+      if (entry.review != null && entry.review!.isNotEmpty) return 'reviewed';
+      return 'logged';
     }();
 
     return Container(
@@ -238,7 +239,7 @@ class WHFeedCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 // Compact header timestamp (e.g. "2:30 PM" or "Aug 23")
                 Text(
-                  _formatCompactHeaderDate(entry.watchedAt),
+                  _formatCompactHeaderDate(entry.activityDate),
                   maxLines: 1,
                   style: const TextStyle(
                     fontFamily: 'Inter',
@@ -267,7 +268,7 @@ class WHFeedCard extends StatelessWidget {
                       ? Icons.auto_awesome_rounded
                       : (entry.isWatching
                           ? Icons.play_circle_outline_rounded
-                          : (entry.startedAt != null ? Icons.check_circle_outline_rounded : Icons.schedule_rounded)),
+                          : (entry.completedAt != null || entry.startedAt != null ? Icons.check_circle_outline_rounded : Icons.schedule_rounded)),
                   size: 14,
                   color: isSuggestion ? AppColors.primary : AppColors.textMuted,
                 ),
@@ -281,7 +282,9 @@ class WHFeedCard extends StatelessWidget {
                               ? (entry.suggestionReason ?? 'Recommended for You')
                               : (entry.isWatching
                                   ? 'Started watching • '
-                                  : (entry.startedAt != null ? 'Completed watching • ' : 'Seen • ')),
+                                  : (entry.completedAt != null || entry.startedAt != null
+                                      ? 'Completed watching • '
+                                      : (entry.review != null && entry.review!.isNotEmpty ? 'Reviewed • ' : 'Logged • '))),
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,
@@ -291,7 +294,7 @@ class WHFeedCard extends StatelessWidget {
                         ),
                         if (!isSuggestion)
                           TextSpan(
-                            text: _formatFullTimestamp(entry.watchedAt),
+                            text: _formatFullTimestamp(entry.activityDate),
                             style: const TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 12,

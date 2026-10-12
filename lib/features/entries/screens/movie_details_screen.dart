@@ -239,7 +239,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         }
       }
     } catch (e) {
-      if (mounted) WHAlert.showError(context, 'Watchlist update failed: $e');
+      if (mounted) WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Watchlist update failed'));
     } finally {
       if (mounted) setState(() => _isWatchlistLoading = false);
     }
@@ -289,7 +289,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         WHAlert.showSuccess(context, 'Moved "$title" to Currently Watching! 👁️');
       }
     } catch (e) {
-      if (mounted) WHAlert.showError(context, 'Failed to update watching status: $e');
+      if (mounted) WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to update watching status'));
     } finally {
       if (mounted) setState(() => _isTransitioning = false);
     }
@@ -356,7 +356,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to delete entry: $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to delete entry'));
       }
     }
   }
