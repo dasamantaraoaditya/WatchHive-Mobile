@@ -24,6 +24,7 @@ import '../widgets/suggest_movie_modal.dart';
 import '../repositories/watchlist_repository.dart';
 import '../../rankings/widgets/add_to_stack_sheet.dart';
 import '../../feed/providers/feed_provider.dart';
+import '../widgets/platform_logo_badge.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -1970,7 +1971,10 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.location_on_rounded, size: 12, color: Color(0xFFF97316)),
+                              PlatformBrandLogo(
+                                platform: entry.watchLocation!,
+                                size: 14,
+                              ),
                               const SizedBox(width: 5),
                               Text(
                                 entry.watchLocation!,

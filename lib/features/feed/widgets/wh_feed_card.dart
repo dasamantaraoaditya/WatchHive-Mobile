@@ -10,6 +10,7 @@ import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
+import '../../entries/widgets/platform_logo_badge.dart';
 
 final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({int tmdbId, String mediaType})>((ref, arg) async {
   if (arg.tmdbId <= 0) return null;
@@ -399,8 +400,11 @@ class WHFeedCard extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textMuted),
-                              const SizedBox(width: 3),
+                              PlatformBrandLogo(
+                                platform: entry.watchLocation!.trim(),
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
                               Flexible(
                                 child: Text(
                                   entry.watchLocation!.trim(),

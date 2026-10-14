@@ -7,6 +7,7 @@ import '../../../core/api/api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/wh_alert.dart';
 import '../../search/repositories/search_repository.dart';
+import 'platform_logo_badge.dart';
 
 enum WHEntryCardMode {
   watching,
@@ -508,8 +509,11 @@ class WHEntryGridCard extends ConsumerWidget {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.location_on_outlined, size: 9, color: AppColors.primaryDark),
-                                    const SizedBox(width: 2),
+                                    PlatformBrandLogo(
+                                      platform: watchLocation!.trim(),
+                                      size: 11,
+                                    ),
+                                    const SizedBox(width: 3),
                                     ConstrainedBox(
                                       constraints: const BoxConstraints(maxWidth: 55),
                                       child: Text(
