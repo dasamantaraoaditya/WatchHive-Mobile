@@ -1302,6 +1302,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                   subtitle: 'Data usage, MindLens metrics & rights',
                   onTap: () => context.push('/privacy-policy'),
                 ),
+                const Divider(height: 1, color: AppColors.border),
+                _buildActionTile(
+                  icon: Icons.support_agent_rounded,
+                  title: 'Help & Support',
+                  subtitle: 'Report an issue, request features, or email support',
+                  onTap: () => context.push('/support'),
+                ),
               ],
             ),
           ),

@@ -1,8 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 
+import '../../../core/services/offline_storage_service.dart';
+
 final watchlistRepositoryProvider = Provider<WatchlistRepository>((ref) {
-  return WatchlistRepository(ref.read(apiClientProvider));
+  return WatchlistRepository(
+    ref.read(apiClientProvider),
+    ref.read(offlineStorageServiceProvider),
+  );
 });
 
 final isInWatchlistProvider = FutureProvider.family<bool, int>((ref, tmdbId) async {
@@ -12,12 +17,34 @@ final isInWatchlistProvider = FutureProvider.family<bool, int>((ref, tmdbId) asy
 
 class WatchlistRepository {
   final ApiClient _api;
+  final OfflineStorageService _storage;
 
-  WatchlistRepository(this._api);
+  WatchlistRepository(this._api, [OfflineStorageService? storage])
+      : _storage = storage ?? OfflineStorageService();
 
   Future<Map<String, dynamic>> getWatchlist() async {
-    final response = await _api.get('/lists/watchlist');
-    return response.data as Map<String, dynamic>;
+    try {
+      final response = await _api.get('/lists/watchlist');
+      final data = response.data as Map<String, dynamic>;
+      final rawItems = data['items'] as List<dynamic>?;
+      if (rawItems != null) {
+        final list = rawItems
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        _storage.cacheWatchlist(list);
+      }
+      return data;
+    } catch (e) {
+      final cached = await _storage.getCachedWatchlist();
+      if (cached.isNotEmpty) {
+        return {
+          'id': 'cached_watchlist',
+          'items': cached,
+          'isOffline': true,
+        };
+      }
+      rethrow;
+    }
   }
 
   Future<bool> isInWatchlist(int tmdbId) async {

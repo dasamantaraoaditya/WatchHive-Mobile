@@ -272,6 +272,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 6),
+
+                // Support & Help link
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () => context.push('/support'),
+                    icon: const Icon(Icons.help_outline_rounded, size: 15, color: AppColors.textMuted),
+                    label: const Text(
+                      'Need help? Contact Support',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 24),
               ],
             ),

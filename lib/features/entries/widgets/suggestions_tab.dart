@@ -46,10 +46,14 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
     });
     try {
       final repo = ref.read(suggestionsRepositoryProvider);
-      final results = await Future.wait([
-        repo.getMySuggestions(),
-        repo.getSentSuggestions(),
-      ]);
+      final receivedFuture = repo.getMySuggestions().catchError((e) {
+        return <GroupedSuggestion>[];
+      });
+      final sentFuture = repo.getSentSuggestions().catchError((e) {
+        return <GroupedSuggestion>[];
+      });
+
+      final results = await Future.wait([receivedFuture, sentFuture]);
       if (mounted) {
         setState(() {
           _receivedGroups = results[0];
@@ -167,7 +171,7 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                   child: _buildSubTabButton(
                     index: 0,
                     icon: Icons.inbox_rounded,
-                    label: 'Received',
+                    label: 'Suggestions',
                     count: _receivedGroups.length,
                   ),
                 ),
@@ -176,7 +180,7 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                   child: _buildSubTabButton(
                     index: 1,
                     icon: Icons.send_rounded,
-                    label: 'Suggested Items',
+                    label: 'Suggested',
                     count: _sentGroups.length,
                   ),
                 ),

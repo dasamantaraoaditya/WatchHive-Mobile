@@ -18,6 +18,7 @@ import '../../features/mindlens/screens/mindlens_screen.dart';
 import '../../features/profile/screens/compare_history_screen.dart';
 import '../../features/rankings/screens/rankings_screen.dart';
 import '../../features/profile/screens/privacy_policy_screen.dart';
+import '../../features/support/screens/support_screen.dart';
 import '../../shared/models/user.dart';
 import '../../shared/models/entry.dart';
 import '../../features/entries/screens/entry_detail_screen.dart';
@@ -50,6 +51,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isAuthPage = state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/signup') ||
           state.matchedLocation.startsWith('/forgot-password');
+      final isPublicPage = isAuthPage ||
+          state.matchedLocation.startsWith('/privacy-policy') ||
+          state.matchedLocation.startsWith('/support');
 
       // 1. If currently on splash screen:
       if (isSplash) {
@@ -60,12 +64,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       // 2. If session restore is in flight and user is on a protected route:
-      if (isLoading && !isAuthPage) {
+      if (isLoading && !isPublicPage) {
         return '/splash';
       }
 
       // 3. User is not authenticated and attempting to view a protected page:
-      if (!isAuthenticated && !isAuthPage) {
+      if (!isAuthenticated && !isPublicPage) {
         return '/login';
       }
 
@@ -140,6 +144,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/privacy-policy',
         builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: '/support',
+        builder: (context, state) {
+          final catName = state.uri.queryParameters['category'];
+          final initialCat = SupportCategory.values.firstWhere(
+            (c) => c.name.toLowerCase() == catName?.toLowerCase(),
+            orElse: () => SupportCategory.bug,
+          );
+          return SupportScreen(
+            initialCategory: initialCat,
+            prefillSubject: state.uri.queryParameters['subject'],
+            prefillMessage: state.uri.queryParameters['message'],
+          );
+        },
       ),
       GoRoute(
         path: '/compare/:id',

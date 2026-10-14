@@ -131,8 +131,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     // Verify sub-tab labels exist
-    expect(find.text('Received'), findsOneWidget);
-    expect(find.text('Suggested Items'), findsOneWidget);
+    expect(find.text('Suggestions'), findsOneWidget);
+    expect(find.text('Suggested'), findsOneWidget);
 
     // Verify counts
     expect(find.text('1'), findsNWidgets(2)); // 1 received, 1 sent
@@ -140,8 +140,8 @@ void main() {
     // Verify received subtab description
     expect(find.text('Recommendations from your Hive'), findsOneWidget);
 
-    // Tap on "Suggested Items" sub-tab
-    await tester.tap(find.text('Suggested Items'));
+    // Tap on "Suggested" sub-tab
+    await tester.tap(find.text('Suggested'));
     await tester.pump(const Duration(milliseconds: 250));
 
     // Verify switched description

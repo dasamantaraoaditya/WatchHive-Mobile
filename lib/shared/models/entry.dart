@@ -29,6 +29,7 @@ class Entry {
   final String? suggestionReason;
   final DateTime? updatedAt;
   final bool isImported;
+  final bool isPendingSync;
 
   const Entry({
     required this.id,
@@ -50,6 +51,7 @@ class Entry {
     required this.createdAt,
     this.updatedAt,
     this.isImported = false,
+    this.isPendingSync = false,
     this.user,
     this.likesCount = 0,
     this.commentsCount = 0,
@@ -160,6 +162,9 @@ class Entry {
           dataMap['is_imported'] == true ||
           json['isImported'] == true ||
           (dataMap['tags'] as List<dynamic>?)?.contains('imported') == true,
+      isPendingSync: dataMap['isPendingSync'] == true ||
+          dataMap['is_pending_sync'] == true ||
+          json['isPendingSync'] == true,
       user: dataMap['user'] != null
           ? User.fromJson(dataMap['user'] as Map<String, dynamic>)
           : null,
@@ -206,6 +211,7 @@ class Entry {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isImported,
+    bool? isPendingSync,
     User? user,
     int? likesCount,
     int? commentsCount,
@@ -236,6 +242,7 @@ class Entry {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isImported: isImported ?? this.isImported,
+      isPendingSync: isPendingSync ?? this.isPendingSync,
       user: user ?? this.user,
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,
@@ -262,5 +269,37 @@ class Entry {
         if (completedAt != null) 'completedAt': completedAt!.toIso8601String(),
         if (watchLocation != null) 'watchLocation': watchLocation,
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
+      };
+
+  Map<String, dynamic> toFullJson() => {
+        'id': id,
+        'userId': userId,
+        if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
+        if (suggestedByUser != null) 'suggestedByUser': suggestedByUser!.toJson(),
+        'tmdbId': tmdbId,
+        'title': title,
+        'type': type,
+        'watchedAt': watchedAt.toIso8601String(),
+        if (rating != null) 'rating': rating,
+        if (review != null) 'review': review,
+        'tags': tags,
+        'isRewatch': isRewatch,
+        'isWatching': isWatching,
+        if (startedAt != null) 'startedAt': startedAt!.toIso8601String(),
+        if (completedAt != null) 'completedAt': completedAt!.toIso8601String(),
+        if (watchLocation != null) 'watchLocation': watchLocation,
+        'createdAt': createdAt.toIso8601String(),
+        if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+        'isImported': isImported,
+        'isPendingSync': isPendingSync,
+        if (user != null) 'user': user!.toJson(),
+        'likesCount': likesCount,
+        'commentsCount': commentsCount,
+        'isLiked': isLiked,
+        'isCommented': isCommented,
+        if (posterPath != null) 'posterPath': posterPath,
+        if (backdropPath != null) 'backdropPath': backdropPath,
+        'isSuggestion': isSuggestion,
+        if (suggestionReason != null) 'suggestionReason': suggestionReason,
       };
 }
