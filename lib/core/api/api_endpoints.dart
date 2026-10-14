@@ -126,6 +126,7 @@ class ApiEndpoints {
 
   // Suggestions
   static const String suggestions = '/suggestions';
+  static const String sentSuggestions = '/suggestions/sent';
 
   // Lists (Watchlist & Rankings)
   static const String lists = '/lists';

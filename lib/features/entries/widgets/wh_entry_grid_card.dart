@@ -246,7 +246,9 @@ class WHEntryGridCard extends ConsumerWidget {
                           children: [
                             const Text('💡 ', style: TextStyle(fontSize: 8)),
                             Text(
-                              '@$suggestedByUsername',
+                              suggestedByUsername!.startsWith('To: ') || suggestedByUsername!.startsWith('@')
+                                  ? suggestedByUsername!
+                                  : '@$suggestedByUsername',
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 9,
@@ -335,11 +337,16 @@ class WHEntryGridCard extends ConsumerWidget {
                             behavior: HitTestBehavior.opaque,
                             onTap: () {
                               final sender = (suggestedByUsername != null && suggestedByUsername!.isNotEmpty)
-                                  ? '@$suggestedByUsername'
+                                  ? (suggestedByUsername!.startsWith('To: ') || suggestedByUsername!.startsWith('@')
+                                      ? suggestedByUsername!
+                                      : '@$suggestedByUsername')
                                   : 'Friend';
+                              final alertTitle = (suggestedByUsername != null && suggestedByUsername!.startsWith('To: '))
+                                  ? 'Note $sender'
+                                  : 'Suggestion from $sender';
                               WHAlert.alert(
                                 context,
-                                title: 'Suggestion from $sender',
+                                title: alertTitle,
                                 message: '"${suggestionComment!.trim()}"',
                                 icon: Icons.lightbulb_outline_rounded,
                               );

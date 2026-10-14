@@ -18,6 +18,12 @@ class SuggestionsRepository {
     return list.map((item) => GroupedSuggestion.fromJson(item as Map<String, dynamic>)).toList();
   }
 
+  Future<List<GroupedSuggestion>> getSentSuggestions() async {
+    final response = await _api.get(ApiEndpoints.sentSuggestions);
+    final list = response.data as List<dynamic>;
+    return list.map((item) => GroupedSuggestion.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
   Future<void> sendSuggestion({
     String? toUserId,
     List<String>? toUserIds,

@@ -16,12 +16,14 @@ class SuggestionCard extends ConsumerStatefulWidget {
   final GroupedSuggestion group;
   final VoidCallback onRefresh;
   final Function(int tmdbId, String mediaType, User? suggestor)? onTapMedia;
+  final bool isSent;
 
   const SuggestionCard({
     super.key,
     required this.group,
     required this.onRefresh,
     this.onTapMedia,
+    this.isSent = false,
   });
 
   @override
@@ -179,9 +181,11 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
 
     final confirm = await WHAlert.confirm(
       context,
-      title: 'Dismiss Suggestion',
-      message: 'Dismiss recommendation for "$cleanTitle"?',
-      confirmText: 'Dismiss',
+      title: widget.isSent ? 'Delete Sent Suggestion' : 'Dismiss Suggestion',
+      message: widget.isSent
+          ? 'Delete your recommendation for "$cleanTitle"?'
+          : 'Dismiss recommendation for "$cleanTitle"?',
+      confirmText: widget.isSent ? 'Delete' : 'Dismiss',
       severity: WHAlertSeverity.danger,
       icon: Icons.delete_outline_rounded,
     );
@@ -191,7 +195,12 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       final suggRepo = ref.read(suggestionsRepositoryProvider);
       await Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)));
       if (mounted) {
-        WHAlert.showSuccess(context, 'Dismissed recommendation for "$cleanTitle"');
+        WHAlert.showSuccess(
+          context,
+          widget.isSent
+              ? 'Removed recommendation for "$cleanTitle"'
+              : 'Dismissed recommendation for "$cleanTitle"',
+        );
         widget.onRefresh();
       }
     } catch (e) {
@@ -200,7 +209,9 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
           context,
           AppErrorHandler.toUserFriendlyMessage(
             e,
-            defaultMessage: 'Could not dismiss suggestion. Please try again.',
+            defaultMessage: widget.isSent
+                ? 'Could not delete suggestion. Please try again.'
+                : 'Could not dismiss suggestion. Please try again.',
           ),
         );
       }
@@ -221,12 +232,18 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
     final posterPath = detailsAsync.value?['poster_path'] as String?;
     final voteAvg = (detailsAsync.value?['vote_average'] as num?)?.toDouble();
 
-    final suggestors = widget.group.suggestors;
-    final firstSuggestor = suggestors.isNotEmpty ? suggestors.first : null;
-    final suggestorDisplay = firstSuggestor != null
-        ? (suggestors.length > 1
-            ? '${firstSuggestor.username} (+${suggestors.length - 1})'
-            : firstSuggestor.username)
+    final User? displayUser = widget.isSent
+        ? (widget.group.recipients.isNotEmpty ? widget.group.recipients.first : null)
+        : (widget.group.suggestors.isNotEmpty ? widget.group.suggestors.first : null);
+
+    final String? userDisplay = displayUser != null
+        ? (widget.isSent
+            ? (widget.group.recipients.length > 1
+                ? 'To: @${displayUser.username} (+${widget.group.recipients.length - 1})'
+                : 'To: @${displayUser.username}')
+            : (widget.group.suggestors.length > 1
+                ? '${displayUser.username} (+${widget.group.suggestors.length - 1})'
+                : displayUser.username))
         : null;
 
     final firstSuggestion = widget.group.suggestions.isNotEmpty ? widget.group.suggestions.first : null;
@@ -249,11 +266,11 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       mode: WHEntryCardMode.suggestion,
       rating: voteAvg,
       suggestedAt: suggestedDate,
-      suggestedByUsername: suggestorDisplay,
-      suggestedByAvatarUrl: firstSuggestor?.profilePictureUrl,
+      suggestedByUsername: userDisplay,
+      suggestedByAvatarUrl: displayUser?.profilePictureUrl,
       suggestionComment: firstComment,
       suggestionCommentCount: suggestionsWithComments.length,
-      onTap: () => widget.onTapMedia?.call(tmdbId, mediaType, firstSuggestor),
+      onTap: () => widget.onTapMedia?.call(tmdbId, mediaType, widget.isSent ? null : displayUser),
       onMoveToWatchingWithTitle: (resolvedTitle) => _handleAddToWatching(
         resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
       ),
