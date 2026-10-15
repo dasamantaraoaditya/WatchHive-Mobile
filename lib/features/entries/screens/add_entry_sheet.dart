@@ -17,6 +17,8 @@ import '../../feed/providers/feed_provider.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../search/repositories/search_repository.dart';
 import '../widgets/platform_logo_badge.dart';
+import '../../../core/services/connectivity_service.dart';
+import '../../../core/services/offline_sync_manager.dart';
 
 class _LocationPreset {
   final String label;
@@ -625,8 +627,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                   _mediaDetails?['original_name'])
               ?.toString()
               .trim() ??
-          widget.prefillTitle?.trim();
-      if (fallbackTitle != null && fallbackTitle.isNotEmpty) {
+          widget.prefillTitle?.trim() ??
+          _searchController.text.trim();
+      if (fallbackTitle.isNotEmpty) {
         title = fallbackTitle;
         _titleController.text = fallbackTitle;
       }
@@ -656,26 +659,38 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
           'suggestedByUserId': _suggestedByUserId,
       };
 
+      bool isPendingSync = false;
       if (isEditing) {
         final updated = await ref.read(entriesRepositoryProvider).updateEntry(widget.editEntry!.id, data);
+        isPendingSync = updated.isPendingSync;
         ref.read(entriesProvider(true).notifier).updateEntry(updated);
         ref.read(entriesProvider(false).notifier).updateEntry(updated);
         ref.read(feedProvider.notifier).updateEntry(updated);
       } else {
         final entry = await ref.read(entriesRepositoryProvider).createEntry(data);
+        isPendingSync = entry.isPendingSync;
         ref.read(entriesProvider(true).notifier).addEntry(entry);
         ref.read(entriesProvider(false).notifier).addEntry(entry);
         ref.read(feedProvider.notifier).prependEntry(entry);
       }
+      ref.read(offlineSyncManagerProvider.notifier).refreshPendingCount();
+
       if (mounted) {
         widget.onSuccess?.call();
         Navigator.of(context).pop();
-        WHAlert.showSuccess(
-          context,
-          isEditing
-              ? 'Updated "$title" in your Hive! ✨'
-              : (_isWatching ? 'Started watching "$title"! 👁️🎬' : 'Logged "$title" to your Hive! 🐝🎬'),
-        );
+        if (isPendingSync) {
+          WHAlert.showInfo(
+            context,
+            'Saved offline! Will automatically sync to your Hive when reconnected. 📶⏳',
+          );
+        } else {
+          WHAlert.showSuccess(
+            context,
+            isEditing
+                ? 'Updated "$title" in your Hive! ✨'
+                : (_isWatching ? 'Started watching "$title"! 👁️🎬' : 'Logged "$title" to your Hive! 🐝🎬'),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -793,6 +808,34 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
               ),
               // Interactive Navigation Strip across form sections
               _buildQuickNavStrip(),
+              if (!ref.watch(connectivityServiceProvider).isOnline)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.wifi_off_rounded, size: 16, color: Color(0xFFB45309)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Offline Mode: You can still log or edit entries. Changes will be saved locally and synced when back online.',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF92400E),
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               Flexible(
                 child: SingleChildScrollView(
                   controller: _scrollController,
@@ -936,6 +979,76 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                           _scrollToKey(_scoreKey, alignment: 0.08);
                                         },
                                       )).toList(),
+                                    ),
+                                  ),
+                                ),
+                              ] else if (_searchController.text.trim().length >= 2) ...[
+                                const SizedBox(height: 8),
+                                InkWell(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    final custom = _searchController.text.trim();
+                                    setState(() {
+                                      _titleController.text = custom;
+                                      _tmdbId = 0;
+                                      _selectedMedia = MediaResult(
+                                        id: 0,
+                                        title: custom,
+                                        mediaType: _type.toLowerCase().contains('tv') ? 'tv' : 'movie',
+                                      );
+                                      _searchResults.clear();
+                                    });
+                                    _searchFocusNode.unfocus();
+                                    _scrollToKey(_scoreKey, alignment: 0.08);
+                                  },
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceElevated,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: const Icon(Icons.add_rounded, color: AppColors.primary, size: 20),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Use "${_searchController.text.trim()}"',
+                                                style: const TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 2),
+                                              const Text(
+                                                'Log with custom title (ideal for offline or rare titles)',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 11,
+                                                  color: AppColors.textMuted,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                                      ],
                                     ),
                                   ),
                                 ),

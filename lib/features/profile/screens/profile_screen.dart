@@ -13,6 +13,7 @@ import '../widgets/follow_list_sheet.dart';
 import '../widgets/profile_stats_view.dart';
 import '../widgets/compare_picker_modal.dart';
 import '../widgets/data_management_card.dart';
+import '../widgets/offline_sync_card.dart';
 import 'edit_profile_dialog.dart';
 import '../widgets/avatar_viewer_dialog.dart';
 import '../../../core/utils/error_handler.dart';
@@ -1312,6 +1313,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
               ],
             ),
           ),
+          // Offline & Local Storage Management
+          const OfflineSyncCard(),
           const SizedBox(height: 16),
 
           // Data Management (Export & Import Hive Data)

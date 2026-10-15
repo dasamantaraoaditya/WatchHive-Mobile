@@ -238,6 +238,33 @@ class WHFeedCard extends StatelessWidget {
                 ),
 
                 const SizedBox(width: 8),
+                if (entry.isPendingSync) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFF59E0B)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.sync_rounded, size: 10, color: Color(0xFFB45309)),
+                        SizedBox(width: 3),
+                        Text(
+                          'Pending Sync',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFB45309),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 // Compact header timestamp (e.g. "2:30 PM" or "Aug 23")
                 Text(
                   _formatCompactHeaderDate(entry.activityDate),

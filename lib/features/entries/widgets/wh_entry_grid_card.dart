@@ -33,6 +33,7 @@ class WHEntryGridCard extends ConsumerWidget {
   final int suggestionCommentCount;
   final String? watchLocation;
   final List<String> tags;
+  final bool isPendingSync;
   final VoidCallback onTap;
   final VoidCallback? onMoveToWatching;
   final void Function(String resolvedTitle)? onMoveToWatchingWithTitle;
@@ -60,6 +61,7 @@ class WHEntryGridCard extends ConsumerWidget {
     this.suggestionCommentCount = 0,
     this.watchLocation,
     this.tags = const [],
+    this.isPendingSync = false,
     required this.onTap,
     this.onMoveToWatching,
     this.onMoveToWatchingWithTitle,
@@ -200,6 +202,42 @@ class WHEntryGridCard extends ConsumerWidget {
                       ),
                     ),
                   ),
+
+                  // Pending Sync Badge
+                  if (isPendingSync)
+                    Positioned(
+                      top: 32,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD97706),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.sync_rounded, color: Colors.white, size: 10),
+                            SizedBox(width: 3),
+                            Text(
+                              'Pending Sync',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                   // Top-Right Badge: Mode-Dependent (Watching, Rating, or Suggested By)
                   if (mode == WHEntryCardMode.watching)

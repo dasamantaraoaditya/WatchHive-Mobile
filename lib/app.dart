@@ -4,6 +4,8 @@ import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/router/navigation_back_interceptor.dart';
 
+import 'shared/widgets/offline_banner.dart';
+
 class WatchHiveApp extends ConsumerWidget {
   const WatchHiveApp({super.key});
 
@@ -18,7 +20,9 @@ class WatchHiveApp extends ConsumerWidget {
       routerConfig: router,
       builder: (context, child) {
         return NavigationBackInterceptor(
-          child: child ?? const SizedBox.shrink(),
+          child: OfflineBannerWrapper(
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );
