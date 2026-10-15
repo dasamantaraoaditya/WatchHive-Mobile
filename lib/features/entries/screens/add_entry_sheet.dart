@@ -19,6 +19,7 @@ import '../../search/repositories/search_repository.dart';
 import '../widgets/platform_logo_badge.dart';
 import '../../../core/services/connectivity_service.dart';
 import '../../../core/services/offline_sync_manager.dart';
+import '../../../core/services/offline_storage_service.dart';
 
 class _LocationPreset {
   final String label;
@@ -462,8 +463,39 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     setState(() => _isSearching = true);
     try {
       final results = await ref.read(searchRepositoryProvider).searchMedia(query);
-      setState(() => _searchResults = results.take(6).toList());
+      if (results.isNotEmpty) {
+        setState(() => _searchResults = results.take(6).toList());
+      } else {
+        // Online search returned nothing; check local cache
+        final local = await ref.read(offlineStorageServiceProvider).searchLocalMedia(query);
+        if (mounted && local.isNotEmpty) {
+          final mapped = local.map((l) => MediaResult(
+            id: l['id'] as int,
+            title: l['title'] as String,
+            mediaType: l['mediaType'] as String,
+            posterPath: l['posterPath'] as String?,
+            releaseDate: l['year'] as String?,
+          )).toList();
+          setState(() => _searchResults = mapped.take(6).toList());
+        } else {
+          setState(() => _searchResults = []);
+        }
+      }
     } catch (_) {
+      // Network failed or offline: fall back to local media cache
+      try {
+        final local = await ref.read(offlineStorageServiceProvider).searchLocalMedia(query);
+        if (mounted && local.isNotEmpty) {
+          final mapped = local.map((l) => MediaResult(
+            id: l['id'] as int,
+            title: l['title'] as String,
+            mediaType: l['mediaType'] as String,
+            posterPath: l['posterPath'] as String?,
+            releaseDate: l['year'] as String?,
+          )).toList();
+          setState(() => _searchResults = mapped.take(6).toList());
+        }
+      } catch (_) {}
     } finally {
       if (mounted) setState(() => _isSearching = false);
     }
@@ -644,19 +676,28 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     }
     setState(() => _isLoading = true);
     try {
+      final poster = _selectedMedia?.posterPath ??
+          _mediaDetails?['poster_path'] as String? ??
+          widget.prefillPosterPath ??
+          widget.editEntry?.posterPath;
+      final backdrop = _mediaDetails?['backdrop_path'] as String? ??
+          widget.editEntry?.backdropPath;
+
       final data = {
         'tmdbId': _tmdbId > 0 ? _tmdbId : (_selectedMedia?.id ?? 0),
         'title': title,
         'type': _type,
-        'rating': _rating > 0 ? _rating : null,
-        'review': _reviewController.text.trim().isNotEmpty ? _reviewController.text.trim() : null,
+        if (_rating > 0) 'rating': (_rating.clamp(0.5, 10.0) * 10).round() / 10,
+        if (_reviewController.text.trim().isNotEmpty) 'review': _reviewController.text.trim(),
         'isRewatch': _isRewatch,
         'isWatching': _isWatching,
-        'watchLocation': _watchLocation.isNotEmpty ? _watchLocation : null,
-        'tags': _tags,
+        if (_watchLocation.trim().isNotEmpty) 'watchLocation': _watchLocation.trim(),
+        'tags': _tags.where((t) => t.trim().isNotEmpty).toList(),
         'watchedAt': _watchedDate.toUtc().toIso8601String(),
-        if (_suggestedByUserId != null && _suggestedByUserId!.isNotEmpty)
-          'suggestedByUserId': _suggestedByUserId,
+        if (_suggestedByUserId != null && _suggestedByUserId!.trim().isNotEmpty)
+          'suggestedByUserId': _suggestedByUserId!.trim(),
+        if (poster != null && poster.isNotEmpty) 'posterPath': poster,
+        if (backdrop != null && backdrop.isNotEmpty) 'backdropPath': backdrop,
       };
 
       bool isPendingSync = false;

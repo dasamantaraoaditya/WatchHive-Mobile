@@ -111,11 +111,42 @@ class OfflineSyncManager extends StateNotifier<OfflineSyncState> {
 
     for (final item in items) {
       try {
+        final cleanPayload = _cleanPayload(item.payload);
+
         switch (item.action) {
           case 'CREATE_ENTRY':
+            // If logged offline with title only (tmdbId == 0), auto-resolve via TMDB now that we're online
+            if ((cleanPayload['tmdbId'] == null || cleanPayload['tmdbId'] == 0) && cleanPayload['title'] != null) {
+              try {
+                final searchRes = await _api.get(
+                  ApiEndpoints.tmdbSearch,
+                  queryParameters: {'query': cleanPayload['title'].toString().trim()},
+                );
+                final list = (searchRes.data['results'] as List<dynamic>?) ?? [];
+                if (list.isNotEmpty) {
+                  final first = list.first as Map<String, dynamic>;
+                  cleanPayload['tmdbId'] = (first['id'] as num?)?.toInt() ?? 0;
+                  final mediaType = first['media_type']?.toString().toUpperCase();
+                  if (mediaType == 'TV') {
+                    cleanPayload['type'] = 'TV_SHOW';
+                  } else if (mediaType == 'MOVIE') {
+                    cleanPayload['type'] = 'MOVIE';
+                  }
+                  if (first['poster_path'] != null) {
+                    cleanPayload['posterPath'] = first['poster_path'];
+                  }
+                  if (first['backdrop_path'] != null) {
+                    cleanPayload['backdropPath'] = first['backdrop_path'];
+                  }
+                }
+              } catch (lookupErr) {
+                debugPrint('[OfflineSyncManager] Could not auto-resolve TMDb ID: $lookupErr');
+              }
+            }
+
             final response = await _api.post(
               ApiEndpoints.entries,
-              data: item.payload,
+              data: cleanPayload,
             );
             final data = response.data as Map<String, dynamic>;
             final createdJson = (data['entry'] ?? data) as Map<String, dynamic>;
@@ -133,7 +164,7 @@ class OfflineSyncManager extends StateNotifier<OfflineSyncState> {
           case 'UPDATE_ENTRY':
             final response = await _api.put(
               ApiEndpoints.entry(item.entityId),
-              data: item.payload,
+              data: cleanPayload,
             );
             final data = response.data as Map<String, dynamic>;
             final updatedJson = (data['entry'] ?? data) as Map<String, dynamic>;
@@ -147,6 +178,45 @@ class OfflineSyncManager extends StateNotifier<OfflineSyncState> {
           case 'DELETE_ENTRY':
             await _api.delete(ApiEndpoints.entry(item.entityId));
             await _storage.removeCachedEntry(item.entityId);
+            await _storage.removeSyncAction(item.queueId);
+            successCount++;
+            break;
+
+          case 'ADD_WATCHLIST_ITEM':
+            final listId = item.payload['listId'] as String?;
+            String? actualListId = (listId != null && listId != 'cached_watchlist') ? listId : null;
+            if (actualListId == null) {
+              final wlRes = await _api.get(ApiEndpoints.lists);
+              final lists = (wlRes.data['lists'] ?? wlRes.data) as List<dynamic>;
+              final wl = lists.firstWhere(
+                (l) => l['type'] == 'WATCHLIST',
+                orElse: () => null,
+              );
+              if (wl != null) actualListId = wl['id'] as String;
+            }
+            if (actualListId != null) {
+              await _api.post(ApiEndpoints.listItems(actualListId), data: cleanPayload);
+            }
+            await _storage.removeSyncAction(item.queueId);
+            successCount++;
+            break;
+
+          case 'REMOVE_WATCHLIST_ITEM':
+            final listId = item.payload['listId'] as String?;
+            String? actualListId = (listId != null && listId != 'cached_watchlist') ? listId : null;
+            if (actualListId == null) {
+              final wlRes = await _api.get(ApiEndpoints.lists);
+              final lists = (wlRes.data['lists'] ?? wlRes.data) as List<dynamic>;
+              final wl = lists.firstWhere(
+                (l) => l['type'] == 'WATCHLIST',
+                orElse: () => null,
+              );
+              if (wl != null) actualListId = wl['id'] as String;
+            }
+            final itemId = item.payload['itemId']?.toString() ?? item.entityId;
+            if (actualListId != null && itemId.isNotEmpty) {
+              await _api.delete('${ApiEndpoints.listItems(actualListId)}/$itemId');
+            }
             await _storage.removeSyncAction(item.queueId);
             successCount++;
             break;
@@ -187,4 +257,41 @@ class OfflineSyncManager extends StateNotifier<OfflineSyncState> {
       );
     }
   }
+
+  Map<String, dynamic> _cleanPayload(Map<String, dynamic> raw) {
+    final clean = Map<String, dynamic>.from(raw);
+    clean.removeWhere((k, v) => v == null || (v is String && v.trim().isEmpty));
+    if (clean.containsKey('rating') && (clean['rating'] == null || clean['rating'] == 0)) {
+      clean.remove('rating');
+    }
+    clean.remove('isPendingSync');
+    clean.remove('id');
+    return clean;
+  }
+
+  Future<void> discardAction(String queueId) async {
+    await _storage.removeSyncAction(queueId);
+    await refreshPendingCount();
+    final items = await _storage.getPendingSyncActions();
+    if (items.isEmpty) {
+      state = state.copyWith(status: SyncStatus.idle, message: null, pendingCount: 0);
+    }
+  }
+
+  Future<void> discardAllFailed() async {
+    final items = await _storage.getPendingSyncActions();
+    for (final item in items) {
+      if (item.lastError != null) {
+        await _storage.removeSyncAction(item.queueId);
+      }
+    }
+    await refreshPendingCount();
+    final remaining = await _storage.getPendingCount();
+    state = state.copyWith(
+      status: remaining == 0 ? SyncStatus.idle : state.status,
+      message: remaining == 0 ? null : state.message,
+      pendingCount: remaining,
+    );
+  }
 }
+

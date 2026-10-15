@@ -68,17 +68,42 @@ class WatchlistRepository {
     String? overview,
     String? suggestedByUserId,
   }) async {
-    final watchlistData = await getWatchlist();
-    final listId = watchlistData['id'] as String;
-
-    await _api.post('/lists/$listId/items', data: {
+    final payload = {
       'tmdbId': tmdbId,
       'title': title,
       'mediaType': mediaType == 'TV_SHOW' || mediaType == 'tv' ? 'tv' : 'movie',
-      'posterPath': posterPath,
-      'overview': overview,
-      'suggestedByUserId': suggestedByUserId,
-    });
+      if (posterPath != null && posterPath.isNotEmpty) 'posterPath': posterPath,
+      if (overview != null && overview.isNotEmpty) 'overview': overview,
+      if (suggestedByUserId != null && suggestedByUserId.isNotEmpty) 'suggestedByUserId': suggestedByUserId,
+    };
+
+    try {
+      final watchlistData = await getWatchlist();
+      final listId = watchlistData['id'] as String;
+      if (listId != 'cached_watchlist') {
+        await _api.post('/lists/$listId/items', data: payload);
+      } else {
+        throw Exception('Offline mode');
+      }
+    } catch (e) {
+      // Offline fallback: enqueue sync action & optimistically add to local cached watchlist
+      await _storage.enqueueSyncAction(
+        action: 'ADD_WATCHLIST_ITEM',
+        entityId: 'wl_$tmdbId',
+        payload: payload,
+      );
+      final currentList = await _storage.getCachedWatchlist();
+      currentList.insert(0, {
+        'id': 'temp_$tmdbId',
+        'tmdbId': tmdbId,
+        'title': title,
+        'mediaType': mediaType,
+        'posterPath': posterPath,
+        'overview': overview,
+        'addedAt': DateTime.now().toIso8601String(),
+      });
+      await _storage.cacheWatchlist(currentList);
+    }
   }
 
   Future<void> removeFromWatchlist(dynamic target, {String? listId}) async {
@@ -96,21 +121,36 @@ class WatchlistRepository {
       }
     }
 
-    final watchlistData = await getWatchlist();
-    final effectiveListId = listId ?? (watchlistData['id'] as String);
+    try {
+      final watchlistData = await getWatchlist();
+      final effectiveListId = listId ?? (watchlistData['id'] as String);
 
-    if (tmdbId == null && itemId != null) {
-      final items = watchlistData['items'] as List<dynamic>? ?? [];
-      for (final it in items) {
-        if (it is Map && it['id']?.toString() == itemId) {
-          tmdbId = (it['tmdbId'] as num?)?.toInt() ?? int.tryParse(it['tmdbId']?.toString() ?? '');
-          break;
+      if (tmdbId == null && itemId != null) {
+        final items = watchlistData['items'] as List<dynamic>? ?? [];
+        for (final it in items) {
+          if (it is Map && it['id']?.toString() == itemId) {
+            tmdbId = (it['tmdbId'] as num?)?.toInt() ?? int.tryParse(it['tmdbId']?.toString() ?? '');
+            break;
+          }
         }
       }
-    }
 
-    if (tmdbId != null) {
-      await _api.delete('/lists/$effectiveListId/items/$tmdbId');
+      if (effectiveListId != 'cached_watchlist' && tmdbId != null) {
+        await _api.delete('/lists/$effectiveListId/items/$tmdbId');
+      } else {
+        throw Exception('Offline mode');
+      }
+    } catch (e) {
+      if (tmdbId != null) {
+        await _storage.enqueueSyncAction(
+          action: 'REMOVE_WATCHLIST_ITEM',
+          entityId: 'wl_$tmdbId',
+          payload: {'itemId': tmdbId.toString()},
+        );
+        final currentList = await _storage.getCachedWatchlist();
+        currentList.removeWhere((item) => item['tmdbId'] == tmdbId || item['tmdbId'] == tmdbId.toString());
+        await _storage.cacheWatchlist(currentList);
+      }
     }
   }
 

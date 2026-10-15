@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:watchhive_mobile/core/services/connectivity_service.dart';
 import 'package:watchhive_mobile/core/services/offline_storage_service.dart';
 import 'package:watchhive_mobile/core/services/offline_sync_manager.dart';
 import 'package:watchhive_mobile/features/entries/widgets/wh_entry_grid_card.dart';
@@ -82,6 +81,56 @@ void main() {
       await storage.removeSyncAction(actions.first.queueId);
       final remaining = await storage.getPendingCount();
       expect(remaining, 0);
+    });
+
+    test('Saves and retrieves media details in memory store', () async {
+      await storage.saveMediaDetails(550, 'movie', {
+        'id': 550,
+        'title': 'Fight Club',
+        'poster_path': '/fight_club.jpg',
+      });
+
+      final details = await storage.getCachedMediaDetails(550, 'movie');
+      expect(details, isNotNull);
+      expect(details!['title'], 'Fight Club');
+      expect(details['poster_path'], '/fight_club.jpg');
+    });
+
+    test('Updates entry posters by tmdbId', () async {
+      final now = DateTime.now();
+      final entry = Entry(
+        id: 'e_100',
+        userId: 'u1',
+        tmdbId: 550,
+        title: 'Fight Club',
+        type: 'MOVIE',
+        watchedAt: now,
+        createdAt: now,
+      );
+      await storage.insertOrUpdateCachedEntry(entry);
+
+      await storage.updateEntryPostersByTmdbId(550, posterPath: '/poster.jpg', backdropPath: '/backdrop.jpg');
+      final updatedList = await storage.getCachedEntries();
+      expect(updatedList.first.posterPath, '/poster.jpg');
+      expect(updatedList.first.backdropPath, '/backdrop.jpg');
+    });
+
+    test('Searches local media across entries and media details', () async {
+      final now = DateTime.now();
+      await storage.insertOrUpdateCachedEntry(Entry(
+        id: 'e_matrix',
+        userId: 'u1',
+        tmdbId: 603,
+        title: 'The Matrix',
+        type: 'MOVIE',
+        watchedAt: now,
+        createdAt: now,
+      ));
+
+      final results = await storage.searchLocalMedia('matrix');
+      expect(results.isNotEmpty, isTrue);
+      expect(results.first['title'], 'The Matrix');
+      expect(results.first['id'], 603);
     });
   });
 

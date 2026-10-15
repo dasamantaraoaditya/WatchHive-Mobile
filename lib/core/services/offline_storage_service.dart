@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
+import '../api/api_endpoints.dart';
 import '../../shared/models/entry.dart';
 
 final offlineStorageServiceProvider = Provider<OfflineStorageService>((ref) {
@@ -71,6 +73,7 @@ class OfflineStorageService {
   final List<Entry> _memFeed = [];
   final List<Map<String, dynamic>> _memWatchlist = [];
   final Map<String, SyncQueueItem> _memQueue = {};
+  final Map<String, Map<String, dynamic>> _memMediaDetails = {};
 
   Future<Database?> _getDatabase() async {
     if (_db != null && _db!.isOpen) return _db;
@@ -80,7 +83,20 @@ class OfflineStorageService {
 
       _db = await openDatabase(
         path,
-        version: 1,
+        version: 2,
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS cached_media_details (
+                tmdbId INTEGER,
+                mediaType TEXT,
+                jsonData TEXT,
+                cachedAt INTEGER,
+                PRIMARY KEY (tmdbId, mediaType)
+              )
+            ''');
+          }
+        },
         onCreate: (db, version) async {
           await db.execute('''
             CREATE TABLE cached_entries (
@@ -111,6 +127,16 @@ class OfflineStorageService {
               tmdbId INTEGER,
               jsonData TEXT,
               cachedAt INTEGER
+            )
+          ''');
+
+          await db.execute('''
+            CREATE TABLE cached_media_details (
+              tmdbId INTEGER,
+              mediaType TEXT,
+              jsonData TEXT,
+              cachedAt INTEGER,
+              PRIMARY KEY (tmdbId, mediaType)
             )
           ''');
 
@@ -166,6 +192,13 @@ class OfflineStorageService {
         );
       }
       await batch.commit(noResult: true);
+
+      // Pre-warm poster images for entries in background so images exist on disk offline
+      for (final e in entries.take(30)) {
+        if (e.posterPath != null && e.posterPath!.isNotEmpty) {
+          prewarmImage(e.posterPath);
+        }
+      }
     } catch (e) {
       debugPrint('[OfflineStorageService] Error caching entries: $e');
     }
@@ -471,6 +504,210 @@ class OfflineStorageService {
       return Sqflite.firstIntValue(result) ?? 0;
     } catch (e) {
       return _memQueue.length;
+    }
+  }
+
+  // ─── MEDIA DETAILS & POSTERS CACHE ─────────────────────────────────────────
+
+  Future<void> prewarmImage(String? posterPath) async {
+    if (posterPath == null || posterPath.isEmpty) return;
+    try {
+      final url = ApiEndpoints.tmdbPoster(posterPath);
+      await DefaultCacheManager().downloadFile(url);
+    } catch (_) {}
+  }
+
+  Future<void> saveMediaDetails(int tmdbId, String mediaType, Map<String, dynamic> data) async {
+    if (tmdbId <= 0) return;
+    final normType = mediaType.toLowerCase().contains('tv') ? 'tv' : 'movie';
+    final key = '$tmdbId:$normType';
+    _memMediaDetails[key] = data;
+
+    final db = await _getDatabase();
+    if (db == null) return;
+    try {
+      await db.insert(
+        'cached_media_details',
+        {
+          'tmdbId': tmdbId,
+          'mediaType': normType,
+          'jsonData': jsonEncode(data),
+          'cachedAt': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error saving media details: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>?> getCachedMediaDetails(int tmdbId, String mediaType) async {
+    if (tmdbId <= 0) return null;
+    final normType = mediaType.toLowerCase().contains('tv') ? 'tv' : 'movie';
+    final key = '$tmdbId:$normType';
+    if (_memMediaDetails.containsKey(key)) {
+      return _memMediaDetails[key];
+    }
+
+    final db = await _getDatabase();
+    if (db == null) return null;
+    try {
+      final rows = await db.query(
+        'cached_media_details',
+        where: 'tmdbId = ? AND mediaType = ?',
+        whereArgs: [tmdbId, normType],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) {
+        final jsonStr = rows.first['jsonData'] as String?;
+        if (jsonStr != null) {
+          final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+          _memMediaDetails[key] = data;
+          return data;
+        }
+      }
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error getting cached media details: $e');
+    }
+    return null;
+  }
+
+  Future<void> updateEntryPostersByTmdbId(int tmdbId, {String? posterPath, String? backdropPath}) async {
+    if (tmdbId <= 0 || (posterPath == null && backdropPath == null)) return;
+
+    for (final key in _memEntries.keys) {
+      final entry = _memEntries[key]!;
+      if (entry.tmdbId == tmdbId) {
+        _memEntries[key] = entry.copyWith(
+          posterPath: posterPath ?? entry.posterPath,
+          backdropPath: backdropPath ?? entry.backdropPath,
+        );
+      }
+    }
+
+    final db = await _getDatabase();
+    if (db == null) return;
+    try {
+      final rows = await db.query('cached_entries', where: 'tmdbId = ?', whereArgs: [tmdbId]);
+      for (final row in rows) {
+        final jsonStr = row['jsonData'] as String?;
+        if (jsonStr != null) {
+          final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+          if (posterPath != null) map['posterPath'] = posterPath;
+          if (backdropPath != null) map['backdropPath'] = backdropPath;
+          await db.update(
+            'cached_entries',
+            {'jsonData': jsonEncode(map)},
+            where: 'id = ?',
+            whereArgs: [row['id']],
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error updating entry posters for tmdbId $tmdbId: $e');
+    }
+  }
+
+  /// Search across cached entries, cached watchlist, and cached media details for matching titles offline.
+  Future<List<Map<String, dynamic>>> searchLocalMedia(String query) async {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return [];
+
+    final Map<int, Map<String, dynamic>> results = {};
+
+    // 1. Search cached entries
+    final entries = await getCachedEntries();
+    for (final e in entries) {
+      if (e.tmdbId > 0 && e.title.toLowerCase().contains(q)) {
+        results[e.tmdbId] = {
+          'id': e.tmdbId,
+          'title': e.title,
+          'mediaType': e.type.toLowerCase().contains('tv') ? 'tv' : 'movie',
+          'posterPath': e.posterPath,
+          'backdropPath': e.backdropPath,
+          'year': e.watchedAt.year.toString(),
+          'source': 'Saved in your Hive',
+        };
+      }
+    }
+
+    // 2. Search cached watchlist
+    final watchlist = await getCachedWatchlist();
+    for (final w in watchlist) {
+      final tmdbId = (w['tmdbId'] as num?)?.toInt() ?? int.tryParse(w['tmdbId']?.toString() ?? '') ?? 0;
+      final title = (w['title'] ?? w['name'])?.toString() ?? '';
+      if (tmdbId > 0 && title.toLowerCase().contains(q)) {
+        if (!results.containsKey(tmdbId)) {
+          results[tmdbId] = {
+            'id': tmdbId,
+            'title': title,
+            'mediaType': (w['mediaType'] ?? 'movie').toString().toLowerCase().contains('tv') ? 'tv' : 'movie',
+            'posterPath': w['posterPath'] ?? w['poster_path'],
+            'backdropPath': w['backdropPath'] ?? w['backdrop_path'],
+            'year': w['releaseDate']?.toString().split('-').first,
+            'source': 'In your Watchlist',
+          };
+        }
+      }
+    }
+
+    // 3. Search in-memory media details
+    for (final entry in _memMediaDetails.entries) {
+      final data = entry.value;
+      final tmdbId = (data['id'] as num?)?.toInt() ?? 0;
+      final title = (data['title'] ?? data['name'])?.toString() ?? '';
+      if (tmdbId > 0 && title.toLowerCase().contains(q)) {
+        if (!results.containsKey(tmdbId)) {
+          results[tmdbId] = {
+            'id': tmdbId,
+            'title': title,
+            'mediaType': (data['title'] != null) ? 'movie' : 'tv',
+            'posterPath': data['poster_path'],
+            'backdropPath': data['backdrop_path'],
+            'year': (data['release_date'] ?? data['first_air_date'])?.toString().split('-').first,
+            'source': 'Offline Cache',
+          };
+        }
+      }
+    }
+
+    return results.values.toList();
+  }
+
+  Future<void> discardSyncAction(String queueId) async {
+    await removeSyncAction(queueId);
+  }
+
+  Future<void> updateSyncActionPayload(String queueId, Map<String, dynamic> newPayload) async {
+    if (_memQueue.containsKey(queueId)) {
+      final old = _memQueue[queueId]!;
+      _memQueue[queueId] = SyncQueueItem(
+        queueId: old.queueId,
+        action: old.action,
+        entityId: old.entityId,
+        payload: newPayload,
+        createdAt: old.createdAt,
+        retryCount: 0,
+        lastError: null,
+      );
+    }
+
+    final db = await _getDatabase();
+    if (db != null) {
+      try {
+        await db.update(
+          'offline_sync_queue',
+          {
+            'payload': jsonEncode(newPayload),
+            'retryCount': 0,
+            'lastError': null,
+          },
+          where: 'queueId = ?',
+          whereArgs: [queueId],
+        );
+      } catch (e) {
+        debugPrint('[OfflineStorageService] Error updating sync action payload: $e');
+      }
     }
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/services/offline_storage_service.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/models/user.dart';
 
@@ -194,35 +195,56 @@ class SearchRepository {
 final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({int tmdbId, String mediaType})>((ref, arg) async {
   if (arg.tmdbId <= 0) return null;
   final searchRepo = ref.read(searchRepositoryProvider);
+  final storage = ref.read(offlineStorageServiceProvider);
   final isTv = arg.mediaType.toLowerCase().contains('tv');
+  final normType = isTv ? 'tv' : 'movie';
+
   try {
+    Map<String, dynamic> res;
     if (isTv) {
-      final res = await searchRepo.getTvDetails(arg.tmdbId);
-      if (res['poster_path'] != null || res['backdrop_path'] != null) return res;
-      try {
-        final movieRes = await searchRepo.getMovieDetails(arg.tmdbId);
-        if (movieRes['poster_path'] != null || movieRes['backdrop_path'] != null) return movieRes;
-      } catch (_) {}
-      return res;
+      res = await searchRepo.getTvDetails(arg.tmdbId);
+      if (res['poster_path'] == null && res['backdrop_path'] == null) {
+        try {
+          final movieRes = await searchRepo.getMovieDetails(arg.tmdbId);
+          if (movieRes['poster_path'] != null || movieRes['backdrop_path'] != null) res = movieRes;
+        } catch (_) {}
+      }
     } else {
-      final res = await searchRepo.getMovieDetails(arg.tmdbId);
-      if (res['poster_path'] != null || res['backdrop_path'] != null) return res;
-      try {
-        final tvRes = await searchRepo.getTvDetails(arg.tmdbId);
-        if (tvRes['poster_path'] != null || tvRes['backdrop_path'] != null) return tvRes;
-      } catch (_) {}
-      return res;
+      res = await searchRepo.getMovieDetails(arg.tmdbId);
+      if (res['poster_path'] == null && res['backdrop_path'] == null) {
+        try {
+          final tvRes = await searchRepo.getTvDetails(arg.tmdbId);
+          if (tvRes['poster_path'] != null || tvRes['backdrop_path'] != null) res = tvRes;
+        } catch (_) {}
+      }
     }
+
+    // Persist details to local SQLite for offline access
+    await storage.saveMediaDetails(arg.tmdbId, normType, res);
+
+    final poster = res['poster_path'] as String?;
+    final backdrop = res['backdrop_path'] as String?;
+    if (poster != null || backdrop != null) {
+      await storage.updateEntryPostersByTmdbId(arg.tmdbId, posterPath: poster, backdropPath: backdrop);
+      storage.prewarmImage(poster);
+    }
+
+    return res;
   } catch (_) {
+    // Offline or network error: check SQLite media details cache
+    final cached = await storage.getCachedMediaDetails(arg.tmdbId, normType);
+    if (cached != null) return cached;
+
     // Fallback: if initial type call failed, try the alternate media type
     try {
-      if (isTv) {
-        return await searchRepo.getMovieDetails(arg.tmdbId);
-      } else {
-        return await searchRepo.getTvDetails(arg.tmdbId);
-      }
+      final altType = isTv ? 'movie' : 'tv';
+      final altRes = isTv
+          ? await searchRepo.getMovieDetails(arg.tmdbId)
+          : await searchRepo.getTvDetails(arg.tmdbId);
+      await storage.saveMediaDetails(arg.tmdbId, altType, altRes);
+      return altRes;
     } catch (_) {
-      return null;
+      return await storage.getCachedMediaDetails(arg.tmdbId, isTv ? 'movie' : 'tv');
     }
   }
 });
