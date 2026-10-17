@@ -200,9 +200,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             }
             if (map['suggestedByUser'] is User) {
               suggestedByUser = map['suggestedByUser'] as User;
+            } else if (map['suggestedByUser'] is Map) {
+              try {
+                suggestedByUser = User.fromJson(Map<String, dynamic>.from(map['suggestedByUser'] as Map));
+              } catch (_) {}
             }
             if (map['suggestedByUserId'] is String) {
               suggestedByUserId = map['suggestedByUserId'] as String;
+            } else if (suggestedByUser != null && suggestedByUser.id.isNotEmpty) {
+              suggestedByUserId = suggestedByUser.id;
             }
           }
           return MovieDetailsScreen(

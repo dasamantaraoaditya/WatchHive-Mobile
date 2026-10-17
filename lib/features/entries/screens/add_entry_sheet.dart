@@ -12,6 +12,7 @@ import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
 import '../repositories/suggestions_repository.dart';
+import '../repositories/watchlist_repository.dart';
 import 'entries_screen.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../../../core/utils/error_handler.dart';
@@ -216,12 +217,16 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         _suggestorUsername = widget.prefillSuggestor!.username;
         _suggestorDisplayName = widget.prefillSuggestor!.displayName;
         _suggestorAvatar = widget.prefillSuggestor!.profilePictureUrl;
-      } else if (widget.prefillSuggestedByUserId != null) {
+      } else if (widget.prefillSuggestedByUserId != null && widget.prefillSuggestedByUserId!.isNotEmpty) {
         _suggestedByUserId = widget.prefillSuggestedByUserId;
+        _fetchSuggestorProfile(_suggestedByUserId!);
       }
       if (_tmdbId > 0) {
         _loadMediaDetails(_tmdbId, _type);
-        if (_suggestedByUserId == null) _checkSuggestionsForTmdbId(_tmdbId);
+        if (_suggestedByUserId == null || _suggestedByUserId!.isEmpty) {
+          _checkSuggestionsForTmdbId(_tmdbId);
+          _checkWatchlistSuggestionsForTmdbId(_tmdbId);
+        }
       }
     }
   }
@@ -453,6 +458,47 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
           _suggestorDisplayName = s.displayName;
           _suggestorAvatar = s.profilePictureUrl;
         });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _fetchSuggestorProfile(String userId) async {
+    try {
+      final user = await ref.read(userRepositoryProvider).getUserProfile(userId);
+      if (mounted) {
+        setState(() {
+          _suggestorUsername = user.username;
+          _suggestorDisplayName = user.displayName;
+          _suggestorAvatar = user.profilePictureUrl;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _checkWatchlistSuggestionsForTmdbId(int tmdbId) async {
+    if (_suggestedByUserId != null && _suggestedByUserId!.isNotEmpty) return;
+    try {
+      final data = await ref.read(watchlistRepositoryProvider).getWatchlist();
+      final items = data['items'] as List<dynamic>? ?? [];
+      final match = items.firstWhere(
+        (it) => (it['tmdbId'] as num?)?.toInt() == tmdbId || it['tmdbId'].toString() == tmdbId.toString(),
+        orElse: () => null,
+      );
+      if (match != null && mounted) {
+        final userMap = match['suggestedByUser'] as Map<String, dynamic>?;
+        final uid = match['suggestedByUserId'] as String? ?? userMap?['id'] as String?;
+        final uname = userMap?['username'] as String? ?? match['suggestedByUsername'] as String?;
+        if (uid != null && uid.isNotEmpty) {
+          setState(() {
+            _suggestedByUserId = uid;
+            _suggestorUsername = uname;
+            _suggestorDisplayName = userMap?['displayName'] as String?;
+            _suggestorAvatar = userMap?['profilePictureUrl'] as String?;
+          });
+          if (_suggestorUsername == null || _suggestorUsername!.isEmpty) {
+            _fetchSuggestorProfile(uid);
+          }
+        }
       }
     } catch (_) {}
   }

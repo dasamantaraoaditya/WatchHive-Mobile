@@ -7,7 +7,6 @@ import 'package:watchhive_mobile/features/entries/repositories/suggestions_repos
 import 'package:watchhive_mobile/features/entries/widgets/suggest_movie_modal.dart';
 import 'package:watchhive_mobile/features/profile/repositories/user_repository.dart';
 import 'package:watchhive_mobile/features/search/repositories/search_repository.dart';
-import 'package:watchhive_mobile/shared/models/models.dart';
 import 'package:watchhive_mobile/shared/models/user.dart';
 
 class _FakeAuthManager extends AuthManager {}

@@ -1013,7 +1013,7 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              '@${widget.user.username}',
+              '@${widget.user.username.length > 10 ? '${widget.user.username.substring(0, 10)}...' : widget.user.username}',
               style: const TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 10,

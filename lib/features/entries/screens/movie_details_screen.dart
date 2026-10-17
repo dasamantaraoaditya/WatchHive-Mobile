@@ -64,6 +64,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   bool _inWatchlist = false;
   bool _isWatchlistLoading = false;
   bool _isTransitioning = false;
+  User? _watchlistSuggestedByUser;
+  String? _watchlistSuggestedByUserId;
 
   // TV Seasons Drill-Down State
   int? _selectedSeasonNumber;
@@ -135,8 +137,44 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
 
   Future<void> _checkWatchlistStatus() async {
     try {
-      final inList = await ref.read(watchlistRepositoryProvider).isInWatchlist(widget.tmdbId);
-      if (mounted) setState(() => _inWatchlist = inList);
+      final data = await ref.read(watchlistRepositoryProvider).getWatchlist();
+      final items = data['items'] as List<dynamic>? ?? [];
+      final match = items.firstWhere(
+        (it) => (it['tmdbId'] as num?)?.toInt() == widget.tmdbId || it['tmdbId'].toString() == widget.tmdbId.toString(),
+        orElse: () => null,
+      );
+      if (mounted) {
+        setState(() {
+          _inWatchlist = match != null;
+          if (match != null) {
+            final userMap = match['suggestedByUser'] as Map<String, dynamic>?;
+            final uid = match['suggestedByUserId'] as String? ?? userMap?['id'] as String?;
+            final uname = userMap?['username'] as String? ?? match['suggestedByUsername'] as String?;
+            if (_watchlistSuggestedByUser == null && userMap != null) {
+              try {
+                _watchlistSuggestedByUser = User.fromJson(userMap);
+              } catch (_) {
+                _watchlistSuggestedByUser = User(
+                  id: uid ?? '',
+                  username: uname ?? '',
+                  displayName: userMap['displayName'] as String?,
+                  profilePictureUrl: userMap['profilePictureUrl'] as String?,
+                  createdAt: DateTime.now(),
+                );
+              }
+            } else if (_watchlistSuggestedByUser == null && uname != null && uname.isNotEmpty) {
+              _watchlistSuggestedByUser = User(
+                id: uid ?? '',
+                username: uname,
+                createdAt: DateTime.now(),
+              );
+            }
+            if (_watchlistSuggestedByUserId == null && uid != null && uid.isNotEmpty) {
+              _watchlistSuggestedByUserId = uid;
+            }
+          }
+        });
+      }
     } catch (_) {}
   }
 
@@ -234,8 +272,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
           mediaType: widget.mediaType,
           posterPath: _details?['poster_path'] as String?,
           overview: _details?['overview'] as String?,
-          prefillSuggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id,
-          prefillSuggestedByUser: widget.suggestedByUser,
+          prefillSuggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id ?? _watchlistSuggestedByUserId ?? _watchlistSuggestedByUser?.id,
+          prefillSuggestedByUser: widget.suggestedByUser ?? _watchlistSuggestedByUser,
         );
         if (added == true && mounted) {
           setState(() => _inWatchlist = true);
@@ -273,7 +311,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         'type': widget.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
         'isWatching': true,
         'startedAt': DateTime.now().toIso8601String(),
-        'suggestedByUserId': widget.suggestedByUserId ?? widget.suggestedByUser?.id,
+        'suggestedByUserId': widget.suggestedByUserId ?? widget.suggestedByUser?.id ?? _watchlistSuggestedByUserId ?? _watchlistSuggestedByUser?.id,
       });
 
       ref.read(entriesProvider(true).notifier).addEntry(entry);
@@ -305,6 +343,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     final entryToEdit = _isMyEntry ? _loggedEntry : _myOwnEntry;
     final title = (details['title'] ?? details['name'] ?? details['original_title'] ?? details['original_name'])?.toString().trim();
     final posterPath = details['poster_path'] as String?;
+    final effectiveSuggestor = widget.suggestedByUser ?? _watchlistSuggestedByUser;
+    final effectiveSuggestorId = widget.suggestedByUserId ?? _watchlistSuggestedByUserId ?? effectiveSuggestor?.id;
 
     showModalBottomSheet(
       context: context,
@@ -317,8 +357,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         prefillType: widget.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
         prefillTitle: title,
         prefillPosterPath: posterPath,
-        prefillSuggestor: widget.suggestedByUser,
-        prefillSuggestedByUserId: widget.suggestedByUserId,
+        prefillSuggestor: effectiveSuggestor,
+        prefillSuggestedByUserId: effectiveSuggestorId,
         prefillIsWatching: completeWatch ? false : null,
         onSuccess: () {
           _checkUserEntry();

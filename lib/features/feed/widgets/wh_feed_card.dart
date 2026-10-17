@@ -181,7 +181,8 @@ class WHFeedCard extends StatelessWidget {
                                     if (sdn != null && sdn.isNotEmpty) return sdn;
                                     final sun = entry.suggestedByUser!.username.trim();
                                     if (sun.isNotEmpty) {
-                                      return sun.startsWith('@') ? sun.substring(1) : sun;
+                                      final rawSun = sun.startsWith('@') ? sun.substring(1) : sun;
+                                      return rawSun.length > 10 ? '${rawSun.substring(0, 10)}...' : rawSun;
                                     }
                                     return 'Friend';
                                   }(),

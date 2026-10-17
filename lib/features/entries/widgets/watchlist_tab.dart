@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/watchlist_repository.dart';
 import '../repositories/entries_repository.dart';
@@ -182,6 +183,28 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     final mediaType = isTv ? 'TV_SHOW' : 'MOVIE';
     final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
     final suggestedByUserId = item['suggestedByUserId'] as String? ?? suggestedByUser?['id'] as String?;
+    final suggestorUsername = suggestedByUser?['username'] as String? ?? item['suggestedByUsername'] as String?;
+
+    User? parsedSuggestor;
+    if (suggestedByUser != null) {
+      try {
+        parsedSuggestor = User.fromJson(suggestedByUser);
+      } catch (_) {
+        parsedSuggestor = User(
+          id: suggestedByUserId ?? '',
+          username: suggestorUsername ?? '',
+          displayName: suggestedByUser['displayName'] as String?,
+          profilePictureUrl: suggestedByUser['profilePictureUrl'] as String?,
+          createdAt: DateTime.now(),
+        );
+      }
+    } else if (suggestorUsername != null || suggestedByUserId != null) {
+      parsedSuggestor = User(
+        id: suggestedByUserId ?? '',
+        username: suggestorUsername ?? '',
+        createdAt: DateTime.now(),
+      );
+    }
 
     String effectiveTitle = (resolvedTitle != null && resolvedTitle.trim().isNotEmpty && resolvedTitle != 'Untitled' && resolvedTitle.toLowerCase() != 'this title')
         ? resolvedTitle.trim()
@@ -222,7 +245,8 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
             ? effectiveTitle
             : null,
         prefillPosterPath: (item['posterPath'] ?? item['poster_path']) as String?,
-        prefillSuggestedByUserId: suggestedByUserId,
+        prefillSuggestor: parsedSuggestor,
+        prefillSuggestedByUserId: suggestedByUserId ?? parsedSuggestor?.id,
         onSuccess: () {
           ref.read(watchlistRepositoryProvider).removeFromWatchlist(
             tmdbId > 0 ? tmdbId : itemId,
@@ -419,7 +443,36 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
             suggestedByUsername: suggestorUsername,
             suggestedByAvatarUrl: suggestedByUser?['profilePictureUrl'] as String?,
             onTap: () {
-              if (tmdbId > 0) context.push('/details/$mediaType/$tmdbId');
+              if (tmdbId > 0) {
+                User? parsedSuggestor;
+                if (suggestedByUser != null) {
+                  try {
+                    parsedSuggestor = User.fromJson(suggestedByUser);
+                  } catch (_) {
+                    parsedSuggestor = User(
+                      id: item['suggestedByUserId'] as String? ?? suggestedByUser['id'] as String? ?? '',
+                      username: suggestorUsername ?? '',
+                      displayName: suggestedByUser['displayName'] as String?,
+                      profilePictureUrl: suggestedByUser['profilePictureUrl'] as String?,
+                      createdAt: DateTime.now(),
+                    );
+                  }
+                } else if (suggestorUsername != null || item['suggestedByUserId'] != null) {
+                  parsedSuggestor = User(
+                    id: item['suggestedByUserId'] as String? ?? '',
+                    username: suggestorUsername ?? '',
+                    createdAt: DateTime.now(),
+                  );
+                }
+
+                context.push(
+                  '/details/$mediaType/$tmdbId',
+                  extra: {
+                    'suggestedByUser': parsedSuggestor,
+                    'suggestedByUserId': (item['suggestedByUserId'] as String?) ?? parsedSuggestor?.id,
+                  },
+                );
+              }
             },
             onMoveToWatchingWithTitle: (resolvedTitle) => _addToCurrentlyWatching(
               item,
