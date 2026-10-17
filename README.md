@@ -1,149 +1,151 @@
-# WatchHive Mobile 🎬
+# WatchHive Mobile (Flutter Android & iOS) 📱🎬
 
-A premium Flutter mobile app for **WatchHive** — Track Movies, TV Series, Anime, & K-Dramas, compare cinematic rankings with friends, and discover AI insights via **MindLens AI**.
-
----
-
-## 🎨 Design System & Aesthetics
-- **Theme**: Warm Honey Cream (matching Web PWA)
-- **Primary Color**: Honey Gold (`#FFB700`)
-- **Background**: Warm Cream (`#FFF9F0`)
-- **Typography**: Inter / Manrope
+> The official native mobile client for **WatchersHive** — engineered for fast, tactile movie & TV show tracking, personalized ranking stacks, community recommendations, and offline-first watch logging with real-time push notifications.
 
 ---
 
-## 🛠️ Getting Started
+## 📌 1. What is this Repo For?
 
-### 1. Prerequisites
+WatchHive Mobile provides a native smartphone experience for cinema enthusiasts:
+- **Instant Watch Logging**: Log movies, anime, and series on the go with tactile haptic feedback, custom ratings, and reviews.
+- **Ranking Stacks & Curations**: View, organize, and drag-and-drop movie stacks that represent your personal cinematic report card.
+- **Movie Suggestions & Impact**: Recommend movies to friends, see whose recommendations you watched, and check your suggester impact.
+- **Offline-First Resilience**: Log watches and browse your catalog without an active internet connection; changes automatically queue and sync via local SQLite.
+- **Real-Time Push Notifications**: Firebase Cloud Messaging (FCM) alerts when friends suggest movies, comment on your reviews, or follow your activity.
 
-Make sure Flutter and Java JDK 17 are installed on your environment:
+---
 
+## 🛠️ 2. Tech Stack
+
+| Layer | Technology | Details |
+| :--- | :--- | :--- |
+| **Framework** | Flutter (SDK `>=3.3.0 <4.0.0`) | Google's cross-platform native UI framework |
+| **Language** | Dart (v3+) | High-performance, AOT-compiled language with sound null safety |
+| **State Management** | Flutter Riverpod (`v2.5.1`) | Compile-safe, reactive state management with dependency injection |
+| **Navigation & Deep Links** | GoRouter (`v14.2.0`) | Declarative URL-based routing with deep-linking support |
+| **Networking** | Dio (`v5.4.3`) | HTTP client with automatic JWT token attachment, interceptors, and error handling |
+| **Secure Token Storage** | Flutter Secure Storage | Keychain (iOS) and AES-encrypted KeyStore (Android) for JWT tokens |
+| **Local Offline Database** | SQLite via `sqflite` (`v2.4.4`) | Local relational cache for offline-first data persistence |
+| **Connectivity Monitoring** | `connectivity_plus` | Real-time network state detection and automatic offline banner |
+| **Image Disk Caching** | `cached_network_image` | Multi-tier memory and disk cache for TMDb movie posters |
+| **Push Notifications** | Firebase Cloud Messaging (FCM) | Background & foreground native push alerts with local heads-up notifications |
+| **Design System** | Custom Warm Honey Cream | Material 3 glassmorphic design, custom gold accents, Shimmer, and Lottie animations |
+
+---
+
+## 🚀 3. How to Setup
+
+### Prerequisites
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (v3.3.0 or higher)
+- Android Studio / Android SDK (Java JDK 17)
+- Xcode (for iOS builds on macOS)
+
+Verify your environment readiness:
 ```bash
-# Install Flutter (macOS)
-brew install --cask flutter
-
-# Install Java JDK 17
-brew install --cask temurin@17
-
-# Verify environment readiness
 flutter doctor
 ```
 
-### 2. Clone & Install Dependencies
+### Installation Steps
 
-```bash
-cd /Users/adityadasamantharao/Documents/Repos/watchhive_mobile
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/dasamantaraoaditya/WatchHive-Mobile.git
+   cd WatchHive-Mobile
+   ```
 
-# Install Flutter packages
-flutter pub get
-```
+2. **Install Flutter packages**:
+   ```bash
+   flutter pub get
+   ```
 
-### 3. Environment Configuration
+3. **Configure Environment Variables**:
+   Create a `.env` file in the root directory:
+   ```env
+   # Backend API URL
+   # Local Emulator: http://10.0.2.2:5001/api/v1
+   # Staging: https://watchhive-api-staging.up.railway.app/api/v1
+   # Production: https://watchhive-api-production.up.railway.app/api/v1
+   WATCHHIVE_API_URL=https://watchhive-api-production.up.railway.app/api/v1
+   ```
 
-Create a `.env` file in the root of the project:
+4. **Run on an Emulator or Connected Device**:
+   ```bash
+   # List available devices/emulators
+   flutter devices
 
-```env
-WATCHHIVE_API_URL=https://watchhive-api-production.up.railway.app/api/v1
-TMDB_IMAGE_BASE_URL=https://image.tmdb.org/t/p/w500
-GOOGLE_WEB_CLIENT_ID=your_google_web_client_id
-```
+   # Start the app in debug mode
+   flutter run
+   ```
 
-### 4. Running Locally
+5. **Build Release Binaries**:
+   ```bash
+   # Build Android App Bundle (for Google Play Store)
+   flutter build appbundle --release
 
-```bash
-# Run on Android Emulator
-flutter run -d emulator-5554
+   # Build Android APK (for direct testing/distribution)
+   flutter build apk --release
 
-# Run on iOS Simulator
-flutter run -d "iPhone 15"
-
-# Run Static Code Analysis (0 Error Target)
-flutter analyze
-```
+   # Build iOS IPA
+   flutter build ipa --release
+   ```
 
 ---
 
-## 🚀 CI/CD & Google Play Store Deployment Pipeline
+## 🏛️ 4. Architecture
 
-WatchHive Mobile features an automated **GitHub Actions + Fastlane** CI/CD pipeline. Every push to `main` branch or release tag (`v*.*.*`) automatically compiles, signs, and publishes the Android App Bundle (`.aab`) to the **Google Play Store (Internal Track)**.
-
-### Pipeline Architecture Workflow
+WatchHive Mobile follows a **Feature-Driven Clean Architecture** powered by **Riverpod**, enforcing a unidirectional data flow and strict separation between UI, state controllers, and data sources:
 
 ```mermaid
 flowchart TD
-    A[Git Push / Tag to main] --> B[GitHub Actions Runner]
-    B --> C[JDK 17 + Flutter Setup]
-    C --> D[flutter analyze Quality Gate]
-    D --> E[Decode Base64 Keystore & Service Account JSON]
-    E --> F[flutter build appbundle --release]
-    F --> G[Fastlane Upload to Google Play Store]
-    G --> H[🔒 Play Console Internal Track]
+    UI["UI Widgets & Screens (Riverpod Consumers)"]
+    Controller["State Notifiers / Riverpod Providers"]
+    Repo["Repository Layer (Abstract Data Interface)"]
+    Remote["Remote Data Source (Dio HTTP Client)"]
+    Local["Local Data Source (sqflite SQLite Database)"]
+    SecureStorage["Secure Storage (JWT Access & Refresh Tokens)"]
+    API["WatchHive Backend API"]
+
+    UI --> Controller
+    Controller --> Repo
+    Repo --> Remote
+    Repo --> Local
+    Remote --> SecureStorage
+    Remote --> API
 ```
 
-### GitHub Repository Secrets Setup
-
-To enable automated Play Store builds, configure these 5 secrets under **GitHub Repo > Settings > Secrets and variables > Actions**:
-
-| Secret Name | Value Description |
-| :--- | :--- |
-| `ANDROID_KEYSTORE_BASE64` | Base64 string of `upload-keystore.jks` (`base64 -i android/app/upload-keystore.jks \| tr -d '\n'`) |
-| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
-| `ANDROID_KEY_ALIAS` | Key alias name (e.g., `watchhive_upload_key`) |
-| `ANDROID_KEY_PASSWORD` | Key alias password |
-| `PLAY_STORE_JSON_KEY_BASE64` | Base64 string of Google Play Service Account JSON key |
-
-### Local Release Build (Manual)
-
-To build a signed Android App Bundle locally for manual testing:
-
-```bash
-# Create android/key.properties from android/key.properties.example
-cp android/key.properties.example android/key.properties
-
-# Build Release App Bundle (.aab)
-flutter build appbundle --release
-
-# Output path: build/app/outputs/bundle/release/app-release.aab
-```
-
-### Fastlane Command Lanes
-
-If Fastlane is installed locally (`gem install fastlane` inside `android/`):
-
-```bash
-cd android
-fastlane internal              # Deploy to Google Play Internal Testing Track
-fastlane beta                  # Deploy to Open Beta Track
-fastlane promote_to_production # Promote internal build to Production
-```
-
----
-
-## 📁 Project Structure
-
-```
+### Directory Structure
+```text
 lib/
-├── main.dart                  # Entry point
-├── app.dart                   # Root MaterialApp configuration
-├── core/
-│   ├── api/                   # Dio HTTP client + endpoint constants
-│   ├── auth/                  # JWT token storage & session manager
-│   ├── theme/                 # AppColors + AppTheme design tokens
-│   └── router/                # GoRouter route guards & navigation
-├── features/
-│   ├── auth/                  # Login, Signup, Splash, Forgot Password
-│   ├── feed/                  # Social feed & recommended cards
-│   ├── entries/               # Watch hub (Watching, History, Watchlist, Suggestions)
-│   ├── mindlens/              # MindLens AI analytics & recommendation velocity
-│   ├── search/                # TMDB media search & user search
-│   ├── profile/               # Profiles, Cinematic Stacks, & Taste Comparison
-│   └── notifications/         # Activity notifications
-└── shared/
-    ├── models/                # User, Entry, MediaResult, Suggestion
-    └── widgets/               # Reusable UI components & avatars
+├── core/                 # App-wide foundational modules
+│   ├── api/              # Dio client, API endpoints, token interceptors
+│   ├── database/         # Local sqflite database & migration helpers
+│   ├── storage/          # Secure storage wrapper for credentials
+│   └── theme/            # Theme constants, Honey Cream colors, typography
+├── features/             # Modular feature packages
+│   ├── auth/             # Login, register, and splash screens
+│   ├── entries/          # Watch log entries, review dialogs, details
+│   ├── feed/             # Friend activity feed, likes, and comments
+│   ├── profile/          # User stats, avatar uploads, settings
+│   ├── search/           # TMDb search, trending movies, filters
+│   ├── stacks/           # Ranking stacks, list reordering
+│   └── suggestions/      # Movie recommendations & impact tracking
+├── shared/               # Reusable widgets (cards, buttons, shimmer loaders)
+└── main.dart             # App entry point, Firebase init, Riverpod Scope
 ```
 
 ---
 
-## 📜 License
-Copyright © 2026 WatchHive. All rights reserved.
+## ⚡ 5. Performance & Mobile Optimizations
+
+The mobile application is optimized for smooth 60fps/120fps display rendering, low battery drain, and resilient offline capabilities:
+
+1. **60fps / 120fps High-Refresh Rendering**:
+   * All long lists (`feed`, `entries`, `search results`) utilize `ListView.builder` and `SliverList` with strict lazy view recycling, maintaining smooth 120Hz scrolling on flagship devices without frame drops.
+2. **Multi-Tier Poster Disk Caching**:
+   * Movie and TV posters are cached to flash storage via `cached_network_image`. Posters are downloaded only once, drastically minimizing network data usage and eliminating image flickering on subsequent visits.
+3. **Offline-First SQLite Cache**:
+   * User entries and feed items are persisted locally using `sqflite`. If the device goes offline or encounters a poor cellular connection, cached content renders instantly.
+4. **Optimistic UI Updates & Instant Feedback**:
+   * Toggling a like or saving an entry updates the local Riverpod state immediately while the network request executes asynchronously in the background.
+5. **App Bundle & Memory Optimization**:
+   * ProGuard rules and R8 code shrinking strip unused bytecode, keeping release Android App Bundles lightweight for quick downloads from Google Play.
