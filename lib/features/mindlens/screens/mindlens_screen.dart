@@ -13,6 +13,61 @@ import '../../../shared/widgets/wh_skeleton.dart';
 class MindLensScreen extends ConsumerStatefulWidget {
   const MindLensScreen({super.key});
 
+  static Widget formatInsightText(String text) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'\*\*(.*?)\*\*');
+    int lastIndex = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastIndex) {
+        spans.add(
+          TextSpan(
+            text: text.substring(lastIndex, match.start),
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+              height: 1.45,
+            ),
+          ),
+        );
+      }
+      final boldContent = match.group(1) ?? '';
+      spans.add(
+        TextSpan(
+          text: boldContent,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w900,
+            color: boldContent.startsWith('@') ? AppColors.primary : AppColors.textPrimary,
+          ),
+        ),
+      );
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < text.length) {
+      spans.add(
+        TextSpan(
+          text: text.substring(lastIndex),
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary,
+            height: 1.45,
+          ),
+        ),
+      );
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 13),
+        children: spans,
+      ),
+    );
+  }
+
   @override
   ConsumerState<MindLensScreen> createState() => _MindLensScreenState();
 }
@@ -1273,42 +1328,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
   }
 
   Widget _buildFormattedInsightText(String text) {
-    final spans = <TextSpan>[];
-    final parts = text.split(RegExp(r'(\*\*.*?\*\*)'));
-
-    for (final part in parts) {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        spans.add(
-          TextSpan(
-            text: part.substring(2, part.length - 2),
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        );
-      } else {
-        spans.add(
-          TextSpan(
-            text: part,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-              height: 1.45,
-            ),
-          ),
-        );
-      }
-    }
-
-    return RichText(
-      text: TextSpan(
-        style: const TextStyle(fontSize: 13),
-        children: spans,
-      ),
-    );
+    return MindLensScreen.formatInsightText(text);
   }
 
   // ─── 7. Aesthetic Palette Section ──────────────────────────────────────────
