@@ -417,6 +417,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
             mode: WHEntryCardMode.watchlist,
             addedAt: addedAt,
             suggestedByUsername: suggestorUsername,
+            suggestedByAvatarUrl: suggestedByUser?['profilePictureUrl'] as String?,
             onTap: () {
               if (tmdbId > 0) context.push('/details/$mediaType/$tmdbId');
             },

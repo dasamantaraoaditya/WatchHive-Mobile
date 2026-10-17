@@ -1397,6 +1397,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
             ? addedAtRaw
             : (addedAtRaw is String && addedAtRaw.isNotEmpty ? DateTime.tryParse(addedAtRaw) : null);
 
+        final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
+        final suggestorUsername = suggestedByUser?['username'] as String? ?? item['suggestedByUsername'] as String?;
+        final suggestorAvatar = suggestedByUser?['profilePictureUrl'] as String?;
+
         return WHEntryGridCard(
           tmdbId: tmdbId,
           title: title.isNotEmpty ? title : 'Untitled',
@@ -1404,6 +1408,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           mediaType: mediaType,
           mode: WHEntryCardMode.watchlist,
           addedAt: addedAt,
+          suggestedByUsername: suggestorUsername,
+          suggestedByAvatarUrl: suggestorAvatar,
           onTap: () {
             if (tmdbId > 0) context.push('/details/$mediaType/$tmdbId');
           },

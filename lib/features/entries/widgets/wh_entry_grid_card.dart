@@ -282,16 +282,29 @@ class WHEntryGridCard extends ConsumerWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('💡 ', style: TextStyle(fontSize: 8)),
-                            Text(
-                              suggestedByUsername!.startsWith('To: ') || suggestedByUsername!.startsWith('@')
-                                  ? suggestedByUsername!
-                                  : '@$suggestedByUsername',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.amber,
+                            if (suggestedByAvatarUrl != null && suggestedByAvatarUrl!.isNotEmpty) ...[
+                              CircleAvatar(
+                                radius: 6,
+                                backgroundColor: Colors.amber,
+                                backgroundImage: NetworkImage(suggestedByAvatarUrl!),
+                              ),
+                              const SizedBox(width: 4),
+                            ] else
+                              const Text('💡 ', style: TextStyle(fontSize: 8)),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 85),
+                              child: Text(
+                                suggestedByUsername!.startsWith('To: ') || suggestedByUsername!.startsWith('@')
+                                    ? suggestedByUsername!
+                                    : '@$suggestedByUsername',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.amber,
+                                ),
                               ),
                             ),
                           ],

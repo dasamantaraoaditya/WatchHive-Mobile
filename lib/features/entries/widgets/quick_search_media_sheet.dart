@@ -2,12 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/error_handler.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
-import '../repositories/watchlist_repository.dart';
 import 'suggest_movie_modal.dart';
+import 'add_to_watchlist_sheet.dart';
 
 enum QuickSearchIntent {
   watchlist,
@@ -85,42 +84,19 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
     if (_isSubmitting) return;
 
     if (_isWatchlist) {
-      final title = media.title;
-      final cleanTitle = title.trim().isNotEmpty && title != 'Untitled'
-          ? title.trim()
-          : (media.mediaType == 'tv' ? 'this TV show' : 'this movie');
-
-      final confirm = await WHAlert.confirm(
-        context,
-        title: 'Add to Watchlist',
-        message: 'Would you like to add "$cleanTitle" to your Watchlist?',
-        confirmText: 'Add to Watchlist',
-        severity: WHAlertSeverity.primary,
-        icon: Icons.bookmark_add_rounded,
-      );
-
-      if (!confirm || !mounted) return;
-
       setState(() => _isSubmitting = true);
       try {
-        await ref.read(watchlistRepositoryProvider).addToWatchlist(
+        final added = await AddToWatchlistSheet.show(
+          context,
           tmdbId: media.id,
-          title: title,
+          title: media.title,
           mediaType: media.mediaType,
           posterPath: media.posterPath,
           overview: media.overview,
         );
 
-        if (mounted) {
+        if (added == true && mounted) {
           Navigator.of(context).pop();
-          WHAlert.showSuccess(
-            context,
-            'Added "$cleanTitle" to your Watchlist! 📌',
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to add "$cleanTitle" to Watchlist'));
         }
       } finally {
         if (mounted) setState(() => _isSubmitting = false);

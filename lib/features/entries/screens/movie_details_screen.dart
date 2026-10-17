@@ -25,6 +25,7 @@ import '../repositories/watchlist_repository.dart';
 import '../../rankings/widgets/add_to_stack_sheet.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../widgets/platform_logo_badge.dart';
+import '../widgets/add_to_watchlist_sheet.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -226,17 +227,18 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
           WHAlert.showSuccess(context, 'Removed "$title" from Watchlist');
         }
       } else {
-        await ref.read(watchlistRepositoryProvider).addToWatchlist(
+        final added = await AddToWatchlistSheet.show(
+          context,
           tmdbId: widget.tmdbId,
           title: title,
           mediaType: widget.mediaType,
           posterPath: _details?['poster_path'] as String?,
           overview: _details?['overview'] as String?,
-          suggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id,
+          prefillSuggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id,
+          prefillSuggestedByUser: widget.suggestedByUser,
         );
-        setState(() => _inWatchlist = true);
-        if (mounted) {
-          WHAlert.showSuccess(context, 'Added "$title" to your Watchlist! 📌');
+        if (added == true && mounted) {
+          setState(() => _inWatchlist = true);
         }
       }
     } catch (e) {
