@@ -17,15 +17,26 @@ class AuthManager {
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 
+  // --- In-Memory Fast Cache ---
+  String? _cachedAccessToken;
+
   // --- Token Accessors ---
 
-  Future<String?> getAccessToken() => _storage.read(key: _accessTokenKey);
+  Future<String?> getAccessToken() async {
+    if (_cachedAccessToken != null && _cachedAccessToken!.isNotEmpty) {
+      return _cachedAccessToken;
+    }
+    _cachedAccessToken = await _storage.read(key: _accessTokenKey);
+    return _cachedAccessToken;
+  }
+
   Future<String?> getRefreshToken() => _storage.read(key: _refreshTokenKey);
 
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
   }) async {
+    _cachedAccessToken = accessToken;
     await Future.wait([
       _storage.write(key: _accessTokenKey, value: accessToken),
       _storage.write(key: _refreshTokenKey, value: refreshToken),
@@ -42,6 +53,7 @@ class AuthManager {
   }
 
   Future<void> logout() async {
+    _cachedAccessToken = null;
     await Future.wait([
       _storage.delete(key: _accessTokenKey),
       _storage.delete(key: _refreshTokenKey),
