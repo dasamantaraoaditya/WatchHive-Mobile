@@ -73,6 +73,16 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   String _friendSearchQuery = '';
   final _messageController = TextEditingController();
 
+  final _scrollController = ScrollController();
+  final _messageFocusNode = FocusNode();
+  final _friendSearchFocusNode = FocusNode();
+  final _movieSearchFocusNode = FocusNode();
+
+  final _movieSearchKey = GlobalKey();
+  final _friendSearchKey = GlobalKey();
+  final _messageKey = GlobalKey();
+  double _lastBottomInset = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -80,15 +90,60 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
       _selectedUserIds.add(widget.initialToUserId!);
     }
     _loadFriends();
+
+    _messageFocusNode.addListener(() {
+      if (_messageFocusNode.hasFocus) {
+        _scrollToKey(_messageKey, alignment: 0.0);
+      }
+    });
+
+    _friendSearchFocusNode.addListener(() {
+      if (_friendSearchFocusNode.hasFocus) {
+        _scrollToKey(_friendSearchKey, alignment: 0.0);
+      }
+    });
+
+    _movieSearchFocusNode.addListener(() {
+      if (_movieSearchFocusNode.hasFocus) {
+        _scrollToKey(_movieSearchKey, alignment: 0.0);
+      }
+    });
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _friendDebounce?.cancel();
+    _scrollController.dispose();
+    _messageFocusNode.dispose();
+    _friendSearchFocusNode.dispose();
+    _movieSearchFocusNode.dispose();
     _movieSearchController.dispose();
     _messageController.dispose();
     super.dispose();
+  }
+
+  void _scrollToKey(GlobalKey key, {double alignment = 0.05}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 140), () {
+        if (!mounted) return;
+        final ctx = key.currentContext;
+        if (ctx != null && ctx.mounted) {
+          Scrollable.ensureVisible(
+            ctx,
+            alignment: alignment,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+          );
+        } else if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      });
+    });
   }
 
   Future<void> _loadFriends() async {
@@ -232,316 +287,420 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   @override
   Widget build(BuildContext context) {
     final targetTitle = widget.title ?? _selectedMedia?.title;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isKeyboardOpen = bottomInset > 0;
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+    if (bottomInset > _lastBottomInset && _messageFocusNode.hasFocus) {
+      _scrollToKey(_messageKey, alignment: 0.0);
+    }
+    _lastBottomInset = bottomInset;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: (screenHeight - bottomInset).clamp(300.0, screenHeight * 0.90),
           ),
-
-          // Header
-          Row(
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.auto_awesome_rounded, color: AppColors.primaryDark, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
+              // ── Header (Pinned at top) ──────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      widget.initialToUserName != null
-                          ? 'Suggest to @${widget.initialToUserName}'
-                          : 'Suggest to Hive Friends',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    if (targetTitle != null)
-                      Text(
-                        targetTitle,
-                        style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.bold),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded, color: AppColors.textMuted),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.border),
-          const SizedBox(height: 12),
-
-          // Movie Selection if no initial title
-          if (widget.tmdbId == null) ...[
-            if (_selectedMedia == null) ...[
-              const Text(
-                '1. CHOOSE MOVIE OR TV SHOW',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.textMuted, letterSpacing: 1.0),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _movieSearchController,
-                onChanged: _onSearchChanged,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Search TMDB for a title...',
-                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 20),
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-                ),
-              ),
-              if (_isSearchingMedia)
-                const WHSkeletonMediaSearchList(count: 2)
-              else if (_searchResults.isNotEmpty)
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 180),
-                  margin: const EdgeInsets.only(top: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: _searchResults.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
-                    itemBuilder: (ctx, i) {
-                      final item = _searchResults[i];
-                      return ListTile(
-                        dense: true,
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: item.posterPath != null
-                              ? Image.network(
-                                  ApiEndpoints.tmdbPoster(item.posterPath),
-                                  width: 28,
-                                  height: 42,
-                                  fit: BoxFit.cover,
-                                )
-                              : Container(width: 28, height: 42, color: AppColors.surfaceHighest),
+                    // Drag handle
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(2),
                         ),
-                        title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
-                        subtitle: Text('${item.mediaType.toUpperCase()} · ${item.year}', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                        trailing: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary),
-                        onTap: () => setState(() => _selectedMedia = item),
-                      );
-                    },
-                  ),
-                ),
-            ] else ...[
-              // Selected Movie Chip
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.primary, width: 1.5),
-                ),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: _selectedMedia!.posterPath != null
-                          ? Image.network(
-                              ApiEndpoints.tmdbPoster(_selectedMedia!.posterPath),
-                              width: 36,
-                              height: 52,
-                              fit: BoxFit.cover,
-                            )
-                          : Container(width: 36, height: 52, color: AppColors.surfaceHighest),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _selectedMedia!.title,
-                            style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
-                          ),
-                          Text(
-                            '${_selectedMedia!.mediaType.toUpperCase()} · ${_selectedMedia!.year}',
-                            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                          ),
-                        ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
-                      onPressed: () => setState(() => _selectedMedia = null),
+
+                    // Title Row
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.auto_awesome_rounded, color: AppColors.primaryDark, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.initialToUserName != null
+                                    ? 'Suggest to @${widget.initialToUserName}'
+                                    : 'Suggest to Hive Friends',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              if (targetTitle != null)
+                                Text(
+                                  targetTitle,
+                                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.bold),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: AppColors.textMuted),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 10),
+                    const Divider(height: 1, color: AppColors.border),
                   ],
                 ),
               ),
-            ],
-            const SizedBox(height: 16),
-          ],
 
-          // Friends List (if not fixed to 1 user or to pick friends)
-          if (widget.initialToUserId == null) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  '2. SELECT RECIPIENTS',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.textMuted, letterSpacing: 1.0),
-                ),
-                if (_friends.isNotEmpty)
-                  GestureDetector(
-                    onTap: () {
-                      final currentDisplayList = _getDisplayUsers();
-                      setState(() {
-                        if (_selectedUserIds.length >= currentDisplayList.length && currentDisplayList.isNotEmpty) {
-                          _selectedUserIds.clear();
-                        } else {
-                          _selectedUserIds.addAll(currentDisplayList.map((u) => u.id));
-                        }
-                      });
-                    },
-                    child: Text(
-                      _selectedUserIds.isNotEmpty && _selectedUserIds.length >= _getDisplayUsers().length
-                          ? 'CLEAR ALL'
-                          : 'SELECT ALL',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              onChanged: _onFriendSearchChanged,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-              decoration: InputDecoration(
-                hintText: 'Search friends or cinephiles...',
-                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 18),
-                suffixIcon: _isSearchingUsers
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
-                      )
-                    : null,
-                filled: true,
-                fillColor: AppColors.surface,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-
-          // Recipient List View
-          Expanded(
-            child: widget.initialToUserId != null
-                ? Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.person_rounded, color: AppColors.primary),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Recipient: @${widget.initialToUserName ?? widget.initialToUserId}',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
+              // ── Scrollable Body ───────────────────────────────
+              Flexible(
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Movie Selection if no initial title
+                      if (widget.tmdbId == null) ...[
+                        if (_selectedMedia == null) ...[
+                          const Text(
+                            '1. CHOOSE MOVIE OR TV SHOW',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.textMuted, letterSpacing: 1.0),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            key: _movieSearchKey,
+                            child: TextField(
+                              controller: _movieSearchController,
+                              focusNode: _movieSearchFocusNode,
+                              onChanged: _onSearchChanged,
+                              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                              decoration: InputDecoration(
+                                hintText: 'Search TMDB for a title...',
+                                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 20),
+                                filled: true,
+                                fillColor: AppColors.surface,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+                              ),
+                            ),
+                          ),
+                          if (_isSearchingMedia)
+                            const WHSkeletonMediaSearchList(count: 2)
+                          else if (_searchResults.isNotEmpty)
+                            Container(
+                              constraints: const BoxConstraints(maxHeight: 180),
+                              margin: const EdgeInsets.only(top: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: ListView.separated(
+                                shrinkWrap: true,
+                                physics: const ClampingScrollPhysics(),
+                                itemCount: _searchResults.length,
+                                separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
+                                itemBuilder: (ctx, i) {
+                                  final item = _searchResults[i];
+                                  return ListTile(
+                                    dense: true,
+                                    leading: ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: item.posterPath != null
+                                          ? Image.network(
+                                              ApiEndpoints.tmdbPoster(item.posterPath),
+                                              width: 28,
+                                              height: 42,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Container(width: 28, height: 42, color: AppColors.surfaceHighest),
+                                    ),
+                                    title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
+                                    subtitle: Text('${item.mediaType.toUpperCase()} · ${item.year}', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                                    trailing: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary),
+                                    onTap: () => setState(() => _selectedMedia = item),
+                                  );
+                                },
+                              ),
+                            ),
+                        ] else ...[
+                          // Selected Movie Chip
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.primary, width: 1.5),
+                            ),
+                            child: Row(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: _selectedMedia!.posterPath != null
+                                      ? Image.network(
+                                          ApiEndpoints.tmdbPoster(_selectedMedia!.posterPath),
+                                          width: 36,
+                                          height: 52,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Container(width: 36, height: 52, color: AppColors.surfaceHighest),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _selectedMedia!.title,
+                                        style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+                                      ),
+                                      Text(
+                                        '${_selectedMedia!.mediaType.toUpperCase()} · ${_selectedMedia!.year}',
+                                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
+                                  onPressed: () => setState(() => _selectedMedia = null),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Recipients Section
+                      if (widget.initialToUserId == null) ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              '2. SELECT RECIPIENTS',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.textMuted, letterSpacing: 1.0),
+                            ),
+                            if (_friends.isNotEmpty)
+                              GestureDetector(
+                                onTap: () {
+                                  final currentDisplayList = _getDisplayUsers();
+                                  setState(() {
+                                    if (_selectedUserIds.length >= currentDisplayList.length && currentDisplayList.isNotEmpty) {
+                                      _selectedUserIds.clear();
+                                    } else {
+                                      _selectedUserIds.addAll(currentDisplayList.map((u) => u.id));
+                                    }
+                                  });
+                                },
+                                child: Text(
+                                  _selectedUserIds.isNotEmpty && _selectedUserIds.length >= _getDisplayUsers().length
+                                      ? 'CLEAR ALL'
+                                      : 'SELECT ALL',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primary,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          key: _friendSearchKey,
+                          child: TextField(
+                            focusNode: _friendSearchFocusNode,
+                            onChanged: _onFriendSearchChanged,
+                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: 'Search friends or cinephiles...',
+                              prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 18),
+                              suffixIcon: _isSearchingUsers
+                                  ? const Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                                    )
+                                  : null,
+                              filled: true,
+                              fillColor: AppColors.surface,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+
+                      // Recipient List
+                      if (widget.initialToUserId != null)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.person_rounded, color: AppColors.primary),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Recipient: @${widget.initialToUserName ?? widget.initialToUserId}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if (_isLoadingFriends)
+                        const WHSkeletonUserList(count: 3)
+                      else
+                        Container(
+                          constraints: BoxConstraints(
+                            maxHeight: isKeyboardOpen ? 150 : 230,
+                          ),
+                          child: _buildFriendsList(),
+                        ),
+
+                      const SizedBox(height: 16),
+
+                      // Optional Note / Suggestion Comments (Auto-scrolls when focused)
+                      Container(
+                        key: _messageKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'ADD A NOTE (OPTIONAL)',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textMuted,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: _messageController,
+                              focusNode: _messageFocusNode,
+                              scrollPadding: const EdgeInsets.only(bottom: 120),
+                              maxLines: 3,
+                              minLines: 1,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                color: AppColors.textPrimary,
+                                fontSize: 13,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'e.g. "You gotta watch this, the ending blew my mind!"',
+                                hintStyle: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  color: AppColors.textMuted,
+                                  fontSize: 12.5,
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.chat_bubble_outline_rounded,
+                                  color: AppColors.textMuted,
+                                  size: 18,
+                                ),
+                                filled: true,
+                                fillColor: AppColors.surface,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: AppColors.border),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: AppColors.border),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  )
-                : _isLoadingFriends
-                    ? const WHSkeletonUserList(count: 3)
-                    : _buildFriendsList(),
-          ),
-          const SizedBox(height: 12),
+                      const SizedBox(height: 16),
 
-          // Optional Note
-          TextField(
-            controller: _messageController,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-            decoration: InputDecoration(
-              hintText: 'Add an optional note ("You gotta watch this!")...',
-              filled: true,
-              fillColor: AppColors.surface,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Send Button
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      // Send Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.black,
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: _isSending ? null : _handleSend,
+                          child: _isSending
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.send_rounded, size: 16, color: Colors.black),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Send Suggestion (${_selectedUserIds.length})',
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              onPressed: _isSending ? null : _handleSend,
-              child: _isSending
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
-                  : Text(
-                      'Send Suggestion (${_selectedUserIds.length})',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
-                    ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -584,6 +743,8 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
     }
 
     return ListView.builder(
+      shrinkWrap: true,
+      physics: const ClampingScrollPhysics(),
       itemCount: displayList.length,
       itemBuilder: (ctx, i) {
         final user = displayList[i];
