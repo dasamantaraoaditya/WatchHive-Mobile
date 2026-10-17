@@ -728,7 +728,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
           WHAlert.showSuccess(
             context,
             isEditing
-                ? 'Updated "$title" in your Hive! ✨'
+                ? (widget.editEntry?.isWatching == true && !_isWatching
+                    ? 'Completed watching "$title"! 🎉🎬'
+                    : 'Updated "$title" in your Hive! ✨')
                 : (_isWatching ? 'Started watching "$title"! 👁️🎬' : 'Logged "$title" to your Hive! 🐝🎬'),
           );
         }
@@ -819,7 +821,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isEditing ? 'Edit Watch Entry ✨' : (_isWatching ? 'Track What You\'re Watching 👁️' : 'Log a Watch to Hive 🐝'),
+                            isEditing
+                                ? (widget.editEntry?.isWatching == true && !_isWatching
+                                    ? 'Complete Watch 🎬'
+                                    : 'Edit Watch Entry ✨')
+                                : (_isWatching ? 'Track What You\'re Watching 👁️' : 'Log a Watch to Hive 🐝'),
                             style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                           ),
                           const SizedBox(height: 2),
@@ -1702,7 +1708,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
-                                        isEditing ? Icons.save_rounded : Icons.hive_rounded,
+                                        isEditing
+                                            ? (widget.editEntry?.isWatching == true && !_isWatching
+                                                ? Icons.task_alt_rounded
+                                                : Icons.save_rounded)
+                                            : Icons.hive_rounded,
                                         color: Colors.black,
                                         size: 20,
                                       ),
@@ -1710,7 +1720,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                       Flexible(
                                         child: Text(
                                           isEditing
-                                              ? 'Save Changes ✨'
+                                              ? (widget.editEntry?.isWatching == true && !_isWatching
+                                                  ? 'Complete Watch 🎬'
+                                                  : 'Save Changes ✨')
                                               : (_isWatching
                                                   ? 'Track Watching 👁️'
                                                   : 'Log to Hive 🐝🎬'),

@@ -298,7 +298,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     }
   }
 
-  void _logEntry() {
+  void _logEntry({bool completeWatch = false}) {
     final details = _details;
     if (details == null) return;
 
@@ -319,6 +319,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         prefillPosterPath: posterPath,
         prefillSuggestor: widget.suggestedByUser,
         prefillSuggestedByUserId: widget.suggestedByUserId,
+        prefillIsWatching: completeWatch ? false : null,
         onSuccess: () {
           _checkUserEntry();
         },
@@ -767,41 +768,59 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                             ),
                             const SizedBox(width: 10),
 
-                            // Log Watch or Edit Log
+                            // Log Watch, Edit Log, or Complete Watch
                             Builder(
                               builder: (context) {
                                 final activeSelfEntry = _isMyEntry ? _loggedEntry : _myOwnEntry;
-                                final isLoggedByMe = activeSelfEntry != null;
+                                final isCurrentlyWatching = activeSelfEntry != null && activeSelfEntry.isWatching;
+                                final isCompletedLog = activeSelfEntry != null && !activeSelfEntry.isWatching;
                                 final selfRating = activeSelfEntry?.rating;
 
                                 return Expanded(
                                   child: ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: isLoggedByMe
+                                      backgroundColor: isCurrentlyWatching
                                           ? AppColors.primary
-                                          : AppColors.textPrimary,
-                                      foregroundColor: isLoggedByMe
+                                          : (isCompletedLog
+                                              ? AppColors.surfaceElevated
+                                              : AppColors.textPrimary),
+                                      foregroundColor: isCurrentlyWatching
                                           ? Colors.black
-                                          : Colors.white,
+                                          : (isCompletedLog
+                                              ? AppColors.primaryDark
+                                              : Colors.white),
+                                      side: isCompletedLog
+                                          ? BorderSide(color: AppColors.primaryDark.withValues(alpha: 0.35))
+                                          : null,
                                       elevation: 0,
                                       padding: const EdgeInsets.symmetric(vertical: 13),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                     ),
                                     onPressed: () {
                                       HapticFeedback.lightImpact();
-                                      _logEntry();
+                                      if (isCurrentlyWatching) {
+                                        _logEntry(completeWatch: true);
+                                      } else {
+                                        _logEntry();
+                                      }
                                     },
                                     icon: Icon(
-                                      isLoggedByMe ? Icons.check_circle_rounded : Icons.edit_note_rounded,
+                                      isCurrentlyWatching
+                                          ? Icons.task_alt_rounded
+                                          : (isCompletedLog ? Icons.check_circle_rounded : Icons.edit_note_rounded),
                                       size: 20,
-                                      color: isLoggedByMe ? Colors.black : AppColors.primary,
+                                      color: isCurrentlyWatching
+                                          ? Colors.black
+                                          : (isCompletedLog ? AppColors.primaryDark : AppColors.primary),
                                     ),
                                     label: Text(
-                                      isLoggedByMe
-                                          ? (selfRating != null && selfRating > 0
-                                              ? 'Logged (⭐ ${selfRating.toStringAsFixed(1)})'
-                                              : 'Logged ✓')
-                                          : 'Log Watch',
+                                      isCurrentlyWatching
+                                          ? 'Complete Watch'
+                                          : (isCompletedLog
+                                              ? (selfRating != null && selfRating > 0
+                                                  ? 'Logged (⭐ ${selfRating.toStringAsFixed(1)})'
+                                                  : 'Logged ✓')
+                                              : 'Log Watch'),
                                       style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w800, fontSize: 12),
                                     ),
                                   ),
@@ -1605,18 +1624,26 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
             child: Row(
               children: [
                 Icon(
-                  isMe ? Icons.rate_review_rounded : Icons.person_pin_rounded,
+                  entry.isWatching
+                      ? Icons.visibility_rounded
+                      : (isMe ? Icons.rate_review_rounded : Icons.person_pin_rounded),
                   size: 16,
-                  color: isMe ? AppColors.primaryDark : const Color(0xFF818CF8),
+                  color: entry.isWatching
+                      ? const Color(0xFF60A5FA)
+                      : (isMe ? AppColors.primaryDark : const Color(0xFF818CF8)),
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isMe ? 'Your Watch Entry & Review' : "$authorName's Watch Entry",
+                  entry.isWatching
+                      ? (isMe ? 'Currently Watching 👁️' : "$authorName is Currently Watching")
+                      : (isMe ? 'Your Watch Entry & Review' : "$authorName's Watch Entry"),
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
-                    color: isMe ? AppColors.primaryDark : const Color(0xFF818CF8),
+                    color: entry.isWatching
+                        ? const Color(0xFF60A5FA)
+                        : (isMe ? AppColors.primaryDark : const Color(0xFF818CF8)),
                   ),
                 ),
                 const Spacer(),
@@ -1624,6 +1651,32 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (entry.isWatching) ...[
+                        InkWell(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            _logEntry(completeWatch: true);
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.task_alt_rounded, size: 13, color: AppColors.primaryDark),
+                                SizedBox(width: 4),
+                                Text('Complete', style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
                       InkWell(
                         onTap: () {
                           HapticFeedback.lightImpact();
@@ -1803,6 +1856,21 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(height: 18, width: 1, color: AppColors.border),
+                        const SizedBox(width: 10),
+                      ] else if (entry.isWatching) ...[
+                        const Icon(Icons.visibility_rounded, size: 18, color: Color(0xFF60A5FA)),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Currently Watching',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF93C5FD),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -2035,10 +2103,16 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.primary),
+                        Icon(
+                          _myOwnEntry!.isWatching ? Icons.visibility_rounded : Icons.check_circle_rounded,
+                          size: 16,
+                          color: _myOwnEntry!.isWatching ? const Color(0xFF60A5FA) : AppColors.primary,
+                        ),
                         const SizedBox(width: 8),
                         Text(
-                          'You also watched this: ⭐ ${_myOwnEntry!.rating != null ? _myOwnEntry!.rating!.toStringAsFixed(1) : 'Watched'}',
+                          _myOwnEntry!.isWatching
+                              ? 'You are currently watching this'
+                              : 'You also watched this: ⭐ ${_myOwnEntry!.rating != null ? _myOwnEntry!.rating!.toStringAsFixed(1) : 'Watched'}',
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,
@@ -2050,11 +2124,15 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         InkWell(
                           onTap: () {
                             HapticFeedback.lightImpact();
-                            _logEntry();
+                            if (_myOwnEntry!.isWatching) {
+                              _logEntry(completeWatch: true);
+                            } else {
+                              _logEntry();
+                            }
                           },
-                          child: const Text(
-                            'Edit Yours',
-                            style: TextStyle(
+                          child: Text(
+                            _myOwnEntry!.isWatching ? 'Complete Watch' : 'Edit Yours',
+                            style: const TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
