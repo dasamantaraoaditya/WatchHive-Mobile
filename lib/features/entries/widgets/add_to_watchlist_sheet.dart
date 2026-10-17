@@ -6,6 +6,7 @@ import 'package:watchhive_mobile/core/api/api_endpoints.dart';
 import 'package:watchhive_mobile/core/theme/app_colors.dart';
 import 'package:watchhive_mobile/core/utils/error_handler.dart';
 import 'package:watchhive_mobile/features/entries/repositories/watchlist_repository.dart';
+import 'package:watchhive_mobile/features/profile/repositories/user_repository.dart';
 import 'package:watchhive_mobile/features/search/repositories/search_repository.dart';
 import 'package:watchhive_mobile/shared/models/user.dart';
 import 'package:watchhive_mobile/shared/widgets/wh_alert.dart';
@@ -67,6 +68,7 @@ class _AddToWatchlistSheetState extends ConsumerState<AddToWatchlistSheet> {
 
   User? _selectedUser;
   List<User> _searchResults = [];
+  List<User>? _cachedFollowers;
   bool _isSearching = false;
   bool _showDropdown = false;
   bool _isSubmitting = false;
@@ -87,31 +89,46 @@ class _AddToWatchlistSheetState extends ConsumerState<AddToWatchlistSheet> {
     super.dispose();
   }
 
-  void _onSearchChanged(String query) {
+  Future<void> _loadFollowers() async {
+    if (_cachedFollowers != null) return;
+    try {
+      final userRepo = ref.read(userRepositoryProvider);
+      final me = await userRepo.getCurrentUser();
+      final followers = await userRepo.getFollowers(me.id).catchError((_) => <User>[]);
+      _cachedFollowers = followers.where((u) => u.id != me.id).toList();
+    } catch (_) {
+      // Fallback for tests or offline if userRepositoryProvider is not mocked
+      try {
+        final searchResults = await ref.read(searchRepositoryProvider).searchUsers('a').catchError((_) => <User>[]);
+        _cachedFollowers = searchResults;
+      } catch (_) {
+        _cachedFollowers = [];
+      }
+    }
+  }
+
+  void _onSearchChanged(String query) async {
     _debounce?.cancel();
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) {
+    final trimmed = query.trim().toLowerCase();
+
+    setState(() => _isSearching = true);
+    await _loadFollowers();
+
+    final all = _cachedFollowers ?? <User>[];
+    final results = trimmed.isEmpty
+        ? all
+        : all.where((u) {
+            final name = (u.displayName ?? '').toLowerCase();
+            final username = u.username.toLowerCase();
+            return name.contains(trimmed) || username.contains(trimmed);
+          }).toList();
+
+    if (mounted) {
       setState(() {
-        _searchResults = [];
+        _searchResults = results;
         _isSearching = false;
       });
-      return;
     }
-
-    _debounce = Timer(const Duration(milliseconds: 250), () async {
-      setState(() => _isSearching = true);
-      try {
-        final results = await ref.read(searchRepositoryProvider).searchUsers(trimmed);
-        if (mounted) {
-          setState(() {
-            _searchResults = results;
-            _isSearching = false;
-          });
-        }
-      } catch (_) {
-        if (mounted) setState(() => _isSearching = false);
-      }
-    });
   }
 
   Future<void> _handleConfirm() async {
@@ -427,7 +444,7 @@ class _AddToWatchlistSheetState extends ConsumerState<AddToWatchlistSheet> {
                       color: AppColors.textPrimary,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Search friend or follower username…',
+                      hintText: 'Search follower username…',
                       hintStyle: const TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 12,

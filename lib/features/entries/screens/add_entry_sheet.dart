@@ -15,6 +15,7 @@ import '../repositories/suggestions_repository.dart';
 import 'entries_screen.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../profile/repositories/user_repository.dart';
 import '../../search/repositories/search_repository.dart';
 import '../widgets/platform_logo_badge.dart';
 import '../../../core/services/connectivity_service.dart';
@@ -134,6 +135,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   List<User> _friendResults = [];
   bool _isSearchingFriends = false;
   bool _showFriendPicker = false;
+  List<User>? _cachedFollowers;
 
   bool get isEditing => widget.editEntry != null;
 
@@ -508,7 +510,23 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     });
     _scrollToKey(_suggestedByKey, alignment: 0.05);
     try {
-      final results = await ref.read(searchRepositoryProvider).searchUsers(query.isNotEmpty ? query : 'a');
+      if (_cachedFollowers == null) {
+        final userRepo = ref.read(userRepositoryProvider);
+        final me = await userRepo.getCurrentUser();
+        final followers = await userRepo.getFollowers(me.id).catchError((_) => <User>[]);
+        _cachedFollowers = followers.where((u) => u.id != me.id).toList();
+      }
+
+      final all = _cachedFollowers ?? <User>[];
+      final trimmed = query.trim().toLowerCase();
+      final results = trimmed.isEmpty
+          ? all
+          : all.where((u) {
+              final name = (u.displayName ?? '').toLowerCase();
+              final username = u.username.toLowerCase();
+              return name.contains(trimmed) || username.contains(trimmed);
+            }).toList();
+
       if (mounted) {
         setState(() {
           _friendResults = results;
@@ -1474,7 +1492,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                         _scrollToKey(_suggestedByKey, alignment: 0.05);
                                       },
                                       decoration: InputDecoration(
-                                        hintText: 'Search follower or friend username…',
+                                        hintText: 'Search follower username…',
                                         hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                                         prefixIcon: const Icon(Icons.person_search_rounded, color: Colors.amber, size: 20),
                                         suffixIcon: _isSearchingFriends
@@ -1552,7 +1570,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                              'No friends found for "${_suggestedByController.text.trim()}".',
+                                              'No followers found for "${_suggestedByController.text.trim()}".',
                                               style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.textMuted),
                                             ),
                                           ),

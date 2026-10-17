@@ -57,9 +57,7 @@ class SuggestMovieModal extends ConsumerStatefulWidget {
 class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   final Set<String> _selectedUserIds = {};
   List<User> _friends = [];
-  List<User> _searchedUsers = [];
   bool _isLoadingFriends = true;
-  bool _isSearchingUsers = false;
   bool _isSending = false;
 
   // For movie search when no tmdbId is passed
@@ -67,7 +65,6 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   List<MediaResult> _searchResults = [];
   bool _isSearchingMedia = false;
   Timer? _debounce;
-  Timer? _friendDebounce;
   final _movieSearchController = TextEditingController();
 
   String _friendSearchQuery = '';
@@ -113,7 +110,6 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   @override
   void dispose() {
     _debounce?.cancel();
-    _friendDebounce?.cancel();
     _scrollController.dispose();
     _messageFocusNode.dispose();
     _friendSearchFocusNode.dispose();
@@ -149,21 +145,12 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   Future<void> _loadFriends() async {
     try {
       final userRepo = ref.read(userRepositoryProvider);
-      final searchRepo = ref.read(searchRepositoryProvider);
       final me = await userRepo.getCurrentUser();
       
-      final results = await Future.wait([
-        userRepo.getFollowing(me.id).catchError((_) => <User>[]),
-        userRepo.getFollowers(me.id).catchError((_) => <User>[]),
-        searchRepo.getSuggestedUsers().catchError((_) => <User>[]),
-      ]);
-
-      final following = results[0];
-      final followers = results[1];
-      final suggested = results[2];
+      final followers = await userRepo.getFollowers(me.id).catchError((_) => <User>[]);
 
       final friendMap = <String, User>{};
-      for (final u in [...following, ...followers, ...suggested]) {
+      for (final u in followers) {
         if (u.id != me.id) {
           friendMap[u.id] = u;
         }
@@ -182,30 +169,6 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
 
   void _onFriendSearchChanged(String query) {
     setState(() => _friendSearchQuery = query.trim());
-    _friendDebounce?.cancel();
-
-    if (query.trim().length < 2) {
-      setState(() {
-        _searchedUsers = [];
-        _isSearchingUsers = false;
-      });
-      return;
-    }
-
-    _friendDebounce = Timer(const Duration(milliseconds: 300), () async {
-      setState(() => _isSearchingUsers = true);
-      try {
-        final users = await ref.read(searchRepositoryProvider).searchUsers(query.trim());
-        if (mounted) {
-          setState(() {
-            _searchedUsers = users;
-            _isSearchingUsers = false;
-          });
-        }
-      } catch (_) {
-        if (mounted) setState(() => _isSearchingUsers = false);
-      }
-    });
   }
 
   void _onSearchChanged(String query) {
@@ -547,14 +510,8 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                             onChanged: _onFriendSearchChanged,
                             style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
                             decoration: InputDecoration(
-                              hintText: 'Search friends or cinephiles...',
+                              hintText: 'Search followers...',
                               prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 18),
-                              suffixIcon: _isSearchingUsers
-                                  ? const Padding(
-                                      padding: EdgeInsets.all(12),
-                                      child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
-                                    )
-                                  : null,
                               filled: true,
                               fillColor: AppColors.surface,
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -706,21 +663,13 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   }
 
   List<User> _getDisplayUsers() {
-    final map = <String, User>{};
-    for (final u in _friends) {
-      if (_friendSearchQuery.isEmpty) {
-        map[u.id] = u;
-      } else {
-        final full = '${u.displayName ?? ''} ${u.username}'.toLowerCase();
-        if (full.contains(_friendSearchQuery.toLowerCase())) {
-          map[u.id] = u;
-        }
-      }
-    }
-    for (final u in _searchedUsers) {
-      map[u.id] = u;
-    }
-    return map.values.toList();
+    if (_friendSearchQuery.isEmpty) return _friends;
+    final q = _friendSearchQuery.toLowerCase();
+    return _friends.where((u) {
+      final name = (u.displayName ?? '').toLowerCase();
+      final username = u.username.toLowerCase();
+      return name.contains(q) || username.contains(q);
+    }).toList();
   }
 
   Widget _buildFriendsList() {
@@ -734,7 +683,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
             const Icon(Icons.people_outline_rounded, size: 36, color: AppColors.textMuted),
             const SizedBox(height: 8),
             Text(
-              _friendSearchQuery.isNotEmpty ? 'No users found matching "$_friendSearchQuery"' : 'No friends connected yet',
+              _friendSearchQuery.isNotEmpty ? 'No followers found matching "$_friendSearchQuery"' : 'No followers yet',
               style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
           ],

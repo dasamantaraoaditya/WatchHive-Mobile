@@ -5,10 +5,39 @@ import 'package:watchhive_mobile/core/api/api_client.dart';
 import 'package:watchhive_mobile/core/auth/auth_manager.dart';
 import 'package:watchhive_mobile/features/entries/repositories/watchlist_repository.dart';
 import 'package:watchhive_mobile/features/entries/widgets/add_to_watchlist_sheet.dart';
+import 'package:watchhive_mobile/features/profile/repositories/user_repository.dart';
 import 'package:watchhive_mobile/features/search/repositories/search_repository.dart';
 import 'package:watchhive_mobile/shared/models/user.dart';
 
 class _FakeAuthManager extends AuthManager {}
+
+class _FakeUserRepository extends UserRepository {
+  _FakeUserRepository() : super(ApiClient(_FakeAuthManager()));
+
+  @override
+  Future<User> getCurrentUser() async {
+    return User(
+      id: 'current-user-1',
+      username: 'me',
+      displayName: 'Me User',
+      profilePictureUrl: null,
+      createdAt: DateTime(2026, 1, 1),
+    );
+  }
+
+  @override
+  Future<List<User>> getFollowers(String userId) async {
+    return [
+      User(
+        id: 'user-friend-1',
+        username: 'cinephile_bob',
+        displayName: 'Bob The Cinephile',
+        profilePictureUrl: null,
+        createdAt: DateTime(2026, 1, 1),
+      ),
+    ];
+  }
+}
 
 class _FakeWatchlistRepository extends WatchlistRepository {
   bool addToWatchlistCalled = false;
@@ -53,12 +82,14 @@ void main() {
   testWidgets('AddToWatchlistSheet displays media preview, allows friend search, and adds to watchlist', (tester) async {
     final fakeWatchlistRepo = _FakeWatchlistRepository();
     final fakeSearchRepo = _FakeSearchRepository();
+    final fakeUserRepo = _FakeUserRepository();
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           watchlistRepositoryProvider.overrideWithValue(fakeWatchlistRepo),
           searchRepositoryProvider.overrideWithValue(fakeSearchRepo),
+          userRepositoryProvider.overrideWithValue(fakeUserRepo),
         ],
         child: const MaterialApp(
           home: Scaffold(
