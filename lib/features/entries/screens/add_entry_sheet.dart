@@ -845,15 +845,22 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       child: SafeArea(
         bottom: false,
         minimum: const EdgeInsets.only(top: 8),
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: screenHeight * 0.92,
-          ),
-          decoration: const BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
+        child: WHModalLoadingOverlay(
+          isLoading: _isLoading,
+          message: isEditing
+              ? (widget.editEntry?.isWatching == true && !_isWatching
+                  ? 'Completing your watch...'
+                  : 'Updating your entry...')
+              : (_isWatching ? 'Saving to Currently Watching...' : 'Logging to your Hive...'),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: screenHeight * 0.92,
+            ),
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Center(
@@ -1054,7 +1061,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                     hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                                     prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
                                     suffixIcon: _isSearching
-                                        ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)))
+                                        ? const Padding(padding: EdgeInsets.all(12), child: WHBeeSpinner(size: 16))
                                         : _searchController.text.isNotEmpty
                                             ? IconButton(icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textMuted), onPressed: () => setState(() { _searchController.clear(); _searchResults.clear(); }))
                                             : null,
@@ -1542,7 +1549,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                         hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                                         prefixIcon: const Icon(Icons.person_search_rounded, color: Colors.amber, size: 20),
                                         suffixIcon: _isSearchingFriends
-                                            ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)))
+                                            ? const Padding(padding: EdgeInsets.all(12), child: WHBeeSpinner(size: 16))
                                             : _suggestedByController.text.isNotEmpty
                                                 ? IconButton(
                                                     icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textMuted),
@@ -1760,14 +1767,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                               ),
                             ),
                             child: _isLoading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      color: Colors.black,
-                                    ),
-                                  )
+                                ? const WHBeeSpinner(size: 22)
                                 : Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
@@ -1812,6 +1812,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

@@ -490,7 +490,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                     ),
                     onPressed: _isSubmitting ? null : _handleSubmit,
                     icon: _isSubmitting
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                        ? const WHBeeSpinner(size: 16)
                         : const Icon(Icons.arrow_upward_rounded, size: 20),
                   ),
                 ],

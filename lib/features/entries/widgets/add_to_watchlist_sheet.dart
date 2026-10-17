@@ -9,6 +9,7 @@ import 'package:watchhive_mobile/features/entries/repositories/watchlist_reposit
 import 'package:watchhive_mobile/features/profile/repositories/user_repository.dart';
 import 'package:watchhive_mobile/shared/models/user.dart';
 import 'package:watchhive_mobile/shared/widgets/wh_alert.dart';
+import 'package:watchhive_mobile/shared/widgets/wh_bee_loader.dart';
 
 class AddToWatchlistSheet extends ConsumerStatefulWidget {
   final int tmdbId;
@@ -174,9 +175,12 @@ class _AddToWatchlistSheetState extends ConsumerState<AddToWatchlistSheet> {
       ),
       child: SafeArea(
         top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
-          child: Column(
+        child: WHModalLoadingOverlay(
+          isLoading: _isSubmitting,
+          message: 'Saving to your Watchlist...',
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -451,11 +455,7 @@ class _AddToWatchlistSheetState extends ConsumerState<AddToWatchlistSheet> {
                       suffixIcon: _isSearching
                           ? const Padding(
                               padding: EdgeInsets.all(12),
-                              child: SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                              ),
+                              child: WHBeeSpinner(size: 16),
                             )
                           : _searchController.text.isNotEmpty
                               ? IconButton(
@@ -586,11 +586,7 @@ class _AddToWatchlistSheetState extends ConsumerState<AddToWatchlistSheet> {
                     child: ElevatedButton.icon(
                       onPressed: _isSubmitting ? null : _handleConfirm,
                       icon: _isSubmitting
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                            )
+                          ? const WHBeeSpinner(size: 16)
                           : const Icon(Icons.bookmark_add_rounded, size: 18),
                       label: Text(
                         _isSubmitting
@@ -615,6 +611,7 @@ class _AddToWatchlistSheetState extends ConsumerState<AddToWatchlistSheet> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

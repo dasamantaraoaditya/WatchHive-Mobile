@@ -239,8 +239,11 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      child: Column(
-        children: [
+      child: WHModalLoadingOverlay(
+        isLoading: _isSaving,
+        message: 'Saving profile changes...',
+        child: Column(
+          children: [
           // Drag handle
           Center(
             child: Container(
@@ -335,11 +338,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                 ),
                 onPressed: _isSaving ? null : _handleSave,
                 child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black),
-                      )
+                    ? const WHBeeSpinner(size: 20)
                     : const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -359,6 +358,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -779,7 +779,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                   ),
                   icon: const Icon(Icons.lock_rounded, size: 16),
                   label: _isSettingPassword
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                      ? const WHBeeSpinner(size: 16)
                       : const Text('Set Password', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],

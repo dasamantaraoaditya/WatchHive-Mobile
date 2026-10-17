@@ -276,17 +276,20 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
       padding: EdgeInsets.only(bottom: bottomInset),
       child: SafeArea(
         top: false,
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: (screenHeight - bottomInset).clamp(300.0, screenHeight * 0.90),
-          ),
-          decoration: const BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        child: WHModalLoadingOverlay(
+          isLoading: _isSending,
+          message: 'Delivering your recommendation...',
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: (screenHeight - bottomInset).clamp(300.0, screenHeight * 0.90),
+            ),
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               // ── Header (Pinned at top) ──────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -678,7 +681,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                           ),
                           onPressed: (_isSending || isSingleRecipientNotFollower) ? null : _handleSend,
                           child: _isSending
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
+                              ? const WHBeeSpinner(size: 20)
                               : Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -710,6 +713,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

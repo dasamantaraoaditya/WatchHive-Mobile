@@ -64,24 +64,55 @@ class WHSkeletonCard extends StatelessWidget {
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Poster Placeholder
+          // Poster Placeholder with Badges and Overlaid Title
           Expanded(
-            child: WHSkeletonBox(
-              width: double.infinity,
-              height: double.infinity,
-              borderRadius: 0,
+            child: Stack(
+              children: [
+                WHSkeletonBox(
+                  width: double.infinity,
+                  height: double.infinity,
+                  borderRadius: 0,
+                ),
+                // Top-left Media Type Badge
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: WHSkeletonBox(width: 44, height: 18, borderRadius: 6),
+                ),
+                // Top-right Rating Pill
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: WHSkeletonBox(width: 42, height: 18, borderRadius: 10),
+                ),
+                // Bottom Overlaid Title on Poster
+                Positioned(
+                  bottom: 8,
+                  left: 8,
+                  right: 8,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      WHSkeletonBox(width: 100, height: 12, borderRadius: 4),
+                      SizedBox(height: 4),
+                      WHSkeletonBox(width: 70, height: 10, borderRadius: 4),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          // Footer Metadata
+          // Footer Metadata Row
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
               children: [
                 WHSkeletonBox(width: 14, height: 14, borderRadius: 4),
                 SizedBox(width: 6),
-                WHSkeletonBox(width: 70, height: 12, borderRadius: 4),
+                WHSkeletonBox(width: 64, height: 12, borderRadius: 4),
                 Spacer(),
-                WHSkeletonBox(width: 16, height: 16, borderRadius: 8),
+                WHSkeletonBox(width: 16, height: 16, shape: BoxShape.circle),
               ],
             ),
           ),
@@ -355,38 +386,125 @@ class WHSkeletonFeed extends StatelessWidget {
         itemCount: itemCount,
         separatorBuilder: (_, __) => const SizedBox(height: 16),
         itemBuilder: (_, __) => Container(
-          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(color: AppColors.border),
           ),
+          clipBehavior: Clip.antiAlias,
           child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // User header
-              Row(
+              // 1. User Header
+              Padding(
+                padding: EdgeInsets.fromLTRB(16, 14, 16, 10),
+                child: Row(
+                  children: [
+                    WHSkeletonBox(width: 44, height: 44, shape: BoxShape.circle),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          WHSkeletonBox(width: 160, height: 14, borderRadius: 4),
+                          SizedBox(height: 5),
+                          Row(
+                            children: [
+                              WHSkeletonBox(width: 14, height: 14, shape: BoxShape.circle),
+                              SizedBox(width: 6),
+                              WHSkeletonBox(width: 80, height: 10, borderRadius: 4),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    WHSkeletonBox(width: 32, height: 12, borderRadius: 4),
+                  ],
+                ),
+              ),
+
+              // 2. Media Hero Banner with Badges
+              Stack(
                 children: [
-                  WHSkeletonBox(width: 40, height: 40, shape: BoxShape.circle),
-                  SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      WHSkeletonBox(width: 120, height: 14, borderRadius: 4),
-                      SizedBox(height: 4),
-                      WHSkeletonBox(width: 70, height: 10, borderRadius: 4),
-                    ],
+                  WHSkeletonBox(
+                    width: double.infinity,
+                    height: 200,
+                    borderRadius: 0,
+                  ),
+                  // Top-right Rating Pill
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: WHSkeletonBox(width: 52, height: 26, borderRadius: 14),
+                  ),
+                  // Bottom-left tags
+                  Positioned(
+                    bottom: 12,
+                    left: 12,
+                    child: Row(
+                      children: [
+                        WHSkeletonBox(width: 48, height: 20, borderRadius: 8),
+                        SizedBox(width: 6),
+                        WHSkeletonBox(width: 56, height: 20, borderRadius: 8),
+                      ],
+                    ),
                   ),
                 ],
               ),
-              SizedBox(height: 14),
-              // Poster / Backdrop Placeholder
-              WHSkeletonBox(width: double.infinity, height: 160, borderRadius: 14),
-              SizedBox(height: 12),
-              // Review lines
-              WHSkeletonBox(width: double.infinity, height: 12, borderRadius: 4),
-              SizedBox(height: 6),
-              WHSkeletonBox(width: 200, height: 12, borderRadius: 4),
+
+              // 3. Completed Timestamp Row
+              Padding(
+                padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    WHSkeletonBox(width: 12, height: 12, shape: BoxShape.circle),
+                    SizedBox(width: 4),
+                    WHSkeletonBox(width: 90, height: 10, borderRadius: 4),
+                  ],
+                ),
+              ),
+
+              // 4. Review Insight Quote Box
+              Padding(
+                padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.all(Radius.circular(14)),
+                    border: Border.fromBorderSide(BorderSide(color: AppColors.border)),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        WHSkeletonBox(width: double.infinity, height: 12, borderRadius: 4),
+                        SizedBox(height: 6),
+                        WHSkeletonBox(width: 180, height: 12, borderRadius: 4),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // 5. Actions Footer (Likes, Comments, Platform Logo)
+              Padding(
+                padding: EdgeInsets.fromLTRB(16, 14, 16, 14),
+                child: Row(
+                  children: [
+                    WHSkeletonBox(width: 22, height: 22, shape: BoxShape.circle),
+                    SizedBox(width: 6),
+                    WHSkeletonBox(width: 24, height: 12, borderRadius: 4),
+                    SizedBox(width: 18),
+                    WHSkeletonBox(width: 22, height: 22, shape: BoxShape.circle),
+                    SizedBox(width: 6),
+                    WHSkeletonBox(width: 24, height: 12, borderRadius: 4),
+                    Spacer(),
+                    WHSkeletonBox(width: 26, height: 26, borderRadius: 8),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

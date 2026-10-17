@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 
 enum WHBeeLoaderSize {
+  mini,
   small,
   medium,
   large,
@@ -37,9 +38,11 @@ class _WHBeeLoaderState extends State<WHBeeLoader>
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
 
-    final floatOffset = widget.size == WHBeeLoaderSize.small
-        ? -6.0
-        : (widget.size == WHBeeLoaderSize.large ? -14.0 : -10.0);
+    final floatOffset = widget.size == WHBeeLoaderSize.mini
+        ? -3.0
+        : (widget.size == WHBeeLoaderSize.small
+            ? -6.0
+            : (widget.size == WHBeeLoaderSize.large ? -14.0 : -10.0));
 
     _translateAnimation = Tween<double>(begin: 0.0, end: floatOffset).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
@@ -58,6 +61,8 @@ class _WHBeeLoaderState extends State<WHBeeLoader>
 
   double get _iconSize {
     switch (widget.size) {
+      case WHBeeLoaderSize.mini:
+        return 16.0;
       case WHBeeLoaderSize.small:
         return 22.0;
       case WHBeeLoaderSize.medium:
@@ -69,6 +74,8 @@ class _WHBeeLoaderState extends State<WHBeeLoader>
 
   double get _fontSize {
     switch (widget.size) {
+      case WHBeeLoaderSize.mini:
+        return 9.0;
       case WHBeeLoaderSize.small:
         return 11.0;
       case WHBeeLoaderSize.medium:
@@ -83,8 +90,10 @@ class _WHBeeLoaderState extends State<WHBeeLoader>
     return Center(
       child: Padding(
         padding: EdgeInsets.symmetric(
-          vertical: widget.size == WHBeeLoaderSize.small ? 12 : 28,
-          horizontal: 16,
+          vertical: widget.size == WHBeeLoaderSize.mini
+              ? 4
+              : (widget.size == WHBeeLoaderSize.small ? 12 : 28),
+          horizontal: widget.size == WHBeeLoaderSize.mini ? 4 : 16,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -223,3 +232,172 @@ class WHBeeLoadingFooter extends StatelessWidget {
     return const SizedBox.shrink();
   }
 }
+
+/// A lightweight animated bee spinner for buttons, inline action chips, and inputs.
+/// Drops in effortlessly wherever a CircularProgressIndicator was previously used.
+class WHBeeSpinner extends StatefulWidget {
+  final double size;
+  final String? message;
+  final Color? color;
+
+  const WHBeeSpinner({
+    super.key,
+    this.size = 18.0,
+    this.message,
+    this.color,
+  });
+
+  @override
+  State<WHBeeSpinner> createState() => _WHBeeSpinnerState();
+}
+
+class _WHBeeSpinnerState extends State<WHBeeSpinner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+
+    _animation = Tween<double>(begin: -2.5, end: 2.5).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final beeWidget = AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, _animation.value),
+          child: child,
+        );
+      },
+      child: Image.asset(
+        'assets/images/watchhive-logo.png',
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Text(
+          '🐝',
+          style: TextStyle(fontSize: widget.size * 0.8),
+        ),
+      ),
+    );
+
+    if (widget.message == null || widget.message!.isEmpty) {
+      return SizedBox(
+        width: widget.size + 4,
+        height: widget.size + 4,
+        child: Center(child: beeWidget),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: widget.size + 4,
+          height: widget.size + 4,
+          child: Center(child: beeWidget),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          widget.message!,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: widget.size * 0.72,
+            fontWeight: FontWeight.w700,
+            color: widget.color ?? AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A modal/sheet semi-transparent loading overlay with the animated bee,
+/// ensuring users get clear visual feedback and that modals don't abruptly close
+/// or finish without an explicit loading indicator.
+class WHModalLoadingOverlay extends StatelessWidget {
+  final bool isLoading;
+  final String message;
+  final Widget child;
+
+  const WHModalLoadingOverlay({
+    super.key,
+    required this.isLoading,
+    this.message = 'Saving to your Hive...',
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        child,
+        if (isLoading)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.35),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  margin: const EdgeInsets.symmetric(horizontal: 32),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const WHBeeLoader(
+                        size: WHBeeLoaderSize.small,
+                        showBackgroundHoneycomb: true,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+

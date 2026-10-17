@@ -144,8 +144,11 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(
-        children: [
+      child: WHModalLoadingOverlay(
+        isLoading: _isSubmitting,
+        message: 'Adding to Currently Watching...',
+        child: Column(
+          children: [
           // Drag Handle
           const SizedBox(height: 12),
           Container(
@@ -224,11 +227,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
                 suffixIcon: _isSearching
                     ? const Padding(
                         padding: EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                        ),
+                        child: WHBeeSpinner(size: 16),
                       )
                     : _searchController.text.isNotEmpty
                         ? IconButton(
@@ -264,6 +263,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
             child: _buildResultsView(),
           ),
         ],
+      ),
       ),
     );
   }
@@ -418,14 +418,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
                     shape: BoxShape.circle,
                   ),
                   child: _isSubmitting && _submittingMediaId == item.id
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.green,
-                          ),
-                        )
+                      ? const WHBeeSpinner(size: 20)
                       : const Icon(Icons.add_rounded, color: Colors.green, size: 20),
                 ),
               ],

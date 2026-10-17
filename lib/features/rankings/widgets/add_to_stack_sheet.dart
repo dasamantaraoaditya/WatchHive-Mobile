@@ -553,11 +553,7 @@ class _AddToStackSheetState extends ConsumerState<AddToStackSheet> {
               ),
               onPressed: _isCreatingSubmitting ? null : _createStackAndAdd,
               child: _isCreatingSubmitting
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black),
-                    )
+                  ? const WHBeeSpinner(size: 22)
                   : const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -617,7 +613,7 @@ class _AddToStackSheetState extends ConsumerState<AddToStackSheet> {
                 style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
               ),
               trailing: isAdding
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
+                  ? const WHBeeSpinner(size: 18)
                   : const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary, size: 22),
               onTap: isAdding ? null : () => _addToStack(stack),
             ),
