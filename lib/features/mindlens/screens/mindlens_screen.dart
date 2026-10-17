@@ -838,7 +838,8 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
     if (analytics == null) return const SizedBox.shrink();
 
     final summary = analytics['summary'] as Map<String, dynamic>?;
-    final recommenders = (analytics['recommenders'] as List<dynamic>?) ?? [];
+    final rawRecommenders = (analytics['recommenders'] as List<dynamic>?) ?? [];
+    final recommenders = rawRecommenders.take(5).toList();
     final overallConversion = (summary?['overallConversionRate'] as num?)?.toInt() ?? 0;
     final watched = (summary?['totalSuggestionsWatched'] as num?)?.toInt() ?? 0;
     final received = (summary?['totalSuggestionsReceived'] as num?)?.toInt() ?? 0;
@@ -861,7 +862,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Suggestion Influence & Network',
+                  'Top 5 Influencers & Network',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w900,
@@ -874,7 +875,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Discover who recommended your favorite movies and how friends shape your watch history',
+            'Discover your top 5 friend influencers and how they shape your watch history',
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 12,
