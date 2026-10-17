@@ -53,6 +53,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
   late bool _showCurrentlyWatching;
   late bool _showWatchlist;
   late bool _showRankings;
+  late bool _notifyFollowingActivity;
 
   bool _isSaving = false;
   bool _isUploadingAvatar = false;
@@ -72,6 +73,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     _showCurrentlyWatching = widget.user.showCurrentlyWatching;
     _showWatchlist = widget.user.showWatchlist;
     _showRankings = widget.user.showRankings;
+    _notifyFollowingActivity = widget.user.notifyFollowingActivity;
   }
 
   @override
@@ -171,6 +173,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
           'showCurrentlyWatching': _showCurrentlyWatching,
           'showWatchlist': _showWatchlist,
           'showRankings': _showRankings,
+          'notifyFollowingActivity': _notifyFollowingActivity,
         },
       );
 
@@ -686,6 +689,14 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                   subtitle: 'Allow others to see your curated rankings',
                   value: _showRankings,
                   onChanged: (v) => setState(() => _showRankings = v),
+                ),
+                const Divider(height: 1, color: AppColors.border),
+                _buildSwitchTile(
+                  icon: Icons.notifications_active_outlined,
+                  title: "Friends' Activity Alerts",
+                  subtitle: "Receive push notifications when followed users watch movies",
+                  value: _notifyFollowingActivity,
+                  onChanged: (v) => setState(() => _notifyFollowingActivity = v),
                 ),
               ],
             ),

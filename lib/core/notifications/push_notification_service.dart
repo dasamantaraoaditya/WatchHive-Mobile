@@ -364,6 +364,8 @@ class PushNotificationService {
 
     switch (type) {
       case 'LIKE':
+      case 'FRIEND_STARTED_WATCHING':
+      case 'FRIEND_LOGGED_WATCH':
         final entryId = data['entryId']?.toString();
         if (entryId != null && entryId.isNotEmpty) {
           context.push('/entry/$entryId');

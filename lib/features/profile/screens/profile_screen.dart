@@ -514,6 +514,57 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                       ],
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final currentUser = ref.watch(authStateProvider).value?.user;
+                      final isAlertsOn = currentUser?.notifyFollowingActivity ?? true;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceElevated,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.movie_outlined, size: 20, color: AppColors.primary),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Friends' Activity Alerts",
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    "Push alerts when following friends watch or log titles",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: isAlertsOn,
+                              activeThumbColor: AppColors.primary,
+                              onChanged: (val) {
+                                _updatePrivacyField('notifyFollowingActivity', val);
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 14),
                   const Text(
                     'Stay in the loop with instant alerts when friends like your reviews, reply to your comments, or suggest movies.',
@@ -1185,6 +1236,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                           subtitle: 'Allow others to view your ranked stacks',
                           value: user.showRankings,
                           onChanged: (v) => _updatePrivacyField('showRankings', v),
+                        ),
+                        const Divider(height: 1, color: AppColors.border),
+                        _buildSwitchTile(
+                          icon: Icons.movie_outlined,
+                          title: "Friends' Activity Alerts",
+                          subtitle: "Push alerts when following friends watch or log titles",
+                          value: user.notifyFollowingActivity,
+                          onChanged: (v) => _updatePrivacyField('notifyFollowingActivity', v),
                         ),
                       ],
                     ),

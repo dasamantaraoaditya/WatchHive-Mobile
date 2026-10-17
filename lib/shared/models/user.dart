@@ -15,6 +15,7 @@ class User {
   final bool showCurrentlyWatching;
   final bool showWatchlist;
   final bool showRankings;
+  final bool notifyFollowingActivity;
   final List<dynamic> badges;
   final int entriesCount;
   final int? watchingCount;
@@ -43,6 +44,7 @@ class User {
     this.showCurrentlyWatching = true,
     this.showWatchlist = true,
     this.showRankings = true,
+    this.notifyFollowingActivity = true,
     this.xp = 0,
     this.level = 1,
     this.badges = const [],
@@ -96,6 +98,7 @@ class User {
       showCurrentlyWatching: json['showCurrentlyWatching'] as bool? ?? true,
       showWatchlist: json['showWatchlist'] as bool? ?? true,
       showRankings: json['showRankings'] as bool? ?? true,
+      notifyFollowingActivity: json['notifyFollowingActivity'] as bool? ?? true,
       xp: _parseInt(json['xp']),
       level: _parseInt(json['level']) > 0 ? _parseInt(json['level']) : 1,
       badges: json['badges'] as List<dynamic>? ?? [],
@@ -140,6 +143,7 @@ class User {
         'showCurrentlyWatching': showCurrentlyWatching,
         'showWatchlist': showWatchlist,
         'showRankings': showRankings,
+        'notifyFollowingActivity': notifyFollowingActivity,
         'xp': xp,
         'level': level,
         'badges': badges,
@@ -168,6 +172,7 @@ class User {
     bool? showCurrentlyWatching,
     bool? showWatchlist,
     bool? showRankings,
+    bool? notifyFollowingActivity,
     List<dynamic>? badges,
     int? entriesCount,
     int? watchingCount,
@@ -198,6 +203,7 @@ class User {
       showCurrentlyWatching: showCurrentlyWatching ?? this.showCurrentlyWatching,
       showWatchlist: showWatchlist ?? this.showWatchlist,
       showRankings: showRankings ?? this.showRankings,
+      notifyFollowingActivity: notifyFollowingActivity ?? this.notifyFollowingActivity,
       badges: badges ?? this.badges,
       entriesCount: entriesCount ?? this.entriesCount,
       watchingCount: watchingCount ?? this.watchingCount,
