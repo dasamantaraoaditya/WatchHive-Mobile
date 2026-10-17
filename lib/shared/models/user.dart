@@ -23,6 +23,7 @@ class User {
   final int followersCount;
   final int followingCount;
   final bool isFollowing;
+  final bool isFollower;
   final bool isRequested;
   final bool isIncomingRequest;
   final String? incomingRequestId;
@@ -54,6 +55,7 @@ class User {
     this.followersCount = 0,
     this.followingCount = 0,
     this.isFollowing = false,
+    this.isFollower = false,
     this.isRequested = false,
     this.isIncomingRequest = false,
     this.incomingRequestId,
@@ -118,6 +120,7 @@ class User {
         countData?['following'] ?? countData?['followingCount'] ?? json['followingCount'] ?? json['following'],
       ),
       isFollowing: json['isFollowing'] as bool? ?? false,
+      isFollower: json['isFollower'] as bool? ?? false,
       isRequested: json['isRequested'] as bool? ?? false,
       isIncomingRequest: json['isIncomingRequest'] as bool? ?? false,
       incomingRequestId: json['incomingRequestId']?.toString(),
@@ -152,6 +155,8 @@ class User {
         if (watchlistCount != null) 'watchlistCount': watchlistCount,
         'followersCount': followersCount,
         'followingCount': followingCount,
+        'isFollowing': isFollowing,
+        'isFollower': isFollower,
         'createdAt': createdAt.toIso8601String(),
       };
 
@@ -180,6 +185,7 @@ class User {
     int? followersCount,
     int? followingCount,
     bool? isFollowing,
+    bool? isFollower,
     bool? isRequested,
     bool? isIncomingRequest,
     String? incomingRequestId,
@@ -211,6 +217,7 @@ class User {
       followersCount: followersCount ?? this.followersCount,
       followingCount: followingCount ?? this.followingCount,
       isFollowing: isFollowing ?? this.isFollowing,
+      isFollower: isFollower ?? this.isFollower,
       isRequested: isRequested ?? this.isRequested,
       isIncomingRequest: isIncomingRequest ?? this.isIncomingRequest,
       incomingRequestId: incomingRequestId ?? this.incomingRequestId,

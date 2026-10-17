@@ -213,6 +213,16 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
       return;
     }
 
+    if (widget.initialToUserId != null &&
+        !_isLoadingFriends &&
+        !_friends.any((u) => u.id == widget.initialToUserId)) {
+      WHAlert.showWarning(
+        context,
+        '@${widget.initialToUserName ?? "This user"} is not following you yet. Only followers can receive suggestions.',
+      );
+      return;
+    }
+
     setState(() => _isSending = true);
     try {
       final suggRepo = ref.read(suggestionsRepositoryProvider);
@@ -253,6 +263,9 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final screenHeight = MediaQuery.of(context).size.height;
     final isKeyboardOpen = bottomInset > 0;
+    final bool isSingleRecipientNotFollower = widget.initialToUserId != null &&
+        !_isLoadingFriends &&
+        !_friends.any((u) => u.id == widget.initialToUserId);
 
     if (bottomInset > _lastBottomInset && _messageFocusNode.hasFocus) {
       _scrollToKey(_messageKey, alignment: 0.0);
@@ -525,7 +538,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                       ],
 
                       // Recipient List
-                      if (widget.initialToUserId != null)
+                      if (widget.initialToUserId != null) ...[
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(14),
@@ -545,7 +558,39 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                               ),
                             ],
                           ),
-                        )
+                        ),
+                        if (isSingleRecipientNotFollower) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    '@${widget.initialToUserName ?? "This user"} is not following you yet. Only followers can receive movie suggestions.',
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 12,
+                                      color: Colors.amber,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ]
                       else if (_isLoadingFriends)
                         const WHSkeletonUserList(count: 3)
                       else
@@ -626,25 +671,32 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                         height: 50,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.black,
-                            elevation: 2,
+                            backgroundColor: isSingleRecipientNotFollower ? AppColors.surfaceHighest : AppColors.primary,
+                            foregroundColor: isSingleRecipientNotFollower ? AppColors.textMuted : Colors.black,
+                            elevation: isSingleRecipientNotFollower ? 0 : 2,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
-                          onPressed: _isSending ? null : _handleSend,
+                          onPressed: (_isSending || isSingleRecipientNotFollower) ? null : _handleSend,
                           child: _isSending
                               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
                               : Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Icon(Icons.send_rounded, size: 16, color: Colors.black),
+                                    Icon(
+                                      isSingleRecipientNotFollower ? Icons.block_rounded : Icons.send_rounded,
+                                      size: 16,
+                                      color: isSingleRecipientNotFollower ? AppColors.textMuted : Colors.black,
+                                    ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Send Suggestion (${_selectedUserIds.length})',
-                                      style: const TextStyle(
+                                      isSingleRecipientNotFollower
+                                          ? 'Cannot Suggest (Not a Follower)'
+                                          : 'Send Suggestion (${_selectedUserIds.length})',
+                                      style: TextStyle(
                                         fontFamily: 'Inter',
                                         fontWeight: FontWeight.w800,
                                         fontSize: 14,
+                                        color: isSingleRecipientNotFollower ? AppColors.textMuted : Colors.black,
                                       ),
                                     ),
                                   ],

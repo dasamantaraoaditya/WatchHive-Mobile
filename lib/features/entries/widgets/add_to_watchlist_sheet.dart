@@ -7,7 +7,6 @@ import 'package:watchhive_mobile/core/theme/app_colors.dart';
 import 'package:watchhive_mobile/core/utils/error_handler.dart';
 import 'package:watchhive_mobile/features/entries/repositories/watchlist_repository.dart';
 import 'package:watchhive_mobile/features/profile/repositories/user_repository.dart';
-import 'package:watchhive_mobile/features/search/repositories/search_repository.dart';
 import 'package:watchhive_mobile/shared/models/user.dart';
 import 'package:watchhive_mobile/shared/widgets/wh_alert.dart';
 
@@ -97,13 +96,7 @@ class _AddToWatchlistSheetState extends ConsumerState<AddToWatchlistSheet> {
       final followers = await userRepo.getFollowers(me.id).catchError((_) => <User>[]);
       _cachedFollowers = followers.where((u) => u.id != me.id).toList();
     } catch (_) {
-      // Fallback for tests or offline if userRepositoryProvider is not mocked
-      try {
-        final searchResults = await ref.read(searchRepositoryProvider).searchUsers('a').catchError((_) => <User>[]);
-        _cachedFollowers = searchResults;
-      } catch (_) {
-        _cachedFollowers = [];
-      }
+      _cachedFollowers = [];
     }
   }
 

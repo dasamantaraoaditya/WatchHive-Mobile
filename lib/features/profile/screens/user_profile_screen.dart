@@ -1084,7 +1084,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                     padding: const EdgeInsets.all(12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  tooltip: 'Suggest a Movie',
+                  tooltip: user.isFollower ? 'Suggest a Movie' : '@${user.username} must follow you to receive suggestions',
                   onPressed: () {
                     SuggestMovieModal.show(
                       context,
