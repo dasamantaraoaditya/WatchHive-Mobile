@@ -96,3 +96,87 @@ jobs:
           name: watchhive-staging-apk
           path: build/app/outputs/flutter-apk/*.apk
           retention-days: 14
+
+  build-staging-ios:
+    name: Build Staging iOS App
+    runs-on: macos-14
+    env:
+      IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+      GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+      FIREBASE_OPTIONS_DART_BASE64: ${{ secrets.FIREBASE_OPTIONS_DART_BASE64 }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Configure Staging Environment (.env)
+        run: |
+          if [ -f ".env.staging" ]; then
+            cp .env.staging .env
+          elif [ -f ".env.staging.example" ]; then
+            cp .env.staging.example .env
+          else
+            cp .env.example .env
+          fi
+          echo "Staging environment file (.env) configured."
+
+      - name: Setup Firebase Configuration from Secrets
+        run: |
+          if [ -n "$IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64" ]; then
+            python3 -c "import os, base64; raw=os.environ['IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64'].strip(); open('ios/Runner/GoogleService-Info.plist', 'wb').write(base64.b64decode(raw))"
+            echo "GoogleService-Info.plist decoded successfully from secret."
+          elif [ -f "ios/Runner/GoogleService-Info.plist" ]; then
+            echo "Using existing ios/Runner/GoogleService-Info.plist."
+          fi
+
+          if [ -n "$FIREBASE_OPTIONS_DART_BASE64" ]; then
+            python3 -c "import os, base64; raw=os.environ['FIREBASE_OPTIONS_DART_BASE64'].strip(); open('lib/firebase_options.dart', 'wb').write(base64.b64decode(raw))"
+            echo "firebase_options.dart decoded successfully from secret."
+          elif [ -f "lib/firebase_options.dart.example" ] && [ ! -f "lib/firebase_options.dart" ]; then
+            cp lib/firebase_options.dart.example lib/firebase_options.dart
+            echo "Using firebase_options.dart.example fallback template."
+          fi
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+          cd ..
+
+      - name: Run Static Code Analysis
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Build iOS Staging App
+        run: flutter build ios --release --no-codesign
+
+      - name: Package Staging iOS Payload
+        run: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r WatchHive-Staging-iOS.zip Payload
+
+      - name: Upload Staging iOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: watchhive-staging-ios
+          path: build/ios/iphoneos/WatchHive-Staging-iOS.zip
+          retention-days: 14
+
