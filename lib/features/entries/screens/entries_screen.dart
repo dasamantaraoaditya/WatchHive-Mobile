@@ -394,13 +394,8 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
 
         Expanded(
           child: state.isLoading && state.entries.isEmpty
-              ? Center(
-                  child: WHBeeLoader(
-                    size: WHBeeLoaderSize.medium,
-                    message: widget.isWatching
-                        ? 'Loading active watching sessions...'
-                        : 'Loading watch history...',
-                  ),
+              ? const WHSkeletonGrid(
+                  padding: EdgeInsets.fromLTRB(16, 6, 16, 16),
                 )
               : state.error != null && state.entries.isEmpty
                   ? Center(

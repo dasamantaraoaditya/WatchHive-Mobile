@@ -277,13 +277,8 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
 
           Expanded(
             child: _isLoading
-                ? Center(
-                    child: WHBeeLoader(
-                      size: WHBeeLoaderSize.medium,
-                      message: _selectedSubTab == 0
-                          ? 'Checking hive recommendations...'
-                          : 'Loading your suggested items...',
-                    ),
+                ? const WHSkeletonGrid(
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
                   )
                 : _error != null
                     ? Center(
