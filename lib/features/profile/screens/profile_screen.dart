@@ -13,6 +13,7 @@ import '../widgets/follow_list_sheet.dart';
 import '../widgets/profile_stats_view.dart';
 import '../widgets/compare_picker_modal.dart';
 import '../widgets/data_management_card.dart';
+import '../widgets/danger_zone_card.dart';
 import '../widgets/offline_sync_card.dart';
 import 'edit_profile_dialog.dart';
 import '../widgets/avatar_viewer_dialog.dart';
@@ -30,11 +31,24 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final GlobalKey _dataManagementKey = GlobalKey();
   bool _isLoading = true;
   bool _isEditingBio = false;
   late final TextEditingController _bioTextController;
   bool _isSavingBio = false;
   bool _isUploadingAvatar = false;
+
+  void _scrollToDataManagement() {
+    final ctx = _dataManagementKey.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOutCubic,
+        alignment: 0.1,
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -236,37 +250,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
     }
   }
 
-  Future<void> _confirmDeleteAccount() async {
-    final confirm = await WHAlert.confirm(
-      context,
-      title: 'Delete Account Permanently',
-      message:
-          'Are you sure you want to delete your WatchersHive account? All your watch history, reviews, lists, and profile data will be permanently erased. This action CANNOT be undone.',
-      confirmText: 'Delete My Account',
-      severity: WHAlertSeverity.danger,
-      icon: Icons.delete_forever_rounded,
-    );
 
-    if (!confirm || !mounted) return;
-
-    try {
-      await ref.read(authStateProvider.notifier).deleteAccount();
-      if (mounted) {
-        WHAlert.showSuccess(context, 'Your account has been permanently deleted.');
-        context.go('/login');
-      }
-    } catch (e) {
-      if (mounted) {
-        WHAlert.showError(
-          context,
-          AppErrorHandler.toUserFriendlyMessage(
-            e,
-            defaultMessage: 'Failed to delete account. Please try again.',
-          ),
-        );
-      }
-    }
-  }
 
 
   @override
@@ -1409,7 +1393,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
           const SizedBox(height: 16),
 
           // Data Management (Export & Import Hive Data)
-          DataManagementCard(onDataChanged: _loadProfileData),
+          DataManagementCard(
+            key: _dataManagementKey,
+            onDataChanged: _loadProfileData,
+          ),
           const SizedBox(height: 16),
 
           // Sign Out Button
@@ -1417,8 +1404,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
             width: double.infinity,
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: const BorderSide(color: AppColors.error),
+                foregroundColor: AppColors.textPrimary,
+                side: const BorderSide(color: AppColors.border),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
@@ -1434,29 +1421,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 24),
 
-          // Delete Account Button (Apple App Store Guideline 5.1.1(v))
-          SizedBox(
-            width: double.infinity,
-            child: TextButton.icon(
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.error.withValues(alpha: 0.8),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              onPressed: _confirmDeleteAccount,
-              icon: const Icon(Icons.delete_forever_rounded, size: 18, color: AppColors.error),
-              label: const Text(
-                'Delete Account Permanently',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.error,
-                ),
-              ),
-            ),
+          // Danger Zone: Account Deletion (Apple App Store Guideline 5.1.1(v) + Industry-Standard Safety)
+          DangerZoneCard(
+            onExportRequested: _scrollToDataManagement,
           ),
         ],
       ),
