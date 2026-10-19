@@ -57,8 +57,15 @@ class WHSkeletonCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: const Column(
@@ -73,17 +80,17 @@ class WHSkeletonCard extends StatelessWidget {
                   height: double.infinity,
                   borderRadius: 0,
                 ),
-                // Top-left Media Type Badge
+                // Top-left Media Type Badge (🎬 Movie / 📺 TV)
                 Positioned(
                   top: 8,
                   left: 8,
-                  child: WHSkeletonBox(width: 44, height: 18, borderRadius: 6),
+                  child: WHSkeletonBox(width: 44, height: 18, borderRadius: 12),
                 ),
-                // Top-right Rating Pill
+                // Top-right Rating or Watching Pill
                 Positioned(
                   top: 8,
                   right: 8,
-                  child: WHSkeletonBox(width: 42, height: 18, borderRadius: 10),
+                  child: WHSkeletonBox(width: 42, height: 18, borderRadius: 12),
                 ),
                 // Bottom Overlaid Title on Poster
                 Positioned(
@@ -94,23 +101,25 @@ class WHSkeletonCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      WHSkeletonBox(width: 100, height: 12, borderRadius: 4),
+                      WHSkeletonBox(width: double.infinity, height: 13, borderRadius: 4),
                       SizedBox(height: 4),
-                      WHSkeletonBox(width: 70, height: 10, borderRadius: 4),
+                      WHSkeletonBox(width: 75, height: 11, borderRadius: 4),
+                      SizedBox(height: 4),
+                      WHSkeletonBox(width: 45, height: 10, borderRadius: 4),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          // Footer Metadata Row
+          // Footer Metadata Row (Icon + Date + More Menu Button)
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
               children: [
-                WHSkeletonBox(width: 14, height: 14, borderRadius: 4),
-                SizedBox(width: 6),
-                WHSkeletonBox(width: 64, height: 12, borderRadius: 4),
+                WHSkeletonBox(width: 13, height: 13, borderRadius: 3),
+                SizedBox(width: 5),
+                WHSkeletonBox(width: 64, height: 11, borderRadius: 4),
                 Spacer(),
                 WHSkeletonBox(width: 16, height: 16, shape: BoxShape.circle),
               ],
@@ -672,7 +681,7 @@ class WHSkeletonCommentsList extends StatelessWidget {
   }
 }
 
-/// Skeleton for MindLens AI Screen
+/// Skeleton for MindLens AI Screen (MindLens 2.0 Scientific Architecture)
 class WHSkeletonMindLens extends StatelessWidget {
   const WHSkeletonMindLens({super.key});
 
@@ -680,12 +689,63 @@ class WHSkeletonMindLens extends StatelessWidget {
   Widget build(BuildContext context) {
     return WHSkeleton(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
         physics: const NeverScrollableScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Hero AI Persona Card
+            // 0. Sub-tab Selector Pills (Highlights vs Analytics)
+            Container(
+              height: 44,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Row(
+                children: [
+                  Expanded(child: WHSkeletonBox(height: 36, borderRadius: 10)),
+                  SizedBox(width: 6),
+                  Expanded(child: WHSkeletonBox(height: 36, borderRadius: 10)),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // 1. Milestone Calibration Banner
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Row(
+                children: [
+                  WHSkeletonBox(width: 32, height: 32, shape: BoxShape.circle),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        WHSkeletonBox(width: 140, height: 13, borderRadius: 4),
+                        SizedBox(height: 6),
+                        WHSkeletonBox(width: double.infinity, height: 6, borderRadius: 3),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  WHSkeletonBox(width: 50, height: 20, borderRadius: 8),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // 2. Affective Mood State Hero Card (Russell Circumplex)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -700,63 +760,141 @@ class WHSkeletonMindLens extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      WHSkeletonBox(width: 120, height: 24, borderRadius: 12),
-                      WHSkeletonBox(width: 60, height: 20, borderRadius: 10),
+                      WHSkeletonBox(width: 130, height: 18, borderRadius: 6),
+                      WHSkeletonBox(width: 90, height: 24, borderRadius: 12),
                     ],
                   ),
-                  SizedBox(height: 16),
-                  WHSkeletonBox(width: 200, height: 22, borderRadius: 6),
-                  SizedBox(height: 10),
-                  WHSkeletonBox(width: double.infinity, height: 13, borderRadius: 4),
-                  SizedBox(height: 6),
-                  WHSkeletonBox(width: 240, height: 13, borderRadius: 4),
+                  SizedBox(height: 14),
+                  WHSkeletonBox(width: 180, height: 22, borderRadius: 6),
+                  SizedBox(height: 8),
+                  WHSkeletonBox(width: double.infinity, height: 12, borderRadius: 4),
+                  SizedBox(height: 4),
+                  WHSkeletonBox(width: 200, height: 12, borderRadius: 4),
+                  SizedBox(height: 14),
+                  Row(
+                    children: [
+                      WHSkeletonBox(width: 80, height: 26, borderRadius: 10),
+                      SizedBox(width: 8),
+                      WHSkeletonBox(width: 70, height: 26, borderRadius: 10),
+                      SizedBox(width: 8),
+                      WHSkeletonBox(width: 85, height: 26, borderRadius: 10),
+                    ],
+                  ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // 2x2 Stats Grid
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.5,
-              children: List.generate(
-                4,
-                (_) => Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+            // 3. Cognitive Viewing Archetype Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          WHSkeletonBox(width: 28, height: 28, shape: BoxShape.circle),
-                          WHSkeletonBox(width: 32, height: 14, borderRadius: 6),
-                        ],
+                      WHSkeletonBox(width: 48, height: 48, shape: BoxShape.circle),
+                      SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            WHSkeletonBox(width: 180, height: 20, borderRadius: 6),
+                            SizedBox(height: 6),
+                            WHSkeletonBox(width: 120, height: 13, borderRadius: 4),
+                          ],
+                        ),
                       ),
-                      SizedBox(height: 10),
-                      WHSkeletonBox(width: 50, height: 18, borderRadius: 4),
-                      SizedBox(height: 4),
-                      WHSkeletonBox(width: 80, height: 11, borderRadius: 4),
                     ],
                   ),
-                ),
+                  SizedBox(height: 16),
+                  WHSkeletonBox(width: double.infinity, height: 13, borderRadius: 4),
+                  SizedBox(height: 6),
+                  WHSkeletonBox(width: 240, height: 13, borderRadius: 4),
+                  SizedBox(height: 16),
+                  Row(
+                    children: [
+                      WHSkeletonBox(width: 70, height: 24, borderRadius: 12),
+                      SizedBox(width: 8),
+                      WHSkeletonBox(width: 80, height: 24, borderRadius: 12),
+                      SizedBox(width: 8),
+                      WHSkeletonBox(width: 75, height: 24, borderRadius: 12),
+                    ],
+                  ),
+                ],
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // Frequency / Taste Analytics Card
+            // 4. Taste Breadth & Shannon Information Entropy Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      WHSkeletonBox(width: 160, height: 18, borderRadius: 6),
+                      WHSkeletonBox(width: 90, height: 22, borderRadius: 10),
+                    ],
+                  ),
+                  SizedBox(height: 10),
+                  WHSkeletonBox(width: 120, height: 14, borderRadius: 4),
+                  SizedBox(height: 6),
+                  WHSkeletonBox(width: double.infinity, height: 12, borderRadius: 4),
+                  SizedBox(height: 16),
+                  // Horizontal progress bars for genres
+                  Row(
+                    children: [
+                      WHSkeletonBox(width: 70, height: 12, borderRadius: 4),
+                      SizedBox(width: 10),
+                      Expanded(child: WHSkeletonBox(height: 6, borderRadius: 3)),
+                      SizedBox(width: 10),
+                      WHSkeletonBox(width: 30, height: 10, borderRadius: 4),
+                    ],
+                  ),
+                  SizedBox(height: 10),
+                  Row(
+                    children: [
+                      WHSkeletonBox(width: 70, height: 12, borderRadius: 4),
+                      SizedBox(width: 10),
+                      Expanded(child: WHSkeletonBox(height: 6, borderRadius: 3)),
+                      SizedBox(width: 10),
+                      WHSkeletonBox(width: 30, height: 10, borderRadius: 4),
+                    ],
+                  ),
+                  SizedBox(height: 10),
+                  Row(
+                    children: [
+                      WHSkeletonBox(width: 70, height: 12, borderRadius: 4),
+                      SizedBox(width: 10),
+                      Expanded(child: WHSkeletonBox(height: 6, borderRadius: 3)),
+                      SizedBox(width: 10),
+                      WHSkeletonBox(width: 30, height: 10, borderRadius: 4),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // 5. Watch Frequency Stream Chart Card
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(18),
@@ -771,46 +909,13 @@ class WHSkeletonMindLens extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      WHSkeletonBox(width: 140, height: 16, borderRadius: 6),
+                      WHSkeletonBox(width: 150, height: 16, borderRadius: 6),
                       WHSkeletonBox(width: 60, height: 22, borderRadius: 10),
                     ],
                   ),
                   SizedBox(height: 20),
-                  WHSkeletonBox(width: double.infinity, height: 140, borderRadius: 12),
+                  WHSkeletonBox(width: double.infinity, height: 130, borderRadius: 12),
                 ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Highlights Carousel Title + Row
-            const WHSkeletonBox(width: 150, height: 16, borderRadius: 6),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 130,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: 3,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (_, __) => Container(
-                  width: 110,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: WHSkeletonBox(width: double.infinity, height: double.infinity, borderRadius: 0)),
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: WHSkeletonBox(width: 70, height: 10, borderRadius: 4),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ),
           ],

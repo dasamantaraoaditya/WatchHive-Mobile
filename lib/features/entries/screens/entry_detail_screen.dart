@@ -11,6 +11,7 @@ import '../../feed/screens/feed_screen.dart';
 import '../../feed/repositories/feed_repository.dart';
 import '../../feed/widgets/comments_sheet.dart';
 import '../../feed/widgets/wh_feed_card.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
 
 class EntryDetailScreen extends ConsumerStatefulWidget {
@@ -185,9 +186,7 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
 
   Widget _buildBody(String? currentUserId) {
     if (_isLoading && _entry == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
+      return const WHSkeletonFeed(itemCount: 1);
     }
 
     if (_errorMessage != null && _entry == null) {

@@ -188,9 +188,9 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
       color: AppColors.primary,
       child: Column(
         children: [
-          // Sub-tabs Toggle: Received Suggestions vs Suggested Items
+          // Sub-tabs Toggle: Received Suggestions vs Suggested Items & Suggest to Friends Action
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
             child: Row(
               children: [
                 Expanded(
@@ -210,48 +210,37 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                     count: _sentGroups.length,
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          // Header action strip
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _selectedSubTab == 0
-                        ? 'Recommendations from your Hive'
-                        : 'Titles you recommended to friends',
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 11,
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () async {
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () async {
                     await SuggestMovieModal.show(context);
                     _fetchSuggestions();
                   },
-                  icon: const Icon(Icons.auto_awesome, size: 14, color: AppColors.primary),
-                  label: const Text(
-                    'Suggest',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                     ),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    visualDensity: VisualDensity.compact,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.auto_awesome, size: 14, color: AppColors.primaryDark),
+                        SizedBox(width: 4),
+                        Text(
+                          'Suggest',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryDark,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -277,13 +266,8 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
 
           Expanded(
             child: _isLoading
-                ? Center(
-                    child: WHBeeLoader(
-                      size: WHBeeLoaderSize.medium,
-                      message: _selectedSubTab == 0
-                          ? 'Checking hive recommendations...'
-                          : 'Loading your suggested items...',
-                    ),
+                ? const WHSkeletonGrid(
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
                   )
                 : _error != null
                     ? Center(

@@ -65,7 +65,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ? webClientId
           : '357857516251-f4gpp8f1j70lu1dcnh405ac0t6lch9tf.apps.googleusercontent.com';
 
+      final iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID']?.trim();
+      final effectiveIosClientId = (iosClientId != null &&
+              iosClientId.isNotEmpty &&
+              !iosClientId.contains('your_google_ios_client_id'))
+          ? iosClientId
+          : null;
+
       final googleSignIn = GoogleSignIn(
+        clientId: effectiveIosClientId,
         serverClientId: effectiveClientId,
         scopes: const ['email', 'profile'],
       );

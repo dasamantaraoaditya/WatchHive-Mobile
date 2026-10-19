@@ -403,11 +403,8 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
         ),
         Expanded(
           child: _isLoading
-              ? const Center(
-                  child: WHBeeLoader(
-                    size: WHBeeLoaderSize.medium,
-                    message: 'Loading your watchlist...',
-                  ),
+              ? const WHSkeletonGrid(
+                  padding: EdgeInsets.fromLTRB(16, 6, 16, 16),
                 )
               : _error != null
                   ? Center(
