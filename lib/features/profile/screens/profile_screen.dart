@@ -10,7 +10,6 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../repositories/user_repository.dart';
 import '../widgets/follow_list_sheet.dart';
-import '../widgets/profile_stats_view.dart';
 import '../widgets/compare_picker_modal.dart';
 import '../widgets/data_management_card.dart';
 import '../widgets/danger_zone_card.dart';
@@ -30,8 +29,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final GlobalKey _dataManagementKey = GlobalKey();
   bool _isLoading = true;
   bool _isEditingBio = false;
@@ -40,28 +38,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
   bool _isUploadingAvatar = false;
 
   void _scrollToDataManagement() {
-    final ctx = _dataManagementKey.currentContext;
-    if (ctx != null) {
-      Scrollable.ensureVisible(
-        ctx,
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.easeInOutCubic,
-        alignment: 0.1,
-      );
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _dataManagementKey.currentContext;
+      if (ctx == null) return;
+
+      final innerScrollable = Scrollable.maybeOf(ctx);
+      if (innerScrollable == null) return;
+
+      final renderBox = ctx.findRenderObject() as RenderBox?;
+      final scrollableBox = innerScrollable.context.findRenderObject() as RenderBox?;
+
+      if (renderBox != null && scrollableBox != null) {
+        final relativeOffset = renderBox.localToGlobal(Offset.zero, ancestor: scrollableBox);
+        final targetPixels = (innerScrollable.position.pixels + relativeOffset.dy - 150.0)
+            .clamp(0.0, innerScrollable.position.maxScrollExtent);
+
+        innerScrollable.position.animateTo(
+          targetPixels,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
   }
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _bioTextController = TextEditingController();
     _loadProfileData();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _bioTextController.dispose();
     super.dispose();
   }
@@ -296,33 +305,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                 child: _buildHeroCard(user),
               ),
             ),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _StickyTabBarDelegate(
-                TabBar(
-                  controller: _tabController,
-                  isScrollable: false,
-                  labelColor: Colors.black,
-                  unselectedLabelColor: AppColors.textMuted,
-                  indicatorColor: AppColors.primary,
-                  indicatorWeight: 3,
-                  labelStyle: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  unselectedLabelStyle: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  tabs: const [
-                    Tab(text: 'Privacy & Visibility'),
-                    Tab(text: 'Hive Analytics'),
-                  ],
-                ),
-              ),
-            ),
           ];
         },
         body: _isLoading
@@ -340,13 +322,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                   ),
                 ),
               )
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildPrivacyAndSettingsTab(user),
-                  const ProfileStatsView(),
-                ],
-              ),
+            : _buildPrivacyAndSettingsTab(user),
       ),
     );
   }
@@ -1603,30 +1579,5 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     );
-  }
-}
-
-class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar tabBar;
-
-  _StickyTabBarDelegate(this.tabBar);
-
-  @override
-  double get minExtent => tabBar.preferredSize.height;
-
-  @override
-  double get maxExtent => tabBar.preferredSize.height;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: AppColors.background,
-      child: tabBar,
-    );
-  }
-
-  @override
-  bool shouldRebuild(_StickyTabBarDelegate oldDelegate) {
-    return false;
   }
 }
