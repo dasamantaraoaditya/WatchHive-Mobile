@@ -67,6 +67,9 @@ class _BlockedUsersSheetState extends ConsumerState<BlockedUsersSheet> {
     try {
       final repo = ref.read(userRepositoryProvider);
       await repo.unblockUser(userId);
+      try {
+        await repo.followUser(userId);
+      } catch (_) {}
 
       if (mounted) {
         setState(() {
@@ -77,8 +80,8 @@ class _BlockedUsersSheetState extends ConsumerState<BlockedUsersSheet> {
           _unblockingIds.remove(userId);
         });
 
-        // Invalidate or reload feed to show unblocked content
-        ref.read(feedProvider.notifier).loadFeed();
+        // Invalidate or reload feed with fresh data to immediately show unblocked content
+        ref.read(feedProvider.notifier).loadFeed(isRefresh: true);
         WHAlert.showSuccess(context, 'Unblocked $cleanName');
       }
     } catch (e) {

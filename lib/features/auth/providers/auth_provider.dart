@@ -98,14 +98,17 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
   Future<void> login({required String email, required String password}) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final user = await ref.read(authRepositoryProvider).login(
             email: email,
             password: password,
           );
       unawaited(syncDeviceToken());
-      return AuthState(user: user, isAuthenticated: true);
-    });
+      state = AsyncData(AuthState(user: user, isAuthenticated: true));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   Future<void> register({
@@ -114,24 +117,30 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     required String password,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final user = await ref.read(authRepositoryProvider).register(
             username: username,
             email: email,
             password: password,
           );
       unawaited(syncDeviceToken());
-      return AuthState(user: user, isAuthenticated: true);
-    });
+      state = AsyncData(AuthState(user: user, isAuthenticated: true));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   Future<void> googleSignIn(String idToken) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final user = await ref.read(authRepositoryProvider).googleSignIn(idToken);
       unawaited(syncDeviceToken());
-      return AuthState(user: user, isAuthenticated: true);
-    });
+      state = AsyncData(AuthState(user: user, isAuthenticated: true));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   Future<void> appleSignIn({
@@ -142,7 +151,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     String? familyName,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final user = await ref.read(authRepositoryProvider).appleSignIn(
             identityToken: identityToken,
             userIdentifier: userIdentifier,
@@ -151,8 +160,11 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
             familyName: familyName,
           );
       unawaited(syncDeviceToken());
-      return AuthState(user: user, isAuthenticated: true);
-    });
+      state = AsyncData(AuthState(user: user, isAuthenticated: true));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   Future<void> logout() async {
