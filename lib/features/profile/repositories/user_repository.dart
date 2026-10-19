@@ -516,6 +516,23 @@ class UserRepository {
     }
   }
 
+  /// Get detailed list of blocked accounts with user profile info
+  Future<List<Map<String, dynamic>>> getBlockedAccounts() async {
+    try {
+      final response = await _api.get(ApiEndpoints.myBlocks);
+      if (response.data is Map<String, dynamic>) {
+        final rawBlocks = response.data['blocks'];
+        if (rawBlocks is List) {
+          return rawBlocks.map((b) => Map<String, dynamic>.from(b as Map)).toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to get blocked accounts: $e');
+      return [];
+    }
+  }
+
   /// Submit a content report (Apple Guideline 1.2)
   Future<bool> submitReport({
     required String targetType,

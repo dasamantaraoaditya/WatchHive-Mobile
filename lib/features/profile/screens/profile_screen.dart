@@ -21,6 +21,7 @@ import '../../../core/utils/error_handler.dart';
 import '../../../core/notifications/push_notification_service.dart';
 import '../../notifications/repositories/push_repository.dart';
 import '../../onboarding/widgets/quick_guide_tour_dialog.dart';
+import '../widgets/blocked_users_sheet.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -1314,6 +1315,58 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                           ),
                         ),
                         Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primaryDark),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () => BlockedUsersSheet.show(context),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.block_rounded, size: 16, color: AppColors.error),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Blocked Accounts',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Review and unblock members you have blocked',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 11,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
                       ],
                     ),
                   ),
