@@ -30,8 +30,9 @@ dependencies:
   # Environment Variables
   flutter_dotenv: ^5.1.0
 
-  # Google Sign-In
+  # Social Authentication
   google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.4
 
   # Firebase (Push Notifications)
   firebase_core: ^3.3.0
