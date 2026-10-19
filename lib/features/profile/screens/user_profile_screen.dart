@@ -642,6 +642,55 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                       );
                     },
                   ),
+                if (!_isMe && _user != null)
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
+                    color: AppColors.surfaceElevated,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onSelected: (value) {
+                      if (value == 'report') {
+                        UgcModerationDialog.showReportDialog(
+                          context,
+                          ref,
+                          targetType: 'USER',
+                          targetId: _user!.id,
+                          targetTitle: _user!.displayName ?? '@${_user!.username}',
+                        );
+                      } else if (value == 'block') {
+                        UgcModerationDialog.confirmBlockUser(
+                          context,
+                          ref,
+                          userId: _user!.id,
+                          username: _user!.username,
+                          onBlocked: () => context.safePop(),
+                        );
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem<String>(
+                        value: 'report',
+                        height: 38,
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag_outlined, size: 16, color: AppColors.error),
+                            SizedBox(width: 8),
+                            Text('Report User', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: 'block',
+                        height: 38,
+                        child: Row(
+                          children: [
+                            Icon(Icons.block_rounded, size: 16, color: AppColors.error),
+                            SizedBox(width: 8),
+                            Text('Block User', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
             if (_isMe)

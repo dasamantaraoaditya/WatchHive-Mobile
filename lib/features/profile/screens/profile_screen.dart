@@ -236,6 +236,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
     }
   }
 
+  Future<void> _confirmDeleteAccount() async {
+    final confirm = await WHAlert.confirm(
+      context,
+      title: 'Delete Account Permanently',
+      message:
+          'Are you sure you want to delete your WatchersHive account? All your watch history, reviews, lists, and profile data will be permanently erased. This action CANNOT be undone.',
+      confirmText: 'Delete My Account',
+      severity: WHAlertSeverity.danger,
+      icon: Icons.delete_forever_rounded,
+    );
+
+    if (!confirm || !mounted) return;
+
+    try {
+      await ref.read(authStateProvider.notifier).deleteAccount();
+      if (mounted) {
+        WHAlert.showSuccess(context, 'Your account has been permanently deleted.');
+        context.go('/login');
+      }
+    } catch (e) {
+      if (mounted) {
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(
+            e,
+            defaultMessage: 'Failed to delete account. Please try again.',
+          ),
+        );
+      }
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -1398,6 +1430,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                   fontFamily: 'Inter',
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Delete Account Button (Apple App Store Guideline 5.1.1(v))
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.error.withValues(alpha: 0.8),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: _confirmDeleteAccount,
+              icon: const Icon(Icons.delete_forever_rounded, size: 18, color: AppColors.error),
+              label: const Text(
+                'Delete Account Permanently',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.error,
                 ),
               ),
             ),

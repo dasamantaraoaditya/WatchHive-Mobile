@@ -1,8 +1,11 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/auth_provider.dart';
@@ -105,6 +108,56 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       debugPrint('Google Sign-In Error: $e');
       if (mounted) {
         WHAlert.showError(context, _formatGoogleError(e));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _appleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final identityToken = credential.identityToken;
+      if (identityToken == null || identityToken.isEmpty) {
+        if (mounted) {
+          WHAlert.showError(
+            context,
+            'Apple Sign-In could not be completed. Please try again or sign in with your email and password.',
+          );
+        }
+        return;
+      }
+
+      await ref.read(authStateProvider.notifier).appleSignIn(
+            identityToken: identityToken,
+            userIdentifier: credential.userIdentifier ?? '',
+            email: credential.email,
+            givenName: credential.givenName,
+            familyName: credential.familyName,
+          );
+
+      if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
+        context.go('/feed');
+      }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        debugPrint('[AppleSignIn] User canceled Apple Sign-In flow');
+      } else {
+        if (mounted) {
+          WHAlert.showError(context, 'Sign in with Apple failed: ${e.message}');
+        }
+      }
+    } catch (e) {
+      debugPrint('[AppleSignIn] Error: $e');
+      if (mounted) {
+        WHAlert.showError(context, _parseError(e));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -262,7 +315,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
-                const SizedBox(height: 32),
+
+                // Apple Sign-In (Apple App Store Guideline 4.8)
+                if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) ...[
+                  const SizedBox(height: 12),
+                  SignInWithAppleButton(
+                    onPressed: _appleSignIn,
+                    style: SignInWithAppleButtonStyle.black,
+                    borderRadius: BorderRadius.circular(16),
+                    height: 48,
+                  ),
+                ],
+                const SizedBox(height: 24),
+
+                // Terms & Privacy acceptance (Apple Guideline 1.2 & 5.1.1)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text.rich(
+                    TextSpan(
+                      text: 'By continuing, you acknowledge our ',
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                      children: [
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: GestureDetector(
+                            onTap: () => context.push('/privacy-policy'),
+                            child: const Text(
+                              'Terms & Privacy Policy',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 16),
 
                 // Sign Up Link
                 Row(
