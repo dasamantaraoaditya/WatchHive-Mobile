@@ -526,13 +526,14 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                 if (hasValidTmdb)
                   IconButton(
                     tooltip: inWatchlist ? 'In Watchlist' : 'Add to Watchlist',
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                    splashRadius: 20,
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    splashRadius: 18,
                     icon: _isWatchlistLoading
                         ? const SizedBox(
-                            width: 16,
-                            height: 16,
+                            width: 14,
+                            height: 14,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
@@ -540,19 +541,20 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                           )
                         : Icon(
                             inWatchlist ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-                            size: 20,
+                            size: 19,
                             color: inWatchlist ? AppColors.primaryDark : AppColors.textMuted,
                           ),
                     onPressed: () => _handleWatchlistToggle(inWatchlist),
                   ),
                 IconButton(
                   tooltip: 'Log Watch',
-                  padding: const EdgeInsets.all(8),
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                  splashRadius: 20,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  splashRadius: 18,
                   icon: const Icon(
                     Icons.add_task_rounded,
-                    size: 20,
+                    size: 19,
                     color: AppColors.textMuted,
                   ),
                   onPressed: _handleQuickLog,
@@ -560,12 +562,13 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                 if (hasValidTmdb)
                   IconButton(
                     tooltip: 'Suggest to Friend',
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                    splashRadius: 20,
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    splashRadius: 18,
                     icon: const Icon(
                       Icons.send_rounded,
-                      size: 19,
+                      size: 18,
                       color: AppColors.textMuted,
                     ),
                     onPressed: _handleQuickSuggest,
@@ -614,16 +617,17 @@ class WHFeedActionButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 5),
+            Icon(icon, size: 17, color: color),
+            const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
                 fontFamily: 'Inter',
-                fontSize: 13,
+                fontSize: 12,
                 color: color,
                 fontWeight: FontWeight.w500,
               ),
