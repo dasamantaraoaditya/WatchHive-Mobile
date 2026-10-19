@@ -145,5 +145,68 @@ void main() {
       // Sheet should be dismissed
       expect(find.text('Permanently Delete Account?'), findsNothing);
     });
+
+    testWidgets('scrolling to Data Management targets inner scrollable correctly to Data Management section', (tester) async {
+      final dataManagementKey = GlobalKey();
+      final scrollController = ScrollController(initialScrollOffset: 800);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              controller: scrollController,
+              child: Column(
+                children: [
+                  const SizedBox(height: 300, child: Text('Top Spacer')),
+                  Container(
+                    key: dataManagementKey,
+                    height: 200,
+                    color: Colors.amber,
+                    child: const Text('Data Management Section Target'),
+                  ),
+                  const SizedBox(height: 800, child: Text('Middle Spacer')),
+                  Builder(
+                    builder: (ctx) => DangerZoneCard(
+                      onExportRequested: () {
+                        final targetCtx = dataManagementKey.currentContext;
+                        if (targetCtx != null) {
+                          final innerScrollable = Scrollable.maybeOf(targetCtx);
+                          if (innerScrollable != null) {
+                            final renderBox = targetCtx.findRenderObject() as RenderBox?;
+                            final scrollableBox = innerScrollable.context.findRenderObject() as RenderBox?;
+                            if (renderBox != null && scrollableBox != null) {
+                              final relativeOffset = renderBox.localToGlobal(Offset.zero, ancestor: scrollableBox);
+                              final targetPixels = (innerScrollable.position.pixels + relativeOffset.dy - 150.0)
+                                  .clamp(0.0, innerScrollable.position.maxScrollExtent);
+                              innerScrollable.position.animateTo(
+                                targetPixels,
+                                duration: const Duration(milliseconds: 200),
+                                curve: Curves.easeInOutCubic,
+                              );
+                            }
+                          }
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Verify initial state is scrolled down
+      expect(scrollController.offset, equals(800));
+
+      // Tap on export button in DangerZoneCard
+      await tester.ensureVisible(find.text('Go to Data Management for Export'));
+      await tester.tap(find.text('Go to Data Management for Export'));
+      await tester.pumpAndSettle();
+
+      // Verify that offset scrolled up directly to 150 (300 - 150px TabBar + card header margin), NOT to 0 (top of screen)!
+      expect(scrollController.offset, equals(150.0));
+      expect(find.text('Data Management Section Target'), findsOneWidget);
+    });
   });
 }

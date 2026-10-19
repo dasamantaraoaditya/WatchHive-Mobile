@@ -963,13 +963,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           // Bio
           if (user.bio != null && user.bio!.trim().isNotEmpty) ...[
             Text(
-              '"${user.bio!}"',
+              user.bio!.trim(),
               style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 13,
-                height: 1.4,
-                color: AppColors.textSecondary,
-                fontStyle: FontStyle.italic,
+                fontSize: 13.5,
+                height: 1.45,
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w400,
               ),
             ),
             const SizedBox(height: 14),

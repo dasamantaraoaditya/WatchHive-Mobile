@@ -902,14 +902,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Text(
                   user.bio != null && user.bio!.trim().isNotEmpty
-                      ? '"${user.bio!}"'
+                      ? user.bio!.trim()
                       : 'Add a bio to express your cinematic taste... ✏️',
                   style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 13,
-                    height: 1.4,
-                    color: user.bio != null && user.bio!.trim().isNotEmpty ? AppColors.textSecondary : AppColors.textMuted,
-                    fontStyle: user.bio != null && user.bio!.trim().isNotEmpty ? FontStyle.italic : FontStyle.normal,
+                    fontSize: 13.5,
+                    height: 1.45,
+                    color: user.bio != null && user.bio!.trim().isNotEmpty ? AppColors.textPrimary : AppColors.textMuted,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ),
