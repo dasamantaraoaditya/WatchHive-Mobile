@@ -298,6 +298,13 @@ class FeedNotifier extends StateNotifier<FeedState> {
       state = state.copyWith(entries: updatedEntries);
     }
   }
+
+  void removeEntriesByUser(String userId) {
+    final updated = state.entries
+        .where((e) => e.user?.id != userId && e.suggestedByUserId != userId)
+        .toList();
+    state = state.copyWith(entries: updated);
+  }
 }
 
 extension on Set<String> {

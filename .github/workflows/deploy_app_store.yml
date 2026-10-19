@@ -1,0 +1,212 @@
+name: WatchHive Mobile - Build, Release & Apple App Store Deployment
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy-ios:
+    name: Build & Release iOS App Store / TestFlight
+    runs-on: macos-14
+    env:
+      APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+      FIREBASE_OPTIONS_DART_BASE64: ${{ secrets.FIREBASE_OPTIONS_DART_BASE64 }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode Version
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest-stable'
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Configure Flutter Settings
+        run: |
+          flutter config --no-enable-swift-package-manager
+
+      - name: Ensure .env asset file exists
+        run: |
+          if [ ! -f ".env" ]; then
+            cp .env.example .env
+          fi
+
+      - name: Setup Firebase Configuration from Secrets
+        run: |
+          if [ -n "$IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64" ]; then
+            python3 -c "import os, base64; raw=os.environ['IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64'].strip(); open('ios/Runner/GoogleService-Info.plist', 'wb').write(base64.b64decode(raw))"
+            echo "GoogleService-Info.plist decoded successfully from secret."
+          elif [ -f "ios/Runner/GoogleService-Info.plist" ]; then
+            echo "Using existing ios/Runner/GoogleService-Info.plist."
+          fi
+
+          if [ -n "$FIREBASE_OPTIONS_DART_BASE64" ]; then
+            python3 -c "import os, base64; raw=os.environ['FIREBASE_OPTIONS_DART_BASE64'].strip(); open('lib/firebase_options.dart', 'wb').write(base64.b64decode(raw))"
+            echo "firebase_options.dart decoded successfully from secret."
+          elif [ -f "lib/firebase_options.dart.example" ] && [ ! -f "lib/firebase_options.dart" ]; then
+            cp lib/firebase_options.dart.example lib/firebase_options.dart
+            echo "Using firebase_options.dart.example fallback template."
+          fi
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+          cd ..
+
+      - name: Run Static Code Analysis
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Setup Apple Keychain & Code Signing (if secrets configured)
+        id: setup-signing
+        run: |
+          if [ -n "$APPLE_CERTIFICATE_BASE64" ] && [ -n "$APPLE_PROVISIONING_PROFILE_BASE64" ]; then
+            echo "==> Configuring Apple Distribution Certificate and Provisioning Profile..."
+            KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+            KEYCHAIN_PASSWORD=$(uuidgen)
+            
+            # Create and unlock temporary keychain
+            security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+            security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+            # Decode and import p12 certificate
+            CERT_PATH=$RUNNER_TEMP/dist_certificate.p12
+            python3 -c "import os, base64; raw=os.environ['APPLE_CERTIFICATE_BASE64'].strip(); open('$CERT_PATH', 'wb').write(base64.b64decode(raw))"
+            security import "$CERT_PATH" -P "${APPLE_CERTIFICATE_PASSWORD:-}" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+            security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+            # Decode and install provisioning profile
+            PP_PATH=$RUNNER_TEMP/profile.mobileprovision
+            python3 -c "import os, base64; raw=os.environ['APPLE_PROVISIONING_PROFILE_BASE64'].strip(); open('$PP_PATH', 'wb').write(base64.b64decode(raw))"
+            mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+            PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" /dev/stdin <<< $(security cms -D -i "$PP_PATH"))
+            cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
+            echo "Installed Provisioning Profile UUID: $PROFILE_UUID"
+
+            # Set keychain search list
+            security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+            # Create ExportOptions.plist
+            cat <<EOF > ios/ExportOptions.plist
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+                <key>method</key>
+                <string>app-store</string>
+                <key>destination</key>
+                <string>export</string>
+                <key>signingStyle</key>
+                <string>manual</string>
+                <key>teamID</key>
+                <string>${APPLE_TEAM_ID}</string>
+                <key>provisioningProfiles</key>
+                <dict>
+                    <key>com.watchhive.watchhiveMobile</key>
+                    <string>$PROFILE_UUID</string>
+                </dict>
+                <key>stripSwiftSymbols</key>
+                <true/>
+                <key>uploadBitcode</key>
+                <false/>
+                <key>compileBitcode</key>
+                <false/>
+            </dict>
+            </plist>
+            EOF
+            sed -i '' 's/^[[:space:]]*//' ios/ExportOptions.plist 2>/dev/null || sed -i 's/^[[:space:]]*//' ios/ExportOptions.plist
+            echo "has_signing=true" >> $GITHUB_OUTPUT
+          else
+            echo "==> Apple signing secrets not configured. Building unsigned release package."
+            echo "has_signing=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build iOS Release Package
+        run: |
+          if [ "${{ steps.setup-signing.outputs.has_signing }}" = "true" ]; then
+            echo "Building signed iOS App Store IPA..."
+            flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          else
+            echo "Building release iOS application (--no-codesign)..."
+            flutter build ios --release --no-codesign
+            mkdir -p build/ios/ipa
+            cd build/ios/iphoneos
+            mkdir -p Payload
+            cp -r Runner.app Payload/
+            zip -r ../ipa/WatchHive-Release-unsigned.ipa Payload
+            cd ../../..
+          fi
+
+      - name: Upload iOS IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: watchhive-ios-ipa
+          path: |
+            build/ios/ipa/*.ipa
+          retention-days: 14
+
+      - name: Create GitHub Release with iOS IPA
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/ios/ipa/*.ipa
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy to TestFlight / App Store Connect
+        if: steps.setup-signing.outputs.has_signing == 'true'
+        run: |
+          if [ -n "$APP_STORE_CONNECT_API_KEY_BASE64" ] && [ -n "$APP_STORE_CONNECT_KEY_ID" ] && [ -n "$APP_STORE_CONNECT_ISSUER_ID" ]; then
+            echo "==> Uploading IPA to TestFlight via App Store Connect API..."
+            mkdir -p ~/private_keys
+            API_KEY_PATH=~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+            python3 -c "import os, base64; raw=os.environ['APP_STORE_CONNECT_API_KEY_BASE64'].strip(); open('$API_KEY_PATH', 'wb').write(base64.b64decode(raw))"
+            
+            IPA_FILE=$(ls build/ios/ipa/*.ipa | head -n 1)
+            xcrun altool --upload-app -f "$IPA_FILE" -t ios \
+              --apiKey "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
+              --apiIssuer "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+            echo "IPA successfully uploaded to App Store Connect / TestFlight!"
+          else
+            echo "==> App Store Connect API Key secrets not provided. Skipping automatic TestFlight upload."
+          fi
+
+      - name: Clean Up Keychain
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/build.keychain" ]; then
+            security delete-keychain "$RUNNER_TEMP/build.keychain" || true
+          fi

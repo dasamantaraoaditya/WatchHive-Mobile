@@ -568,6 +568,40 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                         padding: EdgeInsets.symmetric(horizontal: 4),
                         child: Icon(Icons.delete_outline_rounded, size: 14, color: AppColors.textMuted),
                       ),
+                    )
+                  else if (currentUserId != null && authorId != currentUserId)
+                    GestureDetector(
+                      onTap: () {
+                        UgcModerationDialog.showReportDialog(
+                          context,
+                          ref,
+                          targetType: 'COMMENT',
+                          targetId: comment.id,
+                          targetTitle: comment.content.length > 40
+                              ? '${comment.content.substring(0, 40)}...'
+                              : comment.content,
+                          onReported: () {
+                            setState(() {
+                              _comments = _comments.where((c) => c.id != comment.id).map((c) {
+                                return Comment(
+                                  id: c.id,
+                                  content: c.content,
+                                  userId: c.userId,
+                                  entryId: c.entryId,
+                                  parentCommentId: c.parentCommentId,
+                                  createdAt: c.createdAt,
+                                  user: c.user,
+                                  replies: c.replies.where((r) => r.id != comment.id).toList(),
+                                );
+                              }).toList();
+                            });
+                          },
+                        );
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Icon(Icons.flag_outlined, size: 14, color: AppColors.textMuted),
+                      ),
                     ),
                 ],
               ),

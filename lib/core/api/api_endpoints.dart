@@ -65,6 +65,7 @@ class ApiEndpoints {
   static const String login = '/auth/login';
   static const String register = '/auth/register';
   static const String googleAuth = '/auth/google';
+  static const String appleAuth = '/auth/apple';
   static const String refreshToken = '/auth/refresh';
   static const String logout = '/auth/logout';
   static const String forgotPassword = '/auth/forgot-password';
@@ -82,6 +83,7 @@ class ApiEndpoints {
 
   // Users
   static const String me = '/users/me';
+  static const String deleteAccount = '/users/me';
   static String user(String id) => '/users/$id';
   static const String searchUsers = '/users/search';
   static const String suggestedUsers = '/users/suggested';
@@ -89,6 +91,11 @@ class ApiEndpoints {
   static String updateAvatar(String id) => '/users/$id/avatar';
   static String updateProfile(String id) => '/users/$id';
   static String userWatchlist(String id) => '/users/$id/watchlist';
+  static String blockUser(String id) => '/users/$id/block';
+  static const String myBlocks = '/users/me/blocks';
+
+  // Moderation (Apple Guideline 1.2)
+  static const String reports = '/reports';
 
 
   // TMDB

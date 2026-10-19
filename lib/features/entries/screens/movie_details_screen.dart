@@ -2023,8 +2023,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         Text(
                           entry.review!.trim(),
                           style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13.5,
+                            fontSize: 14,
                             height: 1.55,
                             color: AppColors.textPrimary,
                           ),

@@ -16,6 +16,7 @@ import '../../entries/screens/add_entry_sheet.dart';
 import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../entries/widgets/platform_logo_badge.dart';
+import '../providers/feed_provider.dart';
 
 
 class WHFeedCard extends ConsumerStatefulWidget {
@@ -351,6 +352,67 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                     color: AppColors.textMuted,
                   ),
                 ),
+                if (!widget.isOwnEntry && !isSuggestion && entry.user != null) ...[
+                  const SizedBox(width: 2),
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert_rounded, size: 18, color: AppColors.textMuted),
+                      padding: EdgeInsets.zero,
+                      color: AppColors.surfaceElevated,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      onSelected: (value) {
+                        if (value == 'report') {
+                          UgcModerationDialog.showReportDialog(
+                            context,
+                            ref,
+                            targetType: 'ENTRY',
+                            targetId: entry.id,
+                            targetTitle: entry.title.isNotEmpty ? entry.title : null,
+                            onReported: () {
+                              ref.read(feedProvider.notifier).removeEntry(entry.id);
+                            },
+                          );
+                        } else if (value == 'block') {
+                          UgcModerationDialog.confirmBlockUser(
+                            context,
+                            ref,
+                            userId: entry.user!.id,
+                            username: displayName,
+                            onBlocked: () {
+                              ref.read(feedProvider.notifier).removeEntriesByUser(entry.user!.id);
+                            },
+                          );
+                        }
+                      },
+                      itemBuilder: (ctx) => [
+                        const PopupMenuItem<String>(
+                          value: 'report',
+                          height: 38,
+                          child: Row(
+                            children: [
+                              Icon(Icons.flag_outlined, size: 16, color: AppColors.error),
+                              SizedBox(width: 8),
+                              Text('Report Post', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem<String>(
+                          value: 'block',
+                          height: 38,
+                          child: Row(
+                            children: [
+                              Icon(Icons.block_rounded, size: 16, color: AppColors.error),
+                              SizedBox(width: 8),
+                              Text('Block User', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -474,15 +536,17 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            '"${entry.review!}"',
+                            '“${entry.review!.trim()}”',
                             maxLines: 4,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 13,
+                              fontFamily: 'Georgia',
+                              fontFamilyFallback: ['serif'],
+                              fontSize: 14,
                               fontStyle: FontStyle.italic,
                               color: AppColors.textPrimary,
-                              height: 1.4,
+                              height: 1.5,
+                              letterSpacing: 0.15,
                             ),
                           ),
                         ],

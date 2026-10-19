@@ -6,6 +6,7 @@ import '../../../core/auth/auth_manager.dart';
 import '../../../core/notifications/push_notification_service.dart';
 import '../../../shared/models/user.dart';
 import '../../notifications/repositories/push_repository.dart';
+import '../../profile/repositories/user_repository.dart';
 import '../repositories/auth_repository.dart';
 
 // Auth state model
@@ -133,6 +134,27 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     });
   }
 
+  Future<void> appleSignIn({
+    required String identityToken,
+    required String userIdentifier,
+    String? email,
+    String? givenName,
+    String? familyName,
+  }) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final user = await ref.read(authRepositoryProvider).appleSignIn(
+            identityToken: identityToken,
+            userIdentifier: userIdentifier,
+            email: email,
+            givenName: givenName,
+            familyName: familyName,
+          );
+      unawaited(syncDeviceToken());
+      return AuthState(user: user, isAuthenticated: true);
+    });
+  }
+
   Future<void> logout() async {
     final token = PushNotificationService.instance.currentToken;
     if (token != null && token.isNotEmpty) {
@@ -141,6 +163,18 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       } catch (_) {}
     }
     await ref.read(authRepositoryProvider).logout();
+    state = const AsyncData(AuthState(isAuthenticated: false));
+  }
+
+  Future<void> deleteAccount() async {
+    final token = PushNotificationService.instance.currentToken;
+    if (token != null && token.isNotEmpty) {
+      try {
+        await ref.read(pushRepositoryProvider).unregisterDeviceToken(token);
+      } catch (_) {}
+    }
+    await ref.read(userRepositoryProvider).deleteAccount();
+    await ref.read(authManagerProvider).logout();
     state = const AsyncData(AuthState(isAuthenticated: false));
   }
 

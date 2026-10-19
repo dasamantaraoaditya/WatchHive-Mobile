@@ -61,6 +61,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   bool _isIncomingRequest = false;
   String? _incomingRequestId;
   bool _isActionLoading = false;
+  bool _isBlocked = false;
 
   // Tab content data
   TabController? _tabController;
@@ -132,6 +133,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         watchlistCount: watchlistTotal,
       );
 
+      bool isBlocked = false;
+      try {
+        final blockedIds = await repo.getBlockedUserIds();
+        isBlocked = blockedIds.contains(widget.userId);
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _user = userWithStats;
@@ -139,6 +146,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           _isRequested = user.isRequested;
           _isIncomingRequest = user.isIncomingRequest;
           _incomingRequestId = user.incomingRequestId;
+          _isBlocked = isBlocked;
           _historyEntries = historyRes.entries;
           _watchingEntries = watchingRes.entries;
           _watchlistItems = rawWatchlist;
@@ -520,6 +528,28 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     }
   }
 
+  Future<void> _handleUnblockUser() async {
+    if (_user == null) return;
+    final confirm = await WHAlert.confirm(
+      context,
+      title: 'Unblock @${_user!.username}?',
+      message: 'Their content and recommendations will appear in your feed again.',
+      confirmText: 'Unblock',
+      severity: WHAlertSeverity.primary,
+      icon: Icons.person_add_rounded,
+    );
+    if (!confirm || !mounted) return;
+    try {
+      await ref.read(userRepositoryProvider).unblockUser(_user!.id);
+      if (!mounted) return;
+      setState(() => _isBlocked = false);
+      ref.read(feedProvider.notifier).loadFeed();
+      WHAlert.showSuccess(context, 'Unblocked @${_user!.username}');
+    } catch (_) {
+      if (!mounted) return;
+      WHAlert.showError(context, 'Failed to unblock user.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -641,6 +671,67 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                         onSaved: _fetchProfile,
                       );
                     },
+                  ),
+                if (!_isMe && _user != null)
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
+                    color: AppColors.surfaceElevated,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onSelected: (value) async {
+                      if (value == 'report') {
+                        UgcModerationDialog.showReportDialog(
+                          context,
+                          ref,
+                          targetType: 'USER',
+                          targetId: _user!.id,
+                          targetTitle: _user!.displayName ?? '@${_user!.username}',
+                        );
+                      } else if (value == 'block') {
+                        UgcModerationDialog.confirmBlockUser(
+                          context,
+                          ref,
+                          userId: _user!.id,
+                          username: _user!.username,
+                          onBlocked: () {
+                            setState(() => _isBlocked = true);
+                            ref.read(feedProvider.notifier).removeEntriesByUser(_user!.id);
+                          },
+                        );
+                      } else if (value == 'unblock') {
+                        _handleUnblockUser();
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem<String>(
+                        value: 'report',
+                        height: 38,
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag_outlined, size: 16, color: AppColors.error),
+                            SizedBox(width: 8),
+                            Text('Report User', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: _isBlocked ? 'unblock' : 'block',
+                        height: 38,
+                        child: Row(
+                          children: [
+                            Icon(
+                              _isBlocked ? Icons.person_add_rounded : Icons.block_rounded,
+                              size: 16,
+                              color: _isBlocked ? AppColors.primary : AppColors.error,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isBlocked ? 'Unblock User' : 'Block User',
+                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
               ],
             ),
@@ -872,13 +963,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           // Bio
           if (user.bio != null && user.bio!.trim().isNotEmpty) ...[
             Text(
-              '"${user.bio!}"',
+              user.bio!.trim(),
               style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 13,
-                height: 1.4,
-                color: AppColors.textSecondary,
-                fontStyle: FontStyle.italic,
+                fontSize: 13.5,
+                height: 1.45,
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w400,
               ),
             ),
             const SizedBox(height: 14),

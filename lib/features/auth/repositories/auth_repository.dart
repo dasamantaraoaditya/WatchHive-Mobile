@@ -57,6 +57,31 @@ class AuthRepository {
     return User.fromJson(data['user'] as Map<String, dynamic>);
   }
 
+  Future<User> appleSignIn({
+    required String identityToken,
+    required String userIdentifier,
+    String? email,
+    String? givenName,
+    String? familyName,
+  }) async {
+    final response = await _api.post(
+      ApiEndpoints.appleAuth,
+      data: {
+        'identityToken': identityToken,
+        'userIdentifier': userIdentifier,
+        'email': email,
+        'givenName': givenName,
+        'familyName': familyName,
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    await _authManager.saveTokens(
+      accessToken: data['accessToken'] as String,
+      refreshToken: data['refreshToken'] as String,
+    );
+    return User.fromJson(data['user'] as Map<String, dynamic>);
+  }
+
   Future<void> logout() async {
     try {
       await _api.post(ApiEndpoints.logout);

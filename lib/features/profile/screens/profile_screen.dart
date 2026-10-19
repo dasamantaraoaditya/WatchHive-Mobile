@@ -10,9 +10,9 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../repositories/user_repository.dart';
 import '../widgets/follow_list_sheet.dart';
-import '../widgets/profile_stats_view.dart';
 import '../widgets/compare_picker_modal.dart';
 import '../widgets/data_management_card.dart';
+import '../widgets/danger_zone_card.dart';
 import '../widgets/offline_sync_card.dart';
 import 'edit_profile_dialog.dart';
 import '../widgets/avatar_viewer_dialog.dart';
@@ -20,6 +20,7 @@ import '../../../core/utils/error_handler.dart';
 import '../../../core/notifications/push_notification_service.dart';
 import '../../notifications/repositories/push_repository.dart';
 import '../../onboarding/widgets/quick_guide_tour_dialog.dart';
+import '../widgets/blocked_users_sheet.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -28,25 +29,48 @@ class ProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final GlobalKey _dataManagementKey = GlobalKey();
   bool _isLoading = true;
   bool _isEditingBio = false;
   late final TextEditingController _bioTextController;
   bool _isSavingBio = false;
   bool _isUploadingAvatar = false;
 
+  void _scrollToDataManagement() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _dataManagementKey.currentContext;
+      if (ctx == null) return;
+
+      final innerScrollable = Scrollable.maybeOf(ctx);
+      if (innerScrollable == null) return;
+
+      final renderBox = ctx.findRenderObject() as RenderBox?;
+      final scrollableBox = innerScrollable.context.findRenderObject() as RenderBox?;
+
+      if (renderBox != null && scrollableBox != null) {
+        final relativeOffset = renderBox.localToGlobal(Offset.zero, ancestor: scrollableBox);
+        final targetPixels = (innerScrollable.position.pixels + relativeOffset.dy - 150.0)
+            .clamp(0.0, innerScrollable.position.maxScrollExtent);
+
+        innerScrollable.position.animateTo(
+          targetPixels,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _bioTextController = TextEditingController();
     _loadProfileData();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _bioTextController.dispose();
     super.dispose();
   }
@@ -237,6 +261,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
   }
 
 
+
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).value?.user;
@@ -279,33 +305,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                 child: _buildHeroCard(user),
               ),
             ),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _StickyTabBarDelegate(
-                TabBar(
-                  controller: _tabController,
-                  isScrollable: false,
-                  labelColor: Colors.black,
-                  unselectedLabelColor: AppColors.textMuted,
-                  indicatorColor: AppColors.primary,
-                  indicatorWeight: 3,
-                  labelStyle: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  unselectedLabelStyle: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  tabs: const [
-                    Tab(text: 'Privacy & Visibility'),
-                    Tab(text: 'Hive Analytics'),
-                  ],
-                ),
-              ),
-            ),
           ];
         },
         body: _isLoading
@@ -323,13 +322,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                   ),
                 ),
               )
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildPrivacyAndSettingsTab(user),
-                  const ProfileStatsView(),
-                ],
-              ),
+            : _buildPrivacyAndSettingsTab(user),
       ),
     );
   }
@@ -909,14 +902,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Text(
                   user.bio != null && user.bio!.trim().isNotEmpty
-                      ? '"${user.bio!}"'
+                      ? user.bio!.trim()
                       : 'Add a bio to express your cinematic taste... ✏️',
                   style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 13,
-                    height: 1.4,
-                    color: user.bio != null && user.bio!.trim().isNotEmpty ? AppColors.textSecondary : AppColors.textMuted,
-                    fontStyle: user.bio != null && user.bio!.trim().isNotEmpty ? FontStyle.italic : FontStyle.normal,
+                    fontSize: 13.5,
+                    height: 1.45,
+                    color: user.bio != null && user.bio!.trim().isNotEmpty ? AppColors.textPrimary : AppColors.textMuted,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ),
@@ -1302,6 +1294,58 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () => BlockedUsersSheet.show(context),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.block_rounded, size: 16, color: AppColors.error),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Blocked Accounts',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Review and unblock members you have blocked',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 11,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1377,7 +1421,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
           const SizedBox(height: 16),
 
           // Data Management (Export & Import Hive Data)
-          DataManagementCard(onDataChanged: _loadProfileData),
+          DataManagementCard(
+            key: _dataManagementKey,
+            onDataChanged: _loadProfileData,
+          ),
           const SizedBox(height: 16),
 
           // Sign Out Button
@@ -1385,8 +1432,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
             width: double.infinity,
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: const BorderSide(color: AppColors.error),
+                foregroundColor: AppColors.textPrimary,
+                side: const BorderSide(color: AppColors.border),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
@@ -1401,6 +1448,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                 ),
               ),
             ),
+          ),
+          const SizedBox(height: 24),
+
+          // Danger Zone: Account Deletion (Apple App Store Guideline 5.1.1(v) + Industry-Standard Safety)
+          DangerZoneCard(
+            onExportRequested: _scrollToDataManagement,
           ),
         ],
       ),
@@ -1525,30 +1578,5 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     );
-  }
-}
-
-class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar tabBar;
-
-  _StickyTabBarDelegate(this.tabBar);
-
-  @override
-  double get minExtent => tabBar.preferredSize.height;
-
-  @override
-  double get maxExtent => tabBar.preferredSize.height;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: AppColors.background,
-      child: tabBar,
-    );
-  }
-
-  @override
-  bool shouldRebuild(_StickyTabBarDelegate oldDelegate) {
-    return false;
   }
 }

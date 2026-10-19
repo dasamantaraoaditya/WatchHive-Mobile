@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -463,5 +464,96 @@ class UserRepository {
       return response.data as Map<String, dynamic>;
     }
     return <String, dynamic>{'message': 'Import complete!'};
+  }
+
+  /// Permanently delete account and all data (Apple Guideline 5.1.1(v))
+  Future<bool> deleteAccount() async {
+    try {
+      final response = await _api.delete(ApiEndpoints.deleteAccount);
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to delete account: $e');
+      rethrow;
+    }
+  }
+
+  /// Block a user (Apple Guideline 1.2)
+  Future<bool> blockUser(String userId) async {
+    try {
+      final response = await _api.post(ApiEndpoints.blockUser(userId));
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to block user: $e');
+      rethrow;
+    }
+  }
+
+  /// Unblock a user
+  Future<bool> unblockUser(String userId) async {
+    try {
+      final response = await _api.delete(ApiEndpoints.blockUser(userId));
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to unblock user: $e');
+      rethrow;
+    }
+  }
+
+  /// Get list of blocked user IDs
+  Future<List<String>> getBlockedUserIds() async {
+    try {
+      final response = await _api.get(ApiEndpoints.myBlocks);
+      if (response.data is Map<String, dynamic>) {
+        final list = response.data['blockedUserIds'];
+        if (list is List) {
+          return list.map((e) => e.toString()).toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to get blocked users: $e');
+      return [];
+    }
+  }
+
+  /// Get detailed list of blocked accounts with user profile info
+  Future<List<Map<String, dynamic>>> getBlockedAccounts() async {
+    try {
+      final response = await _api.get(ApiEndpoints.myBlocks);
+      if (response.data is Map<String, dynamic>) {
+        final rawBlocks = response.data['blocks'];
+        if (rawBlocks is List) {
+          return rawBlocks.map((b) => Map<String, dynamic>.from(b as Map)).toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to get blocked accounts: $e');
+      return [];
+    }
+  }
+
+  /// Submit a content report (Apple Guideline 1.2)
+  Future<bool> submitReport({
+    required String targetType,
+    required String targetId,
+    required String reason,
+    String? details,
+  }) async {
+    try {
+      final response = await _api.post(
+        ApiEndpoints.reports,
+        data: {
+          'targetType': targetType,
+          'targetId': targetId,
+          'reason': reason,
+          if (details != null && details.isNotEmpty) 'details': details,
+        },
+      );
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to submit report: $e');
+      rethrow;
+    }
   }
 }
