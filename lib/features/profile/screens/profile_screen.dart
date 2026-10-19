@@ -421,8 +421,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                               final granted = await pushService.requestPermission();
                               setModalState(() => hasPermission = granted);
                               if (granted) {
-                                final token = pushService.currentToken;
-                                if (token != null) {
+                                final token = await pushService.getOrFetchToken();
+                                if (token != null && token.isNotEmpty) {
                                   await ref.read(pushRepositoryProvider).registerDeviceToken(token);
                                 }
                               }
