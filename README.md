@@ -10,6 +10,7 @@ WatchHive Mobile provides a native smartphone experience for cinema enthusiasts:
 - **Instant Watch Logging**: Log movies, anime, and series on the go with tactile haptic feedback, custom ratings, and reviews.
 - **Ranking Stacks & Curations**: View, organize, and drag-and-drop movie stacks that represent your personal cinematic report card.
 - **Movie Suggestions & Impact**: Recommend movies to friends, see whose recommendations you watched, and check your suggester impact.
+- **MindLens 2.0 Behavioral Intelligence**: Native telemetry visualization of Shannon Information Entropy ($H(G)$) for taste breadth, Russell's Circumplex Affective State, and Bayesian Recommender Trust. Documented in [MINDLENS_SPECIFICATION.md](docs/MINDLENS_SPECIFICATION.md).
 - **Offline-First Resilience**: Log watches and browse your catalog without an active internet connection; changes automatically queue and sync via local SQLite.
 - **Real-Time Push Notifications**: Firebase Cloud Messaging (FCM) alerts when friends suggest movies, comment on your reviews, or follow your activity.
 
