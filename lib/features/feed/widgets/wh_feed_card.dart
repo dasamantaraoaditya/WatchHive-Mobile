@@ -16,6 +16,7 @@ import '../../entries/screens/add_entry_sheet.dart';
 import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../entries/widgets/platform_logo_badge.dart';
+import '../providers/feed_provider.dart';
 
 
 class WHFeedCard extends ConsumerStatefulWidget {
@@ -369,6 +370,9 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                             targetType: 'ENTRY',
                             targetId: entry.id,
                             targetTitle: entry.title.isNotEmpty ? entry.title : null,
+                            onReported: () {
+                              ref.read(feedProvider.notifier).removeEntry(entry.id);
+                            },
                           );
                         } else if (value == 'block') {
                           UgcModerationDialog.confirmBlockUser(
@@ -376,6 +380,9 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                             ref,
                             userId: entry.user!.id,
                             username: displayName,
+                            onBlocked: () {
+                              ref.read(feedProvider.notifier).removeEntriesByUser(entry.user!.id);
+                            },
                           );
                         }
                       },

@@ -580,6 +580,22 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                           targetTitle: comment.content.length > 40
                               ? '${comment.content.substring(0, 40)}...'
                               : comment.content,
+                          onReported: () {
+                            setState(() {
+                              _comments = _comments.where((c) => c.id != comment.id).map((c) {
+                                return Comment(
+                                  id: c.id,
+                                  content: c.content,
+                                  userId: c.userId,
+                                  entryId: c.entryId,
+                                  parentCommentId: c.parentCommentId,
+                                  createdAt: c.createdAt,
+                                  user: c.user,
+                                  replies: c.replies.where((r) => r.id != comment.id).toList(),
+                                );
+                              }).toList();
+                            });
+                          },
                         );
                       },
                       child: const Padding(

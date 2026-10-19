@@ -18,6 +18,7 @@ class UgcModerationDialog {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _ReportModalSheet(
         targetType: targetType,
