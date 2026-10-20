@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,38 +13,30 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
-  bool _minBrandingElapsed = false;
-  Timer? _brandingTimer;
-
   @override
   void initState() {
     super.initState();
-    _brandingTimer = Timer(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
-      setState(() => _minBrandingElapsed = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAndNavigate();
     });
   }
 
-  @override
-  void dispose() {
-    _brandingTimer?.cancel();
-    super.dispose();
-  }
-
   void _checkAndNavigate() {
-    if (!_minBrandingElapsed) return;
     final authState = ref.read(authStateProvider);
-    if (authState.isLoading) return; // Keep waiting while auto-login is active!
+    if (authState.isLoading) return; // Wait if initial session check is still resolving
 
     final isAuthenticated = authState.value?.isAuthenticated ?? false;
     if (!mounted) return;
 
-    if (isAuthenticated) {
-      context.go('/feed');
-    } else {
-      context.go('/login');
-    }
+    try {
+      if (GoRouter.maybeOf(context) != null) {
+        if (isAuthenticated) {
+          context.go('/feed');
+        } else {
+          context.go('/login');
+        }
+      }
+    } catch (_) {}
   }
 
   @override

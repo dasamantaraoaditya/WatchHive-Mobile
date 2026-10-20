@@ -66,6 +66,16 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
     if (!hasSession) return const AuthState(isAuthenticated: false);
 
+    // 1. Fast Path: If we have a cached user profile, restore session IMMEDIATELY (<15ms)
+    final cachedUser = await authManager.getCachedUser();
+    if (cachedUser != null) {
+      // Optimistic instant auth! User enters app immediately.
+      // Refresh profile & follow stats in the background, and verify session validity.
+      unawaited(_refreshUserInBackground());
+      return AuthState(user: cachedUser, isAuthenticated: true);
+    }
+
+    // 2. Fallback Path: Tokens exist but no cached user (e.g. app upgrade or storage reset)
     try {
       final user = await ref.read(authRepositoryProvider).getMe();
       unawaited(syncDeviceToken());
@@ -81,6 +91,27 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       // keep the user authenticated so saved tokens are never wiped!
       unawaited(syncDeviceToken());
       return const AuthState(isAuthenticated: true);
+    }
+  }
+
+  Future<void> _refreshUserInBackground() async {
+    final authManager = ref.read(authManagerProvider);
+    try {
+      final user = await ref.read(authRepositoryProvider).getMe();
+      await authManager.saveUser(user);
+      state = AsyncData(
+        state.value?.copyWith(user: user, isAuthenticated: true) ??
+            AuthState(user: user, isAuthenticated: true),
+      );
+      unawaited(syncDeviceToken());
+    } catch (e) {
+      if (e is DioException &&
+          (e.response?.statusCode == 401 || e.response?.statusCode == 403)) {
+        await authManager.logout();
+        state = const AsyncData(AuthState(isAuthenticated: false));
+      } else {
+        unawaited(syncDeviceToken());
+      }
     }
   }
 
@@ -191,6 +222,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }
 
   void updateUser(User updatedUser) {
+    unawaited(ref.read(authManagerProvider).saveUser(updatedUser));
     state = AsyncData(
       state.value!.copyWith(user: updatedUser, isAuthenticated: true),
     );

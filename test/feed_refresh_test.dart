@@ -16,6 +16,9 @@ class _FakeFeedRepo implements FeedRepository {
   _FakeFeedRepo(this.currentEntries);
 
   @override
+  Future<List<Entry>> getCachedFeed() async => [];
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
   @override

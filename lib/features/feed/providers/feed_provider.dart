@@ -78,7 +78,23 @@ class FeedNotifier extends StateNotifier<FeedState> {
   static const _pageSize = 20;
 
   FeedNotifier(this._repo) : super(const FeedState()) {
-    loadFeed();
+    _initFeed();
+  }
+
+  Future<void> _initFeed() async {
+    try {
+      final cached = await _repo.getCachedFeed();
+      if (cached.isNotEmpty && state.entries.isEmpty) {
+        final initialLiked = cached.where((e) => e.isLiked).map((e) => e.id).toSet();
+        state = state.copyWith(
+          entries: cached,
+          likedEntryIds: initialLiked,
+          isLoading: false,
+        );
+      }
+    } catch (_) {}
+
+    await loadFeed(isSilent: state.entries.isNotEmpty);
   }
 
   void setNearTop(bool isNearTop) {

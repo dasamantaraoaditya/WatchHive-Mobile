@@ -83,6 +83,7 @@ class FeedRepository {
     }
   }
 
+  Future<List<Entry>> getCachedFeed() => _storage.getCachedFeed();
 
   Future<void> likeEntry(String entryId) async {
     await _api.post(ApiEndpoints.likeEntry(entryId));

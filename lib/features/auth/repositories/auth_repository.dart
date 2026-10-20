@@ -24,7 +24,9 @@ class AuthRepository {
       accessToken: data['accessToken'] as String,
       refreshToken: data['refreshToken'] as String,
     );
-    return User.fromJson(data['user'] as Map<String, dynamic>);
+    final user = User.fromJson(data['user'] as Map<String, dynamic>);
+    await _authManager.saveUser(user);
+    return user;
   }
 
   Future<User> register({
@@ -41,7 +43,9 @@ class AuthRepository {
       accessToken: data['accessToken'] as String,
       refreshToken: data['refreshToken'] as String,
     );
-    return User.fromJson(data['user'] as Map<String, dynamic>);
+    final user = User.fromJson(data['user'] as Map<String, dynamic>);
+    await _authManager.saveUser(user);
+    return user;
   }
 
   Future<User> googleSignIn(String idToken) async {
@@ -54,7 +58,9 @@ class AuthRepository {
       accessToken: data['accessToken'] as String,
       refreshToken: data['refreshToken'] as String,
     );
-    return User.fromJson(data['user'] as Map<String, dynamic>);
+    final user = User.fromJson(data['user'] as Map<String, dynamic>);
+    await _authManager.saveUser(user);
+    return user;
   }
 
   Future<User> appleSignIn({
@@ -79,7 +85,9 @@ class AuthRepository {
       accessToken: data['accessToken'] as String,
       refreshToken: data['refreshToken'] as String,
     );
-    return User.fromJson(data['user'] as Map<String, dynamic>);
+    final user = User.fromJson(data['user'] as Map<String, dynamic>);
+    await _authManager.saveUser(user);
+    return user;
   }
 
   Future<void> logout() async {
@@ -120,6 +128,7 @@ class AuthRepository {
         }
       } catch (_) {}
     }
+    await _authManager.saveUser(user);
     return user;
   }
 }
