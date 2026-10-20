@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../api/api_endpoints.dart';
+import '../../shared/models/user.dart';
 
 final authManagerProvider = Provider<AuthManager>((ref) {
   return AuthManager();
@@ -11,6 +13,7 @@ final authManagerProvider = Provider<AuthManager>((ref) {
 class AuthManager {
   static const _accessTokenKey = 'wh_access_token';
   static const _refreshTokenKey = 'wh_refresh_token';
+  static const _cachedUserKey = 'wh_cached_user';
 
   final _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -19,6 +22,7 @@ class AuthManager {
 
   // --- In-Memory Fast Cache ---
   String? _cachedAccessToken;
+  User? _cachedUser;
 
   // --- Token Accessors ---
 
@@ -43,6 +47,29 @@ class AuthManager {
     ]);
   }
 
+  Future<void> saveUser(User user) async {
+    _cachedUser = user;
+    try {
+      final jsonStr = jsonEncode(user.toJson());
+      await _storage.write(key: _cachedUserKey, value: jsonStr);
+    } catch (_) {}
+  }
+
+  Future<User?> getCachedUser() async {
+    if (_cachedUser != null) {
+      return _cachedUser;
+    }
+    try {
+      final jsonStr = await _storage.read(key: _cachedUserKey);
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+        _cachedUser = User.fromJson(data);
+        return _cachedUser;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<bool> hasValidSession() async {
     final refreshToken = await getRefreshToken();
     if (refreshToken != null && refreshToken.isNotEmpty) {
@@ -54,9 +81,11 @@ class AuthManager {
 
   Future<void> logout() async {
     _cachedAccessToken = null;
+    _cachedUser = null;
     await Future.wait([
       _storage.delete(key: _accessTokenKey),
       _storage.delete(key: _refreshTokenKey),
+      _storage.delete(key: _cachedUserKey),
     ]);
   }
 

@@ -8,6 +8,9 @@ class _FakeFeedRepository implements FeedRepository {
   List<Entry> stubEntries = [];
 
   @override
+  Future<List<Entry>> getCachedFeed() async => [];
+
+  @override
   Future<({List<Entry> entries, Pagination pagination})> getFeed({
     int limit = 20,
     int offset = 0,
