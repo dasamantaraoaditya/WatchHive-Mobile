@@ -119,6 +119,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   double _rating = 0.0;
   bool _isRewatch = false;
   bool _isWatching = false;
+  bool _postToFeed = true;
   bool _isLoading = false;
   String _watchLocation = '';
   List<String> _tags = [];
@@ -191,6 +192,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       _rating = e.rating ?? 0.0;
       _isRewatch = e.isRewatch;
       _isWatching = widget.prefillIsWatching ?? e.isWatching;
+      _postToFeed = e.postToFeed;
       _watchLocation = e.watchLocation ?? '';
       _locationController.text = _watchLocation;
       _tags = List<String>.from(e.tags);
@@ -755,6 +757,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         if (_reviewController.text.trim().isNotEmpty) 'review': _reviewController.text.trim(),
         'isRewatch': _isRewatch,
         'isWatching': _isWatching,
+        'postToFeed': _postToFeed,
         if (_watchLocation.trim().isNotEmpty) 'watchLocation': _watchLocation.trim(),
         'tags': _tags.where((t) => t.trim().isNotEmpty).toList(),
         'watchedAt': _watchedDate.toUtc().toIso8601String(),
@@ -770,13 +773,19 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         isPendingSync = updated.isPendingSync;
         ref.read(entriesProvider(true).notifier).updateEntry(updated);
         ref.read(entriesProvider(false).notifier).updateEntry(updated);
-        ref.read(feedProvider.notifier).updateEntry(updated);
+        if (updated.postToFeed) {
+          ref.read(feedProvider.notifier).updateEntry(updated);
+        } else {
+          ref.read(feedProvider.notifier).removeEntry(updated.id);
+        }
       } else {
         final entry = await ref.read(entriesRepositoryProvider).createEntry(data);
         isPendingSync = entry.isPendingSync;
         ref.read(entriesProvider(true).notifier).addEntry(entry);
         ref.read(entriesProvider(false).notifier).addEntry(entry);
-        ref.read(feedProvider.notifier).prependEntry(entry);
+        if (entry.postToFeed) {
+          ref.read(feedProvider.notifier).prependEntry(entry);
+        }
       }
       ref.read(offlineSyncManagerProvider.notifier).refreshPendingCount();
 
@@ -1358,6 +1367,61 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                       onChanged: (val) {
                                         HapticFeedback.lightImpact();
                                         setState(() => _isRewatch = val);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                setState(() => _postToFeed = !_postToFeed);
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _postToFeed ? Colors.amber.withValues(alpha: 0.18) : AppColors.surfaceElevated,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: _postToFeed ? Colors.amber : AppColors.border,
+                                    width: _postToFeed ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.rss_feed_rounded, size: 18, color: _postToFeed ? Colors.amber : AppColors.textMuted),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Feed Visibility',
+                                            style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: _postToFeed ? Colors.amber : AppColors.textMuted),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _postToFeed ? 'Post to Feed 📢' : 'Log Privately 🔒',
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: _postToFeed ? Colors.amber : AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Switch.adaptive(
+                                      value: _postToFeed,
+                                      activeThumbColor: Colors.amber,
+                                      activeTrackColor: Colors.amber.withValues(alpha: 0.3),
+                                      onChanged: (val) {
+                                        HapticFeedback.lightImpact();
+                                        setState(() => _postToFeed = val);
                                       },
                                     ),
                                   ],

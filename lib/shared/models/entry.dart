@@ -30,6 +30,7 @@ class Entry {
   final DateTime? updatedAt;
   final bool isImported;
   final bool isPendingSync;
+  final bool postToFeed;
 
   const Entry({
     required this.id,
@@ -52,6 +53,7 @@ class Entry {
     this.updatedAt,
     this.isImported = false,
     this.isPendingSync = false,
+    this.postToFeed = true,
     this.user,
     this.likesCount = 0,
     this.commentsCount = 0,
@@ -188,6 +190,7 @@ class Entry {
           (dataMap['poster_path'] as String?),
       isSuggestion: isSuggestion,
       suggestionReason: reason,
+      postToFeed: dataMap['postToFeed'] as bool? ?? dataMap['post_to_feed'] as bool? ?? true,
     );
   }
 
@@ -221,6 +224,7 @@ class Entry {
     String? backdropPath,
     bool? isSuggestion,
     String? suggestionReason,
+    bool? postToFeed,
   }) {
     return Entry(
       id: id ?? this.id,
@@ -243,6 +247,7 @@ class Entry {
       updatedAt: updatedAt ?? this.updatedAt,
       isImported: isImported ?? this.isImported,
       isPendingSync: isPendingSync ?? this.isPendingSync,
+      postToFeed: postToFeed ?? this.postToFeed,
       user: user ?? this.user,
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,
@@ -265,6 +270,7 @@ class Entry {
         'tags': tags,
         'isRewatch': isRewatch,
         'isWatching': isWatching,
+        'postToFeed': postToFeed,
         if (startedAt != null) 'startedAt': startedAt!.toIso8601String(),
         if (completedAt != null) 'completedAt': completedAt!.toIso8601String(),
         if (watchLocation != null) 'watchLocation': watchLocation,
@@ -285,6 +291,7 @@ class Entry {
         'tags': tags,
         'isRewatch': isRewatch,
         'isWatching': isWatching,
+        'postToFeed': postToFeed,
         if (startedAt != null) 'startedAt': startedAt!.toIso8601String(),
         if (completedAt != null) 'completedAt': completedAt!.toIso8601String(),
         if (watchLocation != null) 'watchLocation': watchLocation,
