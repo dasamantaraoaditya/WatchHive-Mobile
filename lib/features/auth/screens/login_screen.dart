@@ -147,11 +147,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context.go('/feed');
       }
     } on SignInWithAppleAuthorizationException catch (e) {
+      debugPrint('[AppleSignIn] AuthorizationException: ${e.code} - ${e.message}');
       if (e.code == AuthorizationErrorCode.canceled) {
-        debugPrint('[AppleSignIn] User canceled Apple Sign-In flow');
+        if (mounted) {
+          WHAlert.showInfo(
+            context,
+            'Apple Sign-In was canceled. Note: If testing on an iOS Simulator, please ensure you are signed in to your Apple ID in the Simulator Settings app first.',
+          );
+        }
       } else {
         if (mounted) {
-          WHAlert.showError(context, 'Sign in with Apple failed: ${e.message}');
+          WHAlert.showError(
+            context,
+            e.message.isNotEmpty
+                ? 'Sign in with Apple failed: ${e.message}'
+                : 'Sign in with Apple failed. Please try again or use email sign-in.',
+          );
         }
       }
     } catch (e) {

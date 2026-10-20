@@ -540,10 +540,18 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     );
     if (!confirm || !mounted) return;
     try {
-      await ref.read(userRepositoryProvider).unblockUser(_user!.id);
+      final repo = ref.read(userRepositoryProvider);
+      await repo.unblockUser(_user!.id);
+      try {
+        await repo.followUser(_user!.id);
+      } catch (_) {}
       if (!mounted) return;
-      setState(() => _isBlocked = false);
-      ref.read(feedProvider.notifier).loadFeed();
+      setState(() {
+        _isBlocked = false;
+        _isFollowing = true;
+      });
+      _fetchProfile();
+      ref.read(feedProvider.notifier).loadFeed(isRefresh: true);
       WHAlert.showSuccess(context, 'Unblocked @${_user!.username}');
     } catch (_) {
       if (!mounted) return;
