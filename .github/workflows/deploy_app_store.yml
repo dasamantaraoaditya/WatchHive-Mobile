@@ -117,32 +117,10 @@ jobs:
             # Set keychain search list
             security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
 
-            # Create ExportOptions.plist
-            python3 -c "import os; team=os.environ.get('APPLE_TEAM_ID',''); uuid=os.environ.get('PROFILE_UUID',''); open('ios/ExportOptions.plist','w').write(f'''<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
-<plist version=\"1.0\">
-<dict>
-    <key>method</key>
-    <string>app-store</string>
-    <key>destination</key>
-    <string>export</string>
-    <key>signingStyle</key>
-    <string>manual</string>
-    <key>teamID</key>
-    <string>{team}</string>
-    <key>provisioningProfiles</key>
-    <dict>
-        <key>com.watchhive.watchhiveMobile</key>
-        <string>{uuid}</string>
-    </dict>
-    <key>stripSwiftSymbols</key>
-    <true/>
-    <key>uploadBitcode</key>
-    <false/>
-    <key>compileBitcode</key>
-    <false/>
-</dict>
-</plist>''')"
+            # Create ExportOptions.plist from template
+            sed -e "s/YOUR_APPLE_TEAM_ID/${APPLE_TEAM_ID:-}/g" \
+                -e "s/YOUR_PROVISIONING_PROFILE_UUID_OR_NAME/${PROFILE_UUID:-}/g" \
+                ios/ExportOptions.plist.example > ios/ExportOptions.plist
             echo "has_signing=true" >> $GITHUB_OUTPUT
           else
             echo "==> Apple signing secrets not configured. Building unsigned release package."
