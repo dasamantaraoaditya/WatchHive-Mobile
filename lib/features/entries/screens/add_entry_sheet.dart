@@ -1328,33 +1328,39 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                 duration: const Duration(milliseconds: 180),
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: _isRewatch ? Colors.amber.withValues(alpha: 0.18) : AppColors.surfaceElevated,
+                                  color: _isRewatch ? AppColors.primary.withValues(alpha: 0.12) : AppColors.surfaceElevated,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: _isRewatch ? Colors.amber : AppColors.border,
+                                    color: _isRewatch ? AppColors.primary : AppColors.border,
                                     width: _isRewatch ? 1.5 : 1,
                                   ),
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.repeat_rounded, size: 18, color: _isRewatch ? Colors.amber : AppColors.textMuted),
+                                    Icon(Icons.repeat_rounded, size: 18, color: _isRewatch ? AppColors.primaryDark : AppColors.textMuted),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
+                                          const Text(
                                             'Rewatch Status',
-                                            style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: _isRewatch ? Colors.amber : AppColors.textMuted),
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textMuted,
+                                              letterSpacing: 0.4,
+                                            ),
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
                                             _isRewatch ? 'Repeat Watch 🔁' : 'First Time Watch 🎬',
-                                            style: TextStyle(
+                                            style: const TextStyle(
                                               fontFamily: 'Inter',
                                               fontSize: 13,
                                               fontWeight: FontWeight.bold,
-                                              color: _isRewatch ? Colors.amber : AppColors.textSecondary,
+                                              color: AppColors.textPrimary,
                                             ),
                                           ),
                                         ],
@@ -1362,8 +1368,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                     ),
                                     Switch.adaptive(
                                       value: _isRewatch,
-                                      activeThumbColor: Colors.amber,
-                                      activeTrackColor: Colors.amber.withValues(alpha: 0.3),
+                                      activeThumbColor: AppColors.primary,
+                                      activeTrackColor: AppColors.primary.withValues(alpha: 0.35),
                                       onChanged: (val) {
                                         HapticFeedback.lightImpact();
                                         setState(() => _isRewatch = val);
@@ -1383,33 +1389,39 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                 duration: const Duration(milliseconds: 180),
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: _postToFeed ? Colors.amber.withValues(alpha: 0.18) : AppColors.surfaceElevated,
+                                  color: _postToFeed ? AppColors.primary.withValues(alpha: 0.12) : AppColors.surfaceElevated,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: _postToFeed ? Colors.amber : AppColors.border,
+                                    color: _postToFeed ? AppColors.primary : AppColors.border,
                                     width: _postToFeed ? 1.5 : 1,
                                   ),
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.rss_feed_rounded, size: 18, color: _postToFeed ? Colors.amber : AppColors.textMuted),
+                                    Icon(Icons.rss_feed_rounded, size: 18, color: _postToFeed ? AppColors.primaryDark : AppColors.textMuted),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
+                                          const Text(
                                             'Feed Visibility',
-                                            style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: _postToFeed ? Colors.amber : AppColors.textMuted),
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textMuted,
+                                              letterSpacing: 0.4,
+                                            ),
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
                                             _postToFeed ? 'Post to Feed 📢' : 'Log Privately 🔒',
-                                            style: TextStyle(
+                                            style: const TextStyle(
                                               fontFamily: 'Inter',
                                               fontSize: 13,
                                               fontWeight: FontWeight.bold,
-                                              color: _postToFeed ? Colors.amber : AppColors.textSecondary,
+                                              color: AppColors.textPrimary,
                                             ),
                                           ),
                                         ],
@@ -1417,8 +1429,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                     ),
                                     Switch.adaptive(
                                       value: _postToFeed,
-                                      activeThumbColor: Colors.amber,
-                                      activeTrackColor: Colors.amber.withValues(alpha: 0.3),
+                                      activeThumbColor: AppColors.primary,
+                                      activeTrackColor: AppColors.primary.withValues(alpha: 0.35),
                                       onChanged: (val) {
                                         HapticFeedback.lightImpact();
                                         setState(() => _postToFeed = val);
