@@ -103,7 +103,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
         'title': title,
         'type': apiType,
         'isWatching': true,
-        'startedAt': DateTime.now().toIso8601String(),
+        'startedAt': DateTime.now().toUtc().toIso8601String(),
       });
 
       // Optimistically update entries tab if active

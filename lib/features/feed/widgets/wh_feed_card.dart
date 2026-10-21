@@ -647,14 +647,17 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
 
   String _formatCompactHeaderDate(DateTime date) {
     final now = DateTime.now();
-    final diff = now.difference(date);
-    if (diff.inDays == 0) return DateFormat('h:mm a').format(date.toLocal());
-    if (diff.inDays < 7) return DateFormat('EEE, h:mm a').format(date.toLocal());
-    return DateFormat('MMM d').format(date.toLocal());
+    final effectiveDate = date.isAfter(now) ? now : date;
+    final diff = now.difference(effectiveDate);
+    if (diff.inDays == 0) return DateFormat('h:mm a').format(effectiveDate.toLocal());
+    if (diff.inDays < 7) return DateFormat('EEE, h:mm a').format(effectiveDate.toLocal());
+    return DateFormat('MMM d').format(effectiveDate.toLocal());
   }
 
   String _formatFullTimestamp(DateTime date) {
-    final localDate = date.toLocal();
+    final now = DateTime.now();
+    final effectiveDate = date.isAfter(now) ? now : date;
+    final localDate = effectiveDate.toLocal();
     final dateStr = DateFormat('MMM d, yyyy').format(localDate);
     final timeStr = DateFormat('h:mm a').format(localDate);
     return '$dateStr at $timeStr';
