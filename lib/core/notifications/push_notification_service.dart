@@ -406,9 +406,59 @@ class PushNotificationService {
     if (context == null) return;
 
     final type = (data['type'] ?? '').toString().toUpperCase();
+    final rawMediaType = (data['mediaType'] ?? data['type'] ?? '').toString().toLowerCase();
+    final normMediaType = (rawMediaType.contains('tv') || rawMediaType.contains('show') || rawMediaType.contains('series')) ? 'tv' : 'movie';
     final url = data['url']?.toString();
 
-    // If explicit URL / route is passed
+    switch (type) {
+      case 'LIKE':
+      case 'FRIEND_STARTED_WATCHING':
+      case 'FRIEND_LOGGED_WATCH':
+        final entryId = data['entryId']?.toString();
+        if (entryId != null && entryId.isNotEmpty) {
+          context.push('/entry/$entryId');
+          return;
+        }
+        break;
+
+      case 'COMMENT':
+      case 'REPLY':
+        final entryId = data['entryId']?.toString();
+        if (entryId != null && entryId.isNotEmpty) {
+          context.push('/entry/$entryId?openComments=true');
+          return;
+        }
+        break;
+
+      case 'SUGGESTION':
+        final tmdbId = data['tmdbId'];
+        if (tmdbId != null && int.tryParse(tmdbId.toString()) != null && int.parse(tmdbId.toString()) > 0) {
+          context.push('/details/$normMediaType/$tmdbId');
+          return;
+        }
+        break;
+
+      case 'FOLLOW':
+      case 'FOLLOW_REQUEST':
+      case 'FOLLOW_ACCEPT':
+      case 'FOLLOW_REJECT':
+        final actorId = data['actorId'];
+        if (actorId != null && actorId.toString().isNotEmpty) {
+          context.push('/profile/$actorId');
+          return;
+        }
+        break;
+
+      case 'MENTION':
+        final entryId = data['entryId']?.toString();
+        if (entryId != null && entryId.isNotEmpty) {
+          context.push('/entry/$entryId?openComments=true');
+          return;
+        }
+        break;
+    }
+
+    // Fallback: If explicit deep-link URL is provided
     if (url != null && url.isNotEmpty) {
       if (url.startsWith('/watch-hive')) {
         final mobileRoute = url.replaceFirst('/watch-hive', '');
@@ -420,53 +470,6 @@ class PushNotificationService {
       }
     }
 
-    switch (type) {
-      case 'LIKE':
-      case 'FRIEND_STARTED_WATCHING':
-      case 'FRIEND_LOGGED_WATCH':
-        final entryId = data['entryId']?.toString();
-        if (entryId != null && entryId.isNotEmpty) {
-          context.push('/entry/$entryId');
-        } else {
-          context.go('/feed');
-        }
-        break;
-
-      case 'COMMENT':
-      case 'REPLY':
-        final entryId = data['entryId']?.toString();
-        if (entryId != null && entryId.isNotEmpty) {
-          context.push('/entry/$entryId?openComments=true');
-        } else {
-          context.go('/feed');
-        }
-        break;
-
-      case 'SUGGESTION':
-        final tmdbId = data['tmdbId'];
-        final mediaType = (data['mediaType'] ?? 'movie').toString().toLowerCase();
-        if (tmdbId != null && int.tryParse(tmdbId.toString()) != null && int.parse(tmdbId.toString()) > 0) {
-          context.push('/details/$mediaType/$tmdbId');
-        } else {
-          context.go('/entries');
-        }
-        break;
-
-      case 'FOLLOW':
-      case 'FOLLOW_REQUEST':
-      case 'FOLLOW_ACCEPT':
-      case 'FOLLOW_REJECT':
-        final actorId = data['actorId'];
-        if (actorId != null && actorId.toString().isNotEmpty) {
-          context.push('/profile/$actorId');
-        } else {
-          context.go('/notifications');
-        }
-        break;
-
-      default:
-        context.go('/notifications');
-        break;
-    }
+    context.go('/notifications');
   }
 }

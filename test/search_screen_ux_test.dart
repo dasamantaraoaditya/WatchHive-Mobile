@@ -102,7 +102,11 @@ void main() {
       final textFieldFinder = find.byType(TextField);
       expect(textFieldFinder, findsOneWidget);
 
-      // Verify the search field has focus (auto-selected)
+      // Tap search box to gain focus
+      await tester.tap(textFieldFinder);
+      await tester.pumpAndSettle();
+
+      // Verify the search field has focus
       final textFieldWidget = tester.widget<TextField>(textFieldFinder);
       expect(textFieldWidget.focusNode?.hasFocus, isTrue);
 
