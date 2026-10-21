@@ -68,7 +68,7 @@ class PushNotificationService {
         String? apnsToken = await _fcm.getAPNSToken();
         if (apnsToken == null) {
           debugPrint('[PushNotificationService] Waiting for iOS APNs token from Apple...');
-          for (int i = 0; i < 8; i++) {
+          for (int i = 0; i < 20; i++) {
             await Future.delayed(const Duration(milliseconds: 500));
             apnsToken = await _fcm.getAPNSToken();
             if (apnsToken != null) {
@@ -109,7 +109,7 @@ class PushNotificationService {
         timer.cancel();
         return;
       }
-      if (attempts > 10) {
+      if (attempts > 30) {
         timer.cancel();
         return;
       }
@@ -249,6 +249,9 @@ class PushNotificationService {
 
         isGranted = settings.authorizationStatus == AuthorizationStatus.authorized ||
             settings.authorizationStatus == AuthorizationStatus.provisional;
+        if (isGranted) {
+          unawaited(getOrFetchToken());
+        }
       }
     } catch (e) {
       debugPrint('[PushNotificationService] Error requesting notification permission via FCM: $e');

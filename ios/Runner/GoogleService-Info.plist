@@ -9,7 +9,7 @@
 	<key>SERVER_CLIENT_ID</key>
 	<string>357857516251-f4gpp8f1j70lu1dcnh405ac0t6lch9tf.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
-	<string>AIzaSyCtWc9rgM2yC9Fq0vypl0XB-PX_z7mklpU</string>
+	<string>AIzaSyCenpCHQZoJiP8gp6gLKMkTOwzSoSC7vok</string>
 	<key>GCM_SENDER_ID</key>
 	<string>672257580593</string>
 	<key>PLIST_VERSION</key>
@@ -31,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:672257580593:ios:8f3075079b8565f625ff10</string>
+	<string>1:672257580593:ios:3051da1914898c5a25ff10</string>
 </dict>
 </plist>
