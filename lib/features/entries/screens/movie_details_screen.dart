@@ -54,6 +54,12 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   List<MediaResult> _recommendations = [];
   bool _isLoading = true;
   String? _error;
+  late bool _effectiveIsTv;
+
+  bool get _isTv {
+    final t = widget.mediaType.trim().toLowerCase();
+    return t == 'tv' || t == 'tv_show' || t == 'series';
+  }
 
   // Logged Watch Entry & Review State
   Entry? _loggedEntry;
@@ -76,6 +82,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    _effectiveIsTv = _isTv;
     _loggedEntry = widget.initialEntry;
     _authorUser = widget.authorUser ?? widget.initialEntry?.user;
     _loadInitialData();
@@ -181,7 +188,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   Future<void> _loadRecommendations() async {
     try {
       final recs = await ref.read(searchRepositoryProvider).getRecommendations(
-        widget.mediaType == 'tv' ? 'tv' : 'movie',
+        _effectiveIsTv ? 'tv' : 'movie',
         widget.tmdbId,
       );
       if (mounted) setState(() => _recommendations = recs);
@@ -191,18 +198,34 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   Future<void> _loadDetails() async {
     try {
       final repo = ref.read(searchRepositoryProvider);
-      final details = widget.mediaType == 'tv'
-          ? await repo.getTvDetails(widget.tmdbId)
-          : await repo.getMovieDetails(widget.tmdbId);
+      Map<String, dynamic> details;
+      bool isTv = _effectiveIsTv;
+
+      try {
+        details = isTv
+            ? await repo.getTvDetails(widget.tmdbId)
+            : await repo.getMovieDetails(widget.tmdbId);
+      } catch (initialError) {
+        // Fallback: If requested type fails (e.g. 404 TMDb ID mismatch), attempt alternate media type
+        try {
+          details = isTv
+              ? await repo.getMovieDetails(widget.tmdbId)
+              : await repo.getTvDetails(widget.tmdbId);
+          isTv = !isTv;
+        } catch (_) {
+          throw initialError;
+        }
+      }
 
       if (mounted) {
         setState(() {
+          _effectiveIsTv = isTv;
           _details = details;
           _isLoading = false;
         });
 
         // Initialize first TV season if TV show
-        if (widget.mediaType == 'tv') {
+        if (isTv) {
           final seasons = details['seasons'] as List<dynamic>? ?? [];
           if (seasons.isNotEmpty) {
             final validSeason = seasons.firstWhere(
@@ -269,7 +292,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
           context,
           tmdbId: widget.tmdbId,
           title: title,
-          mediaType: widget.mediaType,
+          mediaType: _effectiveIsTv ? 'tv' : 'movie',
           posterPath: _details?['poster_path'] as String?,
           overview: _details?['overview'] as String?,
           prefillSuggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id ?? _watchlistSuggestedByUserId ?? _watchlistSuggestedByUser?.id,
@@ -292,7 +315,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     final rawTitle = (_details?['title'] ?? _details?['name'])?.toString().trim();
     final title = (rawTitle != null && rawTitle.isNotEmpty && rawTitle != 'Untitled')
         ? rawTitle
-        : (widget.mediaType == 'tv' ? 'this TV show' : 'this movie');
+        : (_effectiveIsTv ? 'this TV show' : 'this movie');
     final confirmed = await WHAlert.confirm(
       context,
       title: 'Log as Currently Watching',
@@ -308,7 +331,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       final entry = await ref.read(entriesRepositoryProvider).createEntry({
         'tmdbId': widget.tmdbId,
         'title': title,
-        'type': widget.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
+        'type': _effectiveIsTv ? 'TV_SHOW' : 'MOVIE',
         'isWatching': true,
         'startedAt': DateTime.now().toUtc().toIso8601String(),
         'suggestedByUserId': widget.suggestedByUserId ?? widget.suggestedByUser?.id ?? _watchlistSuggestedByUserId ?? _watchlistSuggestedByUser?.id,
@@ -354,7 +377,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       builder: (_) => AddEntrySheet(
         editEntry: entryToEdit,
         prefillTmdbId: widget.tmdbId,
-        prefillType: widget.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
+        prefillType: _effectiveIsTv ? 'TV_SHOW' : 'MOVIE',
         prefillTitle: title,
         prefillPosterPath: posterPath,
         prefillSuggestor: effectiveSuggestor,
@@ -415,14 +438,14 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       builder: (_) => SuggestMovieModal(
         tmdbId: widget.tmdbId,
         title: title,
-        mediaType: widget.mediaType,
+        mediaType: _effectiveIsTv ? 'tv' : 'movie',
       ),
     );
   }
 
   void _shareMovie() {
     final title = (_details?['title'] ?? _details?['name'] ?? 'Movie/Show').toString();
-    final url = WebUrls.movieDetails(widget.mediaType, widget.tmdbId);
+    final url = WebUrls.movieDetails(_effectiveIsTv ? 'tv' : 'movie', widget.tmdbId);
     Share.share(
       'Check out "$title" on WatchersHive! Track movies, series & anime together 🎬🐝\n\n$url',
       subject: 'WatchersHive: $title',
@@ -430,7 +453,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   }
 
   String _formatCategoryLabel() {
-    if (_details == null) return widget.mediaType == 'tv' ? '📺 TV Series' : '🎬 Feature Film';
+    if (_details == null) return _effectiveIsTv ? '📺 TV Series' : '🎬 Feature Film';
     final genres = (_details!['genres'] as List<dynamic>? ?? [])
         .map((g) => (g['name'] as String? ?? '').toLowerCase())
         .toList();
@@ -443,9 +466,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
 
     if (isDoc) return '📽️ Documentary';
     if (isAnimation && (lang == 'ja' || countries.contains('JP'))) return '🎌 Anime';
-    if (widget.mediaType == 'tv' && (lang == 'ko' || countries.contains('KR'))) return '🇰🇷 K-Drama';
-    if (widget.mediaType == 'tv' && (lang == 'ja' || countries.contains('JP')) && !isAnimation) return '🇯🇵 J-Drama';
-    if (widget.mediaType == 'tv') {
+    if (_effectiveIsTv && (lang == 'ko' || countries.contains('KR'))) return '🇰🇷 K-Drama';
+    if (_effectiveIsTv && (lang == 'ja' || countries.contains('JP')) && !isAnimation) return '🇯🇵 J-Drama';
+    if (_effectiveIsTv) {
       final seasons = (_details!['number_of_seasons'] as num?)?.toInt() ?? 1;
       if (seasons == 1) return '⚡ Miniseries / Limited';
       return '📺 TV Series';
@@ -1035,7 +1058,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                     tmdbId: widget.tmdbId,
                                     title: title,
                                     posterPath: posterPath,
-                                    mediaType: widget.mediaType,
+                                    mediaType: _effectiveIsTv ? 'tv' : 'movie',
                                   );
                                 },
                                 icon: const Icon(Icons.format_list_numbered_rounded, size: 16, color: AppColors.primaryDark),
@@ -1342,7 +1365,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                   ],
 
                   // TV Seasons & Episode Drill Down
-                  if (widget.mediaType == 'tv' && seasons.isNotEmpty) ...[
+                  if (_effectiveIsTv && seasons.isNotEmpty) ...[
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
