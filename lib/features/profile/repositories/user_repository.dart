@@ -355,8 +355,9 @@ class UserRepository {
 
 
   /// Follow or request to follow a user
-  Future<void> followUser(String userId) async {
-    await _api.post(ApiEndpoints.followUser(userId));
+  Future<Map<String, dynamic>> followUser(String userId) async {
+    final response = await _api.post(ApiEndpoints.followUser(userId));
+    return response.data is Map<String, dynamic> ? response.data as Map<String, dynamic> : {};
   }
 
   /// Unfollow or cancel follow request

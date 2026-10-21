@@ -444,13 +444,17 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           WHAlert.showInfo(context, origRequested ? 'Follow request cancelled' : 'Unfollowed @${_user!.username}');
         }
       } else {
-        await repo.followUser(_user!.id);
-        final isPrivate = _user!.privacyLevel == 'FOLLOWERS_ONLY' || _user!.privacyLevel == 'PRIVATE' || _user!.isPrivate;
+        final res = await repo.followUser(_user!.id);
+        final status = res['status']?.toString().toLowerCase();
+        final isPrivate = status == 'requested' ||
+            (status == null && (_user!.privacyLevel == 'FOLLOWERS_ONLY' || _user!.privacyLevel == 'PRIVATE' || _user!.isPrivate));
         setState(() {
           if (isPrivate) {
             _isRequested = true;
+            _isFollowing = false;
           } else {
             _isFollowing = true;
+            _isRequested = false;
             _user = _user!.copyWith(followersCount: _user!.followersCount + 1);
           }
         });
