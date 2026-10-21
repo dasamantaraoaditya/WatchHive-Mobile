@@ -1010,12 +1010,29 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
   bool _isFollowing = false;
   bool _isLoading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _isFollowing = widget.user.isFollowing;
+  }
+
+  @override
+  void didUpdateWidget(covariant _SuggestedUserCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.isFollowing != widget.user.isFollowing) {
+      _isFollowing = widget.user.isFollowing;
+    }
+  }
+
   Future<void> _toggleFollow() async {
     setState(() => _isLoading = true);
     try {
       if (_isFollowing) {
         await ref.read(userRepositoryProvider).unfollowUser(widget.user.id);
         setState(() => _isFollowing = false);
+        if (mounted) {
+          WHAlert.showInfo(context, 'Unfollowed @${widget.user.username}');
+        }
       } else {
         await ref.read(userRepositoryProvider).followUser(widget.user.id);
         setState(() => _isFollowing = true);

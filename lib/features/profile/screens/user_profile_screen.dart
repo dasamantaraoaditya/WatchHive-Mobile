@@ -1138,7 +1138,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                     onPressed: _isActionLoading ? null : _handleFollowToggle,
                     icon: Icon(
                       _isFollowing
-                          ? Icons.person_remove_outlined
+                          ? Icons.check_rounded
                           : _isRequested
                               ? Icons.hourglass_top_rounded
                               : Icons.person_add_rounded,
