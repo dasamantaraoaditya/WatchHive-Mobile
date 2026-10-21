@@ -64,3 +64,4 @@ watchhive-release.apk
 **/xcshareddata/swiftpm/
 .kotlin/
 release_builds/
+release_artifacts/
