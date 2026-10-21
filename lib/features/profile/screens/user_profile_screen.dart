@@ -1591,7 +1591,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title' ? effectiveTitle : cleanTitle,
         'type': mediaType,
         'isWatching': true,
-        'startedAt': DateTime.now().toIso8601String(),
+        'startedAt': DateTime.now().toUtc().toIso8601String(),
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
       });
 

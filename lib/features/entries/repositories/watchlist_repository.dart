@@ -100,7 +100,7 @@ class WatchlistRepository {
         'mediaType': mediaType,
         'posterPath': posterPath,
         'overview': overview,
-        'addedAt': DateTime.now().toIso8601String(),
+        'addedAt': DateTime.now().toUtc().toIso8601String(),
       });
       await _storage.cacheWatchlist(currentList);
     }

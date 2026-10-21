@@ -310,7 +310,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         'title': title,
         'type': widget.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
         'isWatching': true,
-        'startedAt': DateTime.now().toIso8601String(),
+        'startedAt': DateTime.now().toUtc().toIso8601String(),
         'suggestedByUserId': widget.suggestedByUserId ?? widget.suggestedByUser?.id ?? _watchlistSuggestedByUserId ?? _watchlistSuggestedByUser?.id,
       });
 

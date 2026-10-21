@@ -77,7 +77,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
         'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' ? effectiveTitle : cleanTitle,
         'type': isTv ? 'TV_SHOW' : 'MOVIE',
         'isWatching': true,
-        'startedAt': DateTime.now().toIso8601String(),
+        'startedAt': DateTime.now().toUtc().toIso8601String(),
         if (firstSuggestor != null) 'suggestedByUserId': firstSuggestor.id,
       });
 
