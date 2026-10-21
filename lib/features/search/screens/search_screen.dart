@@ -1008,12 +1008,14 @@ class _SuggestedUserCard extends ConsumerStatefulWidget {
 
 class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
   bool _isFollowing = false;
+  bool _isRequested = false;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _isFollowing = widget.user.isFollowing;
+    _isRequested = widget.user.isRequested;
   }
 
   @override
@@ -1022,22 +1024,44 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
     if (oldWidget.user.isFollowing != widget.user.isFollowing) {
       _isFollowing = widget.user.isFollowing;
     }
+    if (oldWidget.user.isRequested != widget.user.isRequested) {
+      _isRequested = widget.user.isRequested;
+    }
   }
 
   Future<void> _toggleFollow() async {
     setState(() => _isLoading = true);
     try {
-      if (_isFollowing) {
+      if (_isFollowing || _isRequested) {
         await ref.read(userRepositoryProvider).unfollowUser(widget.user.id);
-        setState(() => _isFollowing = false);
+        final wasRequested = _isRequested;
+        setState(() {
+          _isFollowing = false;
+          _isRequested = false;
+        });
         if (mounted) {
-          WHAlert.showInfo(context, 'Unfollowed @${widget.user.username}');
+          WHAlert.showInfo(context, wasRequested ? 'Follow request cancelled' : 'Unfollowed @${widget.user.username}');
         }
       } else {
-        await ref.read(userRepositoryProvider).followUser(widget.user.id);
-        setState(() => _isFollowing = true);
+        final res = await ref.read(userRepositoryProvider).followUser(widget.user.id);
+        final status = res['status']?.toString().toLowerCase();
+        final isPrivate = widget.user.isPrivate || widget.user.privacyLevel == 'FOLLOWERS_ONLY' || widget.user.privacyLevel == 'PRIVATE';
+        final isReq = status == 'requested' || (status == null && isPrivate);
+        setState(() {
+          if (isReq) {
+            _isRequested = true;
+            _isFollowing = false;
+          } else {
+            _isFollowing = true;
+            _isRequested = false;
+          }
+        });
         if (mounted) {
-          WHAlert.showSuccess(context, 'Followed @${widget.user.username}! ✨');
+          if (isReq) {
+            WHAlert.showSuccess(context, 'Follow request sent to @${widget.user.username} ⏳');
+          } else {
+            WHAlert.showSuccess(context, 'Followed @${widget.user.username}! ✨');
+          }
         }
       }
     } catch (e) {
@@ -1107,8 +1131,16 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
               height: 26,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _isFollowing ? AppColors.surfaceElevated : AppColors.primary,
-                  foregroundColor: _isFollowing ? AppColors.textPrimary : Colors.black,
+                  backgroundColor: _isFollowing
+                      ? AppColors.surfaceElevated
+                      : _isRequested
+                          ? Colors.amber.shade100
+                          : AppColors.primary,
+                  foregroundColor: _isFollowing
+                      ? AppColors.textPrimary
+                      : _isRequested
+                          ? Colors.amber.shade900
+                          : Colors.black,
                   elevation: 0,
                   padding: EdgeInsets.zero,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1117,7 +1149,7 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
                 child: _isLoading
                     ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                     : Text(
-                        _isFollowing ? 'Following' : 'Follow',
+                        _isFollowing ? 'Following' : _isRequested ? 'Requested' : 'Follow',
                         style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 11,
