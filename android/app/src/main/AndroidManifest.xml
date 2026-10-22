@@ -10,6 +10,11 @@
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="false">
 
+        <!-- Disable Impeller to fix OpenGLES GPU vertex streaking on Android emulators -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
+
         <!-- Default FCM notification channel and icon -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
