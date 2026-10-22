@@ -11,6 +11,9 @@ export 'wh_brand_logo.dart';
 export 'wh_rating_picker.dart';
 export 'wh_quick_add_fab.dart';
 export 'wh_skeleton.dart';
+export 'wh_bee_loader.dart';
+export 'wh_filter_bar.dart';
+export 'ugc_moderation_dialog.dart';
 
 
 class TMDBPosterImage extends StatelessWidget {

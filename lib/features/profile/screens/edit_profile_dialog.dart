@@ -53,6 +53,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
   late bool _showCurrentlyWatching;
   late bool _showWatchlist;
   late bool _showRankings;
+  late bool _notifyFollowingActivity;
 
   bool _isSaving = false;
   bool _isUploadingAvatar = false;
@@ -72,6 +73,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     _showCurrentlyWatching = widget.user.showCurrentlyWatching;
     _showWatchlist = widget.user.showWatchlist;
     _showRankings = widget.user.showRankings;
+    _notifyFollowingActivity = widget.user.notifyFollowingActivity;
   }
 
   @override
@@ -171,6 +173,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
           'showCurrentlyWatching': _showCurrentlyWatching,
           'showWatchlist': _showWatchlist,
           'showRankings': _showRankings,
+          'notifyFollowingActivity': _notifyFollowingActivity,
         },
       );
 
@@ -236,8 +239,11 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      child: Column(
-        children: [
+      child: WHModalLoadingOverlay(
+        isLoading: _isSaving,
+        message: 'Saving profile changes...',
+        child: Column(
+          children: [
           // Drag handle
           Center(
             child: Container(
@@ -332,11 +338,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                 ),
                 onPressed: _isSaving ? null : _handleSave,
                 child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black),
-                      )
+                    ? const WHBeeSpinner(size: 20)
                     : const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -356,6 +358,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -687,6 +690,14 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                   value: _showRankings,
                   onChanged: (v) => setState(() => _showRankings = v),
                 ),
+                const Divider(height: 1, color: AppColors.border),
+                _buildSwitchTile(
+                  icon: Icons.notifications_active_outlined,
+                  title: "Friends' Activity Alerts",
+                  subtitle: "Receive push notifications when followed users watch movies",
+                  value: _notifyFollowingActivity,
+                  onChanged: (v) => setState(() => _notifyFollowingActivity = v),
+                ),
               ],
             ),
           ),
@@ -768,7 +779,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                   ),
                   icon: const Icon(Icons.lock_rounded, size: 16),
                   label: _isSettingPassword
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                      ? const WHBeeSpinner(size: 16)
                       : const Text('Set Password', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],

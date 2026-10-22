@@ -30,6 +30,7 @@ class Entry {
   final DateTime? updatedAt;
   final bool isImported;
   final bool isPendingSync;
+  final bool postToFeed;
 
   const Entry({
     required this.id,
@@ -52,6 +53,7 @@ class Entry {
     this.updatedAt,
     this.isImported = false,
     this.isPendingSync = false,
+    this.postToFeed = true,
     this.user,
     this.likesCount = 0,
     this.commentsCount = 0,
@@ -65,9 +67,16 @@ class Entry {
 
   /// Computes the effective latest activity date for feed sorting and status display.
   DateTime get activityDate {
-    if (isWatching) return startedAt ?? updatedAt ?? createdAt;
-    if (completedAt != null) return completedAt!;
-    return updatedAt ?? watchedAt;
+    final now = DateTime.now();
+    DateTime raw;
+    if (isWatching) {
+      raw = startedAt ?? updatedAt ?? createdAt;
+    } else if (completedAt != null) {
+      raw = completedAt!;
+    } else {
+      raw = updatedAt ?? watchedAt;
+    }
+    return raw.isAfter(now) ? now : raw;
   }
 
   String get typeLabel => switch (type) {
@@ -188,6 +197,7 @@ class Entry {
           (dataMap['poster_path'] as String?),
       isSuggestion: isSuggestion,
       suggestionReason: reason,
+      postToFeed: dataMap['postToFeed'] as bool? ?? dataMap['post_to_feed'] as bool? ?? true,
     );
   }
 
@@ -221,6 +231,7 @@ class Entry {
     String? backdropPath,
     bool? isSuggestion,
     String? suggestionReason,
+    bool? postToFeed,
   }) {
     return Entry(
       id: id ?? this.id,
@@ -243,6 +254,7 @@ class Entry {
       updatedAt: updatedAt ?? this.updatedAt,
       isImported: isImported ?? this.isImported,
       isPendingSync: isPendingSync ?? this.isPendingSync,
+      postToFeed: postToFeed ?? this.postToFeed,
       user: user ?? this.user,
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,
@@ -259,14 +271,15 @@ class Entry {
         'tmdbId': tmdbId,
         'title': title,
         'type': type,
-        'watchedAt': watchedAt.toIso8601String(),
+        'watchedAt': watchedAt.toUtc().toIso8601String(),
         if (rating != null) 'rating': rating,
         if (review != null) 'review': review,
         'tags': tags,
         'isRewatch': isRewatch,
         'isWatching': isWatching,
-        if (startedAt != null) 'startedAt': startedAt!.toIso8601String(),
-        if (completedAt != null) 'completedAt': completedAt!.toIso8601String(),
+        'postToFeed': postToFeed,
+        if (startedAt != null) 'startedAt': startedAt!.toUtc().toIso8601String(),
+        if (completedAt != null) 'completedAt': completedAt!.toUtc().toIso8601String(),
         if (watchLocation != null) 'watchLocation': watchLocation,
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
       };
@@ -279,17 +292,18 @@ class Entry {
         'tmdbId': tmdbId,
         'title': title,
         'type': type,
-        'watchedAt': watchedAt.toIso8601String(),
+        'watchedAt': watchedAt.toUtc().toIso8601String(),
         if (rating != null) 'rating': rating,
         if (review != null) 'review': review,
         'tags': tags,
         'isRewatch': isRewatch,
         'isWatching': isWatching,
-        if (startedAt != null) 'startedAt': startedAt!.toIso8601String(),
-        if (completedAt != null) 'completedAt': completedAt!.toIso8601String(),
+        'postToFeed': postToFeed,
+        if (startedAt != null) 'startedAt': startedAt!.toUtc().toIso8601String(),
+        if (completedAt != null) 'completedAt': completedAt!.toUtc().toIso8601String(),
         if (watchLocation != null) 'watchLocation': watchLocation,
-        'createdAt': createdAt.toIso8601String(),
-        if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+        'createdAt': createdAt.toUtc().toIso8601String(),
+        if (updatedAt != null) 'updatedAt': updatedAt!.toUtc().toIso8601String(),
         'isImported': isImported,
         'isPendingSync': isPendingSync,
         if (user != null) 'user': user!.toJson(),

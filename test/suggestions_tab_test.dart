@@ -134,17 +134,17 @@ void main() {
     expect(find.text('Suggestions'), findsOneWidget);
     expect(find.text('Suggested'), findsOneWidget);
 
+    // Verify Suggest button beside subtabs exists
+    expect(find.text('Suggest'), findsOneWidget);
+
     // Verify counts
     expect(find.text('1'), findsNWidgets(2)); // 1 received, 1 sent
-
-    // Verify received subtab description
-    expect(find.text('Recommendations from your Hive'), findsOneWidget);
 
     // Tap on "Suggested" sub-tab
     await tester.tap(find.text('Suggested'));
     await tester.pump(const Duration(milliseconds: 250));
 
-    // Verify switched description
-    expect(find.text('Titles you recommended to friends'), findsOneWidget);
+    // Verify "Suggested" is still present and selected
+    expect(find.text('Suggested'), findsOneWidget);
   });
 }

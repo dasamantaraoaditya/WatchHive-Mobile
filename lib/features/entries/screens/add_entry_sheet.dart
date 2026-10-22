@@ -12,9 +12,11 @@ import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
 import '../repositories/suggestions_repository.dart';
+import '../repositories/watchlist_repository.dart';
 import 'entries_screen.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../profile/repositories/user_repository.dart';
 import '../../search/repositories/search_repository.dart';
 import '../widgets/platform_logo_badge.dart';
 import '../../../core/services/connectivity_service.dart';
@@ -117,6 +119,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   double _rating = 0.0;
   bool _isRewatch = false;
   bool _isWatching = false;
+  bool _postToFeed = true;
   bool _isLoading = false;
   String _watchLocation = '';
   List<String> _tags = [];
@@ -134,6 +137,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   List<User> _friendResults = [];
   bool _isSearchingFriends = false;
   bool _showFriendPicker = false;
+  List<User>? _cachedFollowers;
 
   bool get isEditing => widget.editEntry != null;
 
@@ -188,6 +192,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       _rating = e.rating ?? 0.0;
       _isRewatch = e.isRewatch;
       _isWatching = widget.prefillIsWatching ?? e.isWatching;
+      _postToFeed = e.postToFeed;
       _watchLocation = e.watchLocation ?? '';
       _locationController.text = _watchLocation;
       _tags = List<String>.from(e.tags);
@@ -214,12 +219,16 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         _suggestorUsername = widget.prefillSuggestor!.username;
         _suggestorDisplayName = widget.prefillSuggestor!.displayName;
         _suggestorAvatar = widget.prefillSuggestor!.profilePictureUrl;
-      } else if (widget.prefillSuggestedByUserId != null) {
+      } else if (widget.prefillSuggestedByUserId != null && widget.prefillSuggestedByUserId!.isNotEmpty) {
         _suggestedByUserId = widget.prefillSuggestedByUserId;
+        _fetchSuggestorProfile(_suggestedByUserId!);
       }
       if (_tmdbId > 0) {
         _loadMediaDetails(_tmdbId, _type);
-        if (_suggestedByUserId == null) _checkSuggestionsForTmdbId(_tmdbId);
+        if (_suggestedByUserId == null || _suggestedByUserId!.isEmpty) {
+          _checkSuggestionsForTmdbId(_tmdbId);
+          _checkWatchlistSuggestionsForTmdbId(_tmdbId);
+        }
       }
     }
   }
@@ -455,6 +464,47 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     } catch (_) {}
   }
 
+  Future<void> _fetchSuggestorProfile(String userId) async {
+    try {
+      final user = await ref.read(userRepositoryProvider).getUserProfile(userId);
+      if (mounted) {
+        setState(() {
+          _suggestorUsername = user.username;
+          _suggestorDisplayName = user.displayName;
+          _suggestorAvatar = user.profilePictureUrl;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _checkWatchlistSuggestionsForTmdbId(int tmdbId) async {
+    if (_suggestedByUserId != null && _suggestedByUserId!.isNotEmpty) return;
+    try {
+      final data = await ref.read(watchlistRepositoryProvider).getWatchlist();
+      final items = data['items'] as List<dynamic>? ?? [];
+      final match = items.firstWhere(
+        (it) => (it['tmdbId'] as num?)?.toInt() == tmdbId || it['tmdbId'].toString() == tmdbId.toString(),
+        orElse: () => null,
+      );
+      if (match != null && mounted) {
+        final userMap = match['suggestedByUser'] as Map<String, dynamic>?;
+        final uid = match['suggestedByUserId'] as String? ?? userMap?['id'] as String?;
+        final uname = userMap?['username'] as String? ?? match['suggestedByUsername'] as String?;
+        if (uid != null && uid.isNotEmpty) {
+          setState(() {
+            _suggestedByUserId = uid;
+            _suggestorUsername = uname;
+            _suggestorDisplayName = userMap?['displayName'] as String?;
+            _suggestorAvatar = userMap?['profilePictureUrl'] as String?;
+          });
+          if (_suggestorUsername == null || _suggestorUsername!.isEmpty) {
+            _fetchSuggestorProfile(uid);
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> _searchMedia(String query) async {
     if (query.length < 2) {
       setState(() => _searchResults = []);
@@ -508,7 +558,23 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     });
     _scrollToKey(_suggestedByKey, alignment: 0.05);
     try {
-      final results = await ref.read(searchRepositoryProvider).searchUsers(query.isNotEmpty ? query : 'a');
+      if (_cachedFollowers == null) {
+        final userRepo = ref.read(userRepositoryProvider);
+        final me = await userRepo.getCurrentUser();
+        final followers = await userRepo.getFollowers(me.id).catchError((_) => <User>[]);
+        _cachedFollowers = followers.where((u) => u.id != me.id).toList();
+      }
+
+      final all = _cachedFollowers ?? <User>[];
+      final trimmed = query.trim().toLowerCase();
+      final results = trimmed.isEmpty
+          ? all
+          : all.where((u) {
+              final name = (u.displayName ?? '').toLowerCase();
+              final username = u.username.toLowerCase();
+              return name.contains(trimmed) || username.contains(trimmed);
+            }).toList();
+
       if (mounted) {
         setState(() {
           _friendResults = results;
@@ -691,6 +757,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         if (_reviewController.text.trim().isNotEmpty) 'review': _reviewController.text.trim(),
         'isRewatch': _isRewatch,
         'isWatching': _isWatching,
+        'postToFeed': _postToFeed,
         if (_watchLocation.trim().isNotEmpty) 'watchLocation': _watchLocation.trim(),
         'tags': _tags.where((t) => t.trim().isNotEmpty).toList(),
         'watchedAt': _watchedDate.toUtc().toIso8601String(),
@@ -706,13 +773,19 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         isPendingSync = updated.isPendingSync;
         ref.read(entriesProvider(true).notifier).updateEntry(updated);
         ref.read(entriesProvider(false).notifier).updateEntry(updated);
-        ref.read(feedProvider.notifier).updateEntry(updated);
+        if (updated.postToFeed) {
+          ref.read(feedProvider.notifier).updateEntry(updated);
+        } else {
+          ref.read(feedProvider.notifier).removeEntry(updated.id);
+        }
       } else {
         final entry = await ref.read(entriesRepositoryProvider).createEntry(data);
         isPendingSync = entry.isPendingSync;
         ref.read(entriesProvider(true).notifier).addEntry(entry);
         ref.read(entriesProvider(false).notifier).addEntry(entry);
-        ref.read(feedProvider.notifier).prependEntry(entry);
+        if (entry.postToFeed) {
+          ref.read(feedProvider.notifier).prependEntry(entry);
+        }
       }
       ref.read(offlineSyncManagerProvider.notifier).refreshPendingCount();
 
@@ -728,7 +801,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
           WHAlert.showSuccess(
             context,
             isEditing
-                ? 'Updated "$title" in your Hive! ✨'
+                ? (widget.editEntry?.isWatching == true && !_isWatching
+                    ? 'Completed watching "$title"! 🎉🎬'
+                    : 'Updated "$title" in your Hive! ✨')
                 : (_isWatching ? 'Started watching "$title"! 👁️🎬' : 'Logged "$title" to your Hive! 🐝🎬'),
           );
         }
@@ -779,15 +854,22 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       child: SafeArea(
         bottom: false,
         minimum: const EdgeInsets.only(top: 8),
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: screenHeight * 0.92,
-          ),
-          decoration: const BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
+        child: WHModalLoadingOverlay(
+          isLoading: _isLoading,
+          message: isEditing
+              ? (widget.editEntry?.isWatching == true && !_isWatching
+                  ? 'Completing your watch...'
+                  : 'Updating your entry...')
+              : (_isWatching ? 'Saving to Currently Watching...' : 'Logging to your Hive...'),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: screenHeight * 0.92,
+            ),
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Center(
@@ -819,7 +901,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isEditing ? 'Edit Watch Entry ✨' : (_isWatching ? 'Track What You\'re Watching 👁️' : 'Log a Watch to Hive 🐝'),
+                            isEditing
+                                ? (widget.editEntry?.isWatching == true && !_isWatching
+                                    ? 'Complete Watch 🎬'
+                                    : 'Edit Watch Entry ✨')
+                                : (_isWatching ? 'Track What You\'re Watching 👁️' : 'Log a Watch to Hive 🐝'),
                             style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                           ),
                           const SizedBox(height: 2),
@@ -984,7 +1070,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                     hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                                     prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
                                     suffixIcon: _isSearching
-                                        ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)))
+                                        ? const Padding(padding: EdgeInsets.all(12), child: WHBeeSpinner(size: 16))
                                         : _searchController.text.isNotEmpty
                                             ? IconButton(icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textMuted), onPressed: () => setState(() { _searchController.clear(); _searchResults.clear(); }))
                                             : null,
@@ -1242,33 +1328,39 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                 duration: const Duration(milliseconds: 180),
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: _isRewatch ? Colors.amber.withValues(alpha: 0.18) : AppColors.surfaceElevated,
+                                  color: _isRewatch ? AppColors.primary.withValues(alpha: 0.12) : AppColors.surfaceElevated,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: _isRewatch ? Colors.amber : AppColors.border,
+                                    color: _isRewatch ? AppColors.primary : AppColors.border,
                                     width: _isRewatch ? 1.5 : 1,
                                   ),
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.repeat_rounded, size: 18, color: _isRewatch ? Colors.amber : AppColors.textMuted),
+                                    Icon(Icons.repeat_rounded, size: 18, color: _isRewatch ? AppColors.primaryDark : AppColors.textMuted),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
+                                          const Text(
                                             'Rewatch Status',
-                                            style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: _isRewatch ? Colors.amber : AppColors.textMuted),
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textMuted,
+                                              letterSpacing: 0.4,
+                                            ),
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
                                             _isRewatch ? 'Repeat Watch 🔁' : 'First Time Watch 🎬',
-                                            style: TextStyle(
+                                            style: const TextStyle(
                                               fontFamily: 'Inter',
                                               fontSize: 13,
                                               fontWeight: FontWeight.bold,
-                                              color: _isRewatch ? Colors.amber : AppColors.textSecondary,
+                                              color: AppColors.textPrimary,
                                             ),
                                           ),
                                         ],
@@ -1276,11 +1368,72 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                     ),
                                     Switch.adaptive(
                                       value: _isRewatch,
-                                      activeThumbColor: Colors.amber,
-                                      activeTrackColor: Colors.amber.withValues(alpha: 0.3),
+                                      activeThumbColor: AppColors.primary,
+                                      activeTrackColor: AppColors.primary.withValues(alpha: 0.35),
                                       onChanged: (val) {
                                         HapticFeedback.lightImpact();
                                         setState(() => _isRewatch = val);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                setState(() => _postToFeed = !_postToFeed);
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _postToFeed ? AppColors.primary.withValues(alpha: 0.12) : AppColors.surfaceElevated,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: _postToFeed ? AppColors.primary : AppColors.border,
+                                    width: _postToFeed ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.rss_feed_rounded, size: 18, color: _postToFeed ? AppColors.primaryDark : AppColors.textMuted),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Feed Visibility',
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textMuted,
+                                              letterSpacing: 0.4,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _postToFeed ? 'Post to Feed 📢' : 'Log Privately 🔒',
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Switch.adaptive(
+                                      value: _postToFeed,
+                                      activeThumbColor: AppColors.primary,
+                                      activeTrackColor: AppColors.primary.withValues(alpha: 0.35),
+                                      onChanged: (val) {
+                                        HapticFeedback.lightImpact();
+                                        setState(() => _postToFeed = val);
                                       },
                                     ),
                                   ],
@@ -1468,11 +1621,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                         _scrollToKey(_suggestedByKey, alignment: 0.05);
                                       },
                                       decoration: InputDecoration(
-                                        hintText: 'Search follower or friend username…',
+                                        hintText: 'Search follower username…',
                                         hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                                         prefixIcon: const Icon(Icons.person_search_rounded, color: Colors.amber, size: 20),
                                         suffixIcon: _isSearchingFriends
-                                            ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)))
+                                            ? const Padding(padding: EdgeInsets.all(12), child: WHBeeSpinner(size: 16))
                                             : _suggestedByController.text.isNotEmpty
                                                 ? IconButton(
                                                     icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textMuted),
@@ -1546,7 +1699,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                              'No friends found for "${_suggestedByController.text.trim()}".',
+                                              'No followers found for "${_suggestedByController.text.trim()}".',
                                               style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.textMuted),
                                             ),
                                           ),
@@ -1690,19 +1843,16 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                               ),
                             ),
                             child: _isLoading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      color: Colors.black,
-                                    ),
-                                  )
+                                ? const WHBeeSpinner(size: 22)
                                 : Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
-                                        isEditing ? Icons.save_rounded : Icons.hive_rounded,
+                                        isEditing
+                                            ? (widget.editEntry?.isWatching == true && !_isWatching
+                                                ? Icons.task_alt_rounded
+                                                : Icons.save_rounded)
+                                            : Icons.hive_rounded,
                                         color: Colors.black,
                                         size: 20,
                                       ),
@@ -1710,7 +1860,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                       Flexible(
                                         child: Text(
                                           isEditing
-                                              ? 'Save Changes ✨'
+                                              ? (widget.editEntry?.isWatching == true && !_isWatching
+                                                  ? 'Complete Watch 🎬'
+                                                  : 'Save Changes ✨')
                                               : (_isWatching
                                                   ? 'Track Watching 👁️'
                                                   : 'Log to Hive 🐝🎬'),
@@ -1736,6 +1888,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

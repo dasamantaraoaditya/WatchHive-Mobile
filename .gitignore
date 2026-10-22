@@ -51,6 +51,8 @@ app.*.map.json
 key.properties
 .env
 .env.*
+!.env.example
+!.env.staging.example
 .env.local
 pc-api-key.json
 android/app/google-services.json
@@ -62,3 +64,4 @@ watchhive-release.apk
 **/xcshareddata/swiftpm/
 .kotlin/
 release_builds/
+release_artifacts/

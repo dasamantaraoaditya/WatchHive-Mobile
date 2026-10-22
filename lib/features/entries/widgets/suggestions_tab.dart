@@ -5,6 +5,7 @@ import '../../../core/utils/error_handler.dart';
 import '../../../shared/models/suggestion.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
+import '../../search/repositories/search_repository.dart';
 import '../repositories/suggestions_repository.dart';
 import 'suggest_movie_modal.dart';
 import 'suggestion_card.dart';
@@ -25,18 +26,19 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
   bool _isLoading = true;
   String? _error;
   String _searchQuery = '';
-  final _searchController = TextEditingController();
+  String _sortBy = 'recent-desc';
+
+  static const _suggestionsSortOptions = [
+    WHSortOption(value: 'recent-desc', label: 'Recently Suggested'),
+    WHSortOption(value: 'recent-asc', label: 'Oldest Suggested'),
+    WHSortOption(value: 'title-asc', label: 'Title: A-Z'),
+    WHSortOption(value: 'title-desc', label: 'Title: Z-A'),
+  ];
 
   @override
   void initState() {
     super.initState();
     _fetchSuggestions();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   Future<void> _fetchSuggestions() async {
@@ -154,17 +156,41 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
       final names = _selectedSubTab == 0
           ? g.suggestors.map((s) => '${s.displayName} ${s.username}').join(' ').toLowerCase()
           : g.recipients.map((r) => '${r.displayName} ${r.username}').join(' ').toLowerCase();
-      return tmdbStr.contains(q) || names.contains(q);
+      final mediaType = g.mediaType == 'tv' ? 'tv' : 'movie';
+      final cachedDetails = ref.watch(tmdbMediaDetailsProvider((tmdbId: g.tmdbId, mediaType: mediaType))).value;
+      final title = ((cachedDetails?['title'] ?? cachedDetails?['name'] ?? '') as String).toLowerCase();
+      return tmdbStr.contains(q) || names.contains(q) || title.contains(q);
     }).toList();
+
+    filteredGroups.sort((a, b) {
+      final parts = _sortBy.split('-');
+      final field = parts[0];
+      final order = parts.length > 1 ? parts[1] : 'desc';
+
+      if (field == 'recent') {
+        final dateA = DateTime.tryParse(a.suggestions.firstOrNull?.createdAt ?? '')?.millisecondsSinceEpoch ?? 0;
+        final dateB = DateTime.tryParse(b.suggestions.firstOrNull?.createdAt ?? '')?.millisecondsSinceEpoch ?? 0;
+        return order == 'desc' ? dateB.compareTo(dateA) : dateA.compareTo(dateB);
+      } else if (field == 'title') {
+        final mediaTypeA = a.mediaType == 'tv' ? 'tv' : 'movie';
+        final mediaTypeB = b.mediaType == 'tv' ? 'tv' : 'movie';
+        final detailsA = ref.watch(tmdbMediaDetailsProvider((tmdbId: a.tmdbId, mediaType: mediaTypeA))).value;
+        final detailsB = ref.watch(tmdbMediaDetailsProvider((tmdbId: b.tmdbId, mediaType: mediaTypeB))).value;
+        final titleA = ((detailsA?['title'] ?? detailsA?['name'] ?? 'Movie #${a.tmdbId}') as String).toLowerCase();
+        final titleB = ((detailsB?['title'] ?? detailsB?['name'] ?? 'Movie #${b.tmdbId}') as String).toLowerCase();
+        return order == 'desc' ? titleB.compareTo(titleA) : titleA.compareTo(titleB);
+      }
+      return 0;
+    });
 
     return RefreshIndicator(
       onRefresh: _fetchSuggestions,
       color: AppColors.primary,
       child: Column(
         children: [
-          // Sub-tabs Toggle: Received Suggestions vs Suggested Items
+          // Sub-tabs Toggle: Received Suggestions vs Suggested Items & Suggest to Friends Action
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
             child: Row(
               children: [
                 Expanded(
@@ -184,98 +210,65 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                     count: _sentGroups.length,
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          // Header action strip
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _selectedSubTab == 0
-                        ? 'Recommendations from your Hive'
-                        : 'Titles you recommended to friends',
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 11,
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () async {
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () async {
                     await SuggestMovieModal.show(context);
                     _fetchSuggestions();
                   },
-                  icon: const Icon(Icons.auto_awesome, size: 14, color: AppColors.primary),
-                  label: const Text(
-                    'Suggest',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                     ),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    visualDensity: VisualDensity.compact,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.auto_awesome, size: 14, color: AppColors.primaryDark),
+                        SizedBox(width: 4),
+                        Text(
+                          'Suggest',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryDark,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          // Search Input Bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (val) => setState(() => _searchQuery = val.trim()),
-              style: const TextStyle(fontFamily: 'Inter', color: AppColors.textPrimary, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: _selectedSubTab == 0
-                    ? 'Search received recommendations…'
-                    : 'Search items you suggested…',
-                hintStyle: const TextStyle(fontFamily: 'Inter', color: AppColors.textMuted, fontSize: 13),
-                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: AppColors.surfaceElevated,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.primary),
-                ),
-              ),
-            ),
+          // Filter & Search Bar
+          WHFilterBar(
+            search: _searchQuery,
+            onSearchChanged: (val) => setState(() => _searchQuery = val.trim()),
+            placeholder: _selectedSubTab == 0
+                ? 'Search received recommendations…'
+                : 'Search items you suggested…',
+            sortBy: _sortBy,
+            sortOptions: _suggestionsSortOptions,
+            onSortChanged: (val) => setState(() => _sortBy = val),
+            count: filteredGroups.length,
+            countLabel: _searchQuery.isNotEmpty
+                ? (_selectedSubTab == 0 ? 'Matching Suggestions' : 'Matching Items')
+                : (_selectedSubTab == 0 ? 'Titles Suggested' : 'Items Suggested'),
+            isLoading: _isLoading,
           ),
 
           Expanded(
             child: _isLoading
-                ? const WHSkeletonGrid()
+                ? const WHSkeletonGrid(
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  )
                 : _error != null
                     ? Center(
                         child: Padding(
@@ -377,21 +370,39 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                               ),
                             ),
                           )
-                        : GridView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 14,
-                              crossAxisSpacing: 14,
-                              childAspectRatio: 0.63,
-                            ),
-                            itemCount: filteredGroups.length,
-                            itemBuilder: (ctx, i) => SuggestionCard(
-                              group: filteredGroups[i],
-                              isSent: _selectedSubTab == 1,
-                              onRefresh: _fetchSuggestions,
-                              onTapMedia: widget.onTapMedia,
-                            ),
+                        : CustomScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            slivers: [
+                              SliverPadding(
+                                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                                sliver: SliverGrid(
+                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    mainAxisSpacing: 14,
+                                    crossAxisSpacing: 14,
+                                    childAspectRatio: 0.63,
+                                  ),
+                                  delegate: SliverChildBuilderDelegate(
+                                    (ctx, i) => SuggestionCard(
+                                      group: filteredGroups[i],
+                                      isSent: _selectedSubTab == 1,
+                                      onRefresh: _fetchSuggestions,
+                                      onTapMedia: widget.onTapMedia,
+                                    ),
+                                    childCount: filteredGroups.length,
+                                  ),
+                                ),
+                              ),
+                              const SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: EdgeInsets.only(bottom: 80),
+                                  child: WHBeeLoadingFooter(
+                                    isLoadingMore: false,
+                                    hasMore: false,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
           ),
         ],

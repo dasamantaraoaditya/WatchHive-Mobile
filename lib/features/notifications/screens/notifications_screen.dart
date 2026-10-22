@@ -107,7 +107,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         content['requesterId']?.toString();
 
     // 1. Follow & request events -> Navigate to actor's profile
-    if (n.type == 'FOLLOW' || n.type == 'FOLLOW_REQUEST' || n.type == 'FOLLOW_ACCEPT') {
+    if (n.type == 'FOLLOW' ||
+        n.type == 'FOLLOW_REQUEST' ||
+        n.type == 'FOLLOW_ACCEPT' ||
+        n.type == 'FOLLOW_REJECT') {
       if (actorId != null && actorId.isNotEmpty) {
         context.push('/profile/$actorId');
         return;
@@ -116,41 +119,67 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
     final entryId = content['entryId']?.toString();
 
-    // 2. Post interactions (LIKE, COMMENT, REPLY) -> Navigate to post
-    if (n.type == 'LIKE' && entryId != null && entryId.isNotEmpty) {
-      context.push('/entry/$entryId');
-      return;
-    }
+    // Safe media type resolver
+    final rawType = (content['mediaType'] ?? content['type'] ?? 'movie').toString().toLowerCase().trim();
+    final normType = (rawType.contains('tv') || rawType.contains('show') || rawType.contains('series'))
+        ? 'tv'
+        : 'movie';
 
-    if ((n.type == 'COMMENT' || n.type == 'REPLY') && entryId != null && entryId.isNotEmpty) {
-      context.push('/entry/$entryId?openComments=true');
-      return;
-    }
-
-    // 3. Media / suggestion interactions -> Navigate to movie details
     final tmdbId = content['tmdbId'] is num
         ? (content['tmdbId'] as num).toInt()
         : int.tryParse(content['tmdbId']?.toString() ?? '');
-    final mediaType = content['mediaType']?.toString().toLowerCase() ?? 'movie';
 
-    if (tmdbId != null && tmdbId > 0) {
-      context.push('/details/$mediaType/$tmdbId');
-      return;
+    // 2. Post interactions (LIKE, COMMENT, REPLY, FRIEND_STARTED_WATCHING, FRIEND_LOGGED_WATCH)
+    if (n.type == 'LIKE' ||
+        n.type == 'COMMENT' ||
+        n.type == 'REPLY' ||
+        n.type == 'FRIEND_STARTED_WATCHING' ||
+        n.type == 'FRIEND_LOGGED_WATCH') {
+      if (entryId != null && entryId.isNotEmpty) {
+        final openComments = (n.type == 'COMMENT' || n.type == 'REPLY') ? '?openComments=true' : '';
+        context.push('/entry/$entryId$openComments');
+        return;
+      }
+      // If entry was deleted or not attached, fallback to cinematic details if tmdbId exists
+      if (tmdbId != null && tmdbId > 0) {
+        context.push('/details/$normType/$tmdbId');
+        return;
+      }
     }
 
-    // 4. Suggestion without tmdbId -> go to entries
+    // 3. Movie / TV suggestions -> Navigate to media details
     if (n.type == 'SUGGESTION') {
+      if (tmdbId != null && tmdbId > 0) {
+        context.push('/details/$normType/$tmdbId');
+        return;
+      }
       context.go('/entries');
       return;
     }
 
-    // 5. Entry fallback
+    // 4. Mention events -> Navigate to entry or actor's profile
+    if (n.type == 'MENTION') {
+      if (entryId != null && entryId.isNotEmpty) {
+        context.push('/entry/$entryId?openComments=true');
+        return;
+      }
+      if (actorId != null && actorId.isNotEmpty) {
+        context.push('/profile/$actorId');
+        return;
+      }
+    }
+
+    // 5. General fallback: Entry -> Media Details -> Actor Profile -> Feed
     if (entryId != null && entryId.isNotEmpty) {
       context.push('/entry/$entryId');
       return;
     }
 
-    // 6. Fallback to actor's profile if available
+    if (tmdbId != null && tmdbId > 0) {
+      context.push('/details/$normType/$tmdbId');
+      return;
+    }
+
     if (actorId != null && actorId.isNotEmpty) {
       context.push('/profile/$actorId');
       return;
@@ -164,7 +193,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         'COMMENT' || 'REPLY' => Icons.chat_bubble_rounded,
         'FOLLOW' || 'FOLLOW_ACCEPT' => Icons.person_add_rounded,
         'FOLLOW_REQUEST' => Icons.person_add_alt_1_rounded,
+        'FOLLOW_REJECT' => Icons.person_remove_rounded,
+        'MENTION' => Icons.alternate_email_rounded,
         'SUGGESTION' => Icons.recommend_rounded,
+        'FRIEND_STARTED_WATCHING' => Icons.visibility_rounded,
+        'FRIEND_LOGGED_WATCH' => Icons.movie_rounded,
         _ => Icons.notifications_rounded,
       };
 
@@ -173,9 +206,27 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         'COMMENT' || 'REPLY' => AppColors.info,
         'FOLLOW' || 'FOLLOW_ACCEPT' => AppColors.success,
         'FOLLOW_REQUEST' => AppColors.primary,
+        'FOLLOW_REJECT' => AppColors.error,
+        'MENTION' => AppColors.primary,
         'SUGGESTION' => Colors.amber,
+        'FRIEND_STARTED_WATCHING' => Colors.cyan,
+        'FRIEND_LOGGED_WATCH' => AppColors.primary,
         _ => AppColors.textSecondary,
       };
+
+  String _formatFriendLoggedWatch(String actorName, String? title, Map<String, dynamic> content) {
+    final titleStr = title != null && title.isNotEmpty ? '"$title"' : 'a title';
+    final rating = content['rating'];
+    final review = content['review'] as String?;
+    if (rating != null && review != null && review.isNotEmpty) {
+      return '$actorName watched & reviewed $titleStr ($rating★)';
+    } else if (rating != null) {
+      return '$actorName watched $titleStr ($rating★)';
+    } else if (review != null && review.isNotEmpty) {
+      return '$actorName reviewed $titleStr';
+    }
+    return '$actorName finished watching $titleStr';
+  }
 
   String _textForNotification(wh.Notification n) {
     final content = n.content;
@@ -198,9 +249,17 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       'FOLLOW' => '$actorName started following you',
       'FOLLOW_REQUEST' => '$actorName requested to follow you',
       'FOLLOW_ACCEPT' => '$actorName accepted your follow request',
+      'FOLLOW_REJECT' => '$actorName declined your follow request',
+      'MENTION' => title != null && title.isNotEmpty
+          ? '$actorName mentioned you in "$title"'
+          : '$actorName mentioned you',
       'SUGGESTION' => title != null && title.isNotEmpty
           ? '$actorName suggested "$title"'
           : '$actorName suggested a title for you',
+      'FRIEND_STARTED_WATCHING' => title != null && title.isNotEmpty
+          ? '$actorName started watching "$title"'
+          : '$actorName started watching a title',
+      'FRIEND_LOGGED_WATCH' => _formatFriendLoggedWatch(actorName, title, content),
       _ => 'New notification',
     };
   }

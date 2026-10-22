@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -7,13 +8,18 @@ import 'package:shimmer/shimmer.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
+import '../../entries/repositories/watchlist_repository.dart';
+import '../../entries/screens/add_entry_sheet.dart';
+import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../entries/widgets/platform_logo_badge.dart';
+import '../providers/feed_provider.dart';
 
 
-class WHFeedCard extends StatelessWidget {
+class WHFeedCard extends ConsumerStatefulWidget {
   final Entry entry;
   final bool isLiked;
   final bool isOwnEntry;
@@ -34,7 +40,110 @@ class WHFeedCard extends StatelessWidget {
   });
 
   @override
+  ConsumerState<WHFeedCard> createState() => _WHFeedCardState();
+}
+
+class _WHFeedCardState extends ConsumerState<WHFeedCard> {
+  bool? _inWatchlistLocal;
+  bool _isWatchlistLoading = false;
+
+  Future<void> _handleWatchlistToggle(bool currentStatus) async {
+    if (_isWatchlistLoading || widget.entry.tmdbId <= 0) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isWatchlistLoading = true;
+      _inWatchlistLocal = !currentStatus;
+    });
+
+    final title = widget.entry.title.trim().isNotEmpty ? widget.entry.title.trim() : 'Title';
+    final repo = ref.read(watchlistRepositoryProvider);
+
+    try {
+      if (currentStatus) {
+        await repo.removeFromWatchlistByTmdbId(widget.entry.tmdbId);
+        ref.invalidate(isInWatchlistProvider(widget.entry.tmdbId));
+        if (mounted) {
+          WHAlert.showSuccess(context, 'Removed "$title" from Watchlist');
+        }
+      } else {
+        final prefilledSuggestorId = widget.isOwnEntry
+            ? null
+            : (widget.entry.suggestedByUserId ?? widget.entry.user?.id);
+        await repo.addToWatchlist(
+          tmdbId: widget.entry.tmdbId,
+          title: title,
+          mediaType: widget.entry.type == 'TV_SHOW' || widget.entry.type == 'tv' ? 'tv' : 'movie',
+          posterPath: widget.entry.posterPath,
+          overview: widget.entry.review,
+          suggestedByUserId: prefilledSuggestorId,
+        );
+        ref.invalidate(isInWatchlistProvider(widget.entry.tmdbId));
+        if (mounted) {
+          WHAlert.showSuccess(context, 'Added "$title" to Watchlist! 📌');
+        }
+      }
+    } catch (e) {
+      ref.invalidate(isInWatchlistProvider(widget.entry.tmdbId));
+      if (mounted) {
+        setState(() {
+          _inWatchlistLocal = currentStatus;
+        });
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to update Watchlist'),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isWatchlistLoading = false);
+      }
+    }
+  }
+
+  void _handleQuickLog() {
+    HapticFeedback.lightImpact();
+    final prefilledSuggestor = widget.isOwnEntry ? null : (widget.entry.suggestedByUser ?? widget.entry.user);
+    final prefilledSuggestorId = widget.isOwnEntry ? null : (widget.entry.suggestedByUserId ?? widget.entry.user?.id);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => AddEntrySheet(
+        prefillTmdbId: widget.entry.tmdbId > 0 ? widget.entry.tmdbId : null,
+        prefillType: widget.entry.type,
+        prefillTitle: widget.entry.title,
+        prefillPosterPath: widget.entry.posterPath,
+        prefillSuggestor: prefilledSuggestor,
+        prefillSuggestedByUserId: prefilledSuggestorId,
+      ),
+    );
+  }
+
+  void _handleQuickSuggest() {
+    HapticFeedback.lightImpact();
+    SuggestMovieModal.show(
+      context,
+      tmdbId: widget.entry.tmdbId > 0 ? widget.entry.tmdbId : null,
+      title: widget.entry.title,
+      mediaType: widget.entry.type == 'TV_SHOW' || widget.entry.type == 'tv' ? 'tv' : 'movie',
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final isLiked = widget.isLiked;
+    final onLike = widget.onLike;
+    final onCommentTap = widget.onCommentTap;
+    final onUserTap = widget.onUserTap;
+    final onMediaTap = widget.onMediaTap;
+
+    final hasValidTmdb = entry.tmdbId > 0;
+    final inWatchlistAsync = hasValidTmdb ? ref.watch(isInWatchlistProvider(entry.tmdbId)) : null;
+    final inWatchlist = _inWatchlistLocal ?? inWatchlistAsync?.valueOrNull ?? false;
+
     final isSuggestion = entry.isSuggestion || entry.user == null;
     final displayName = () {
       if (isSuggestion) return 'WatchersHive';
@@ -181,7 +290,8 @@ class WHFeedCard extends StatelessWidget {
                                     if (sdn != null && sdn.isNotEmpty) return sdn;
                                     final sun = entry.suggestedByUser!.username.trim();
                                     if (sun.isNotEmpty) {
-                                      return sun.startsWith('@') ? sun.substring(1) : sun;
+                                      final rawSun = sun.startsWith('@') ? sun.substring(1) : sun;
+                                      return rawSun.length > 10 ? '${rawSun.substring(0, 10)}...' : rawSun;
                                     }
                                     return 'Friend';
                                   }(),
@@ -242,6 +352,67 @@ class WHFeedCard extends StatelessWidget {
                     color: AppColors.textMuted,
                   ),
                 ),
+                if (!widget.isOwnEntry && !isSuggestion && entry.user != null) ...[
+                  const SizedBox(width: 2),
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert_rounded, size: 18, color: AppColors.textMuted),
+                      padding: EdgeInsets.zero,
+                      color: AppColors.surfaceElevated,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      onSelected: (value) {
+                        if (value == 'report') {
+                          UgcModerationDialog.showReportDialog(
+                            context,
+                            ref,
+                            targetType: 'ENTRY',
+                            targetId: entry.id,
+                            targetTitle: entry.title.isNotEmpty ? entry.title : null,
+                            onReported: () {
+                              ref.read(feedProvider.notifier).removeEntry(entry.id);
+                            },
+                          );
+                        } else if (value == 'block') {
+                          UgcModerationDialog.confirmBlockUser(
+                            context,
+                            ref,
+                            userId: entry.user!.id,
+                            username: displayName,
+                            onBlocked: () {
+                              ref.read(feedProvider.notifier).removeEntriesByUser(entry.user!.id);
+                            },
+                          );
+                        }
+                      },
+                      itemBuilder: (ctx) => [
+                        const PopupMenuItem<String>(
+                          value: 'report',
+                          height: 38,
+                          child: Row(
+                            children: [
+                              Icon(Icons.flag_outlined, size: 16, color: AppColors.error),
+                              SizedBox(width: 8),
+                              Text('Report Post', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem<String>(
+                          value: 'block',
+                          height: 38,
+                          child: Row(
+                            children: [
+                              Icon(Icons.block_rounded, size: 16, color: AppColors.error),
+                              SizedBox(width: 8),
+                              Text('Block User', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -268,38 +439,65 @@ class WHFeedCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: isSuggestion
-                              ? (entry.suggestionReason ?? 'Recommended for You')
-                              : (entry.isWatching
-                                  ? 'Started watching • '
-                                  : (entry.completedAt != null || entry.startedAt != null
-                                      ? 'Completed watching • '
-                                      : (entry.review != null && entry.review!.isNotEmpty ? 'Reviewed • ' : 'Logged • '))),
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12,
-                            fontWeight: isSuggestion ? FontWeight.w600 : FontWeight.w500,
-                            color: isSuggestion ? AppColors.primary : AppColors.textMuted,
-                          ),
-                        ),
-                        if (!isSuggestion)
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text.rich(
                           TextSpan(
-                            text: _formatFullTimestamp(entry.activityDate),
+                            children: [
+                              TextSpan(
+                                text: isSuggestion
+                                    ? (entry.suggestionReason ?? 'Recommended for You')
+                                    : (entry.isWatching
+                                        ? 'Started watching • '
+                                        : (entry.completedAt != null || entry.startedAt != null
+                                            ? 'Completed watching • '
+                                            : (entry.review != null && entry.review!.isNotEmpty ? 'Reviewed • ' : 'Logged • '))),
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12,
+                                  fontWeight: isSuggestion ? FontWeight.w600 : FontWeight.w500,
+                                  color: isSuggestion ? AppColors.primary : AppColors.textMuted,
+                                ),
+                              ),
+                              if (!isSuggestion)
+                                TextSpan(
+                                  text: _formatFullTimestamp(entry.activityDate),
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (entry.watchLocation != null && entry.watchLocation!.trim().isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        PlatformBrandLogo(
+                          platform: entry.watchLocation!.trim(),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            entry.watchLocation!.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontFamily: 'Inter',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textMuted,
                             ),
                           ),
+                        ),
                       ],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    ],
                   ),
                 ),
               ],
@@ -338,15 +536,17 @@ class WHFeedCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            '"${entry.review!}"',
+                            '“${entry.review!.trim()}”',
                             maxLines: 4,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 13,
+                              fontFamily: 'Georgia',
+                              fontFamilyFallback: ['serif'],
+                              fontSize: 14,
                               fontStyle: FontStyle.italic,
                               color: AppColors.textPrimary,
-                              height: 1.4,
+                              height: 1.5,
+                              letterSpacing: 0.15,
                             ),
                           ),
                         ],
@@ -358,21 +558,22 @@ class WHFeedCard extends StatelessWidget {
             ),
           ],
 
-          if (!isSuggestion) ...[
-            const SizedBox(height: 10),
-            const Divider(height: 1, color: AppColors.border),
+          // Action bar
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: AppColors.border),
 
-            // Action bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Row(
-                children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              children: [
+                if (!isSuggestion) ...[
                   WHFeedActionButton(
                     icon: isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                     label: '${entry.likesCount}',
                     color: isLiked ? AppColors.error : AppColors.textMuted,
                     onTap: onLike,
                   ),
+                  const SizedBox(width: 4),
                   WHFeedActionButton(
                     icon: (entry.isCommented || entry.commentsCount > 0)
                         ? Icons.chat_bubble_rounded
@@ -383,44 +584,62 @@ class WHFeedCard extends StatelessWidget {
                         : AppColors.textMuted,
                     onTap: onCommentTap ?? () {},
                   ),
-                  if (entry.watchLocation != null && entry.watchLocation!.trim().isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              PlatformBrandLogo(
-                                platform: entry.watchLocation!.trim(),
-                                size: 14,
-                              ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  entry.watchLocation!.trim(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
-              ),
+                const Spacer(),
+                // Quick Actions: Watchlist, Log Watch, Suggest
+                if (hasValidTmdb)
+                  IconButton(
+                    tooltip: inWatchlist ? 'In Watchlist' : 'Add to Watchlist',
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    splashRadius: 18,
+                    icon: _isWatchlistLoading
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                            ),
+                          )
+                        : Icon(
+                            inWatchlist ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                            size: 19,
+                            color: inWatchlist ? AppColors.primaryDark : AppColors.textMuted,
+                          ),
+                    onPressed: () => _handleWatchlistToggle(inWatchlist),
+                  ),
+                IconButton(
+                  tooltip: 'Log Watch',
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  splashRadius: 18,
+                  icon: const Icon(
+                    Icons.add_task_rounded,
+                    size: 19,
+                    color: AppColors.textMuted,
+                  ),
+                  onPressed: _handleQuickLog,
+                ),
+                if (hasValidTmdb)
+                  IconButton(
+                    tooltip: 'Suggest to Friend',
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    splashRadius: 18,
+                    icon: const Icon(
+                      Icons.send_rounded,
+                      size: 18,
+                      color: AppColors.textMuted,
+                    ),
+                    onPressed: _handleQuickSuggest,
+                  ),
+              ],
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -428,14 +647,17 @@ class WHFeedCard extends StatelessWidget {
 
   String _formatCompactHeaderDate(DateTime date) {
     final now = DateTime.now();
-    final diff = now.difference(date);
-    if (diff.inDays == 0) return DateFormat('h:mm a').format(date.toLocal());
-    if (diff.inDays < 7) return DateFormat('EEE, h:mm a').format(date.toLocal());
-    return DateFormat('MMM d').format(date.toLocal());
+    final effectiveDate = date.isAfter(now) ? now : date;
+    final diff = now.difference(effectiveDate);
+    if (diff.inDays == 0) return DateFormat('h:mm a').format(effectiveDate.toLocal());
+    if (diff.inDays < 7) return DateFormat('EEE, h:mm a').format(effectiveDate.toLocal());
+    return DateFormat('MMM d').format(effectiveDate.toLocal());
   }
 
   String _formatFullTimestamp(DateTime date) {
-    final localDate = date.toLocal();
+    final now = DateTime.now();
+    final effectiveDate = date.isAfter(now) ? now : date;
+    final localDate = effectiveDate.toLocal();
     final dateStr = DateFormat('MMM d, yyyy').format(localDate);
     final timeStr = DateFormat('h:mm a').format(localDate);
     return '$dateStr at $timeStr';
@@ -462,16 +684,17 @@ class WHFeedActionButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 5),
+            Icon(icon, size: 17, color: color),
+            const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
                 fontFamily: 'Inter',
-                fontSize: 13,
+                fontSize: 12,
                 color: color,
                 fontWeight: FontWeight.w500,
               ),

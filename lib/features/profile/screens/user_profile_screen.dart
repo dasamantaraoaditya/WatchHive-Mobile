@@ -61,6 +61,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   bool _isIncomingRequest = false;
   String? _incomingRequestId;
   bool _isActionLoading = false;
+  bool _isBlocked = false;
 
   // Tab content data
   TabController? _tabController;
@@ -132,6 +133,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         watchlistCount: watchlistTotal,
       );
 
+      bool isBlocked = false;
+      try {
+        final blockedIds = await repo.getBlockedUserIds();
+        isBlocked = blockedIds.contains(widget.userId);
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _user = userWithStats;
@@ -139,6 +146,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           _isRequested = user.isRequested;
           _isIncomingRequest = user.isIncomingRequest;
           _incomingRequestId = user.incomingRequestId;
+          _isBlocked = isBlocked;
           _historyEntries = historyRes.entries;
           _watchingEntries = watchingRes.entries;
           _watchlistItems = rawWatchlist;
@@ -436,13 +444,17 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           WHAlert.showInfo(context, origRequested ? 'Follow request cancelled' : 'Unfollowed @${_user!.username}');
         }
       } else {
-        await repo.followUser(_user!.id);
-        final isPrivate = _user!.privacyLevel == 'FOLLOWERS_ONLY' || _user!.privacyLevel == 'PRIVATE' || _user!.isPrivate;
+        final res = await repo.followUser(_user!.id);
+        final status = res['status']?.toString().toLowerCase();
+        final isPrivate = status == 'requested' ||
+            (status == null && (_user!.privacyLevel == 'FOLLOWERS_ONLY' || _user!.privacyLevel == 'PRIVATE' || _user!.isPrivate));
         setState(() {
           if (isPrivate) {
             _isRequested = true;
+            _isFollowing = false;
           } else {
             _isFollowing = true;
+            _isRequested = false;
             _user = _user!.copyWith(followersCount: _user!.followersCount + 1);
           }
         });
@@ -520,6 +532,36 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     }
   }
 
+  Future<void> _handleUnblockUser() async {
+    if (_user == null) return;
+    final confirm = await WHAlert.confirm(
+      context,
+      title: 'Unblock @${_user!.username}?',
+      message: 'Their content and recommendations will appear in your feed again.',
+      confirmText: 'Unblock',
+      severity: WHAlertSeverity.primary,
+      icon: Icons.person_add_rounded,
+    );
+    if (!confirm || !mounted) return;
+    try {
+      final repo = ref.read(userRepositoryProvider);
+      await repo.unblockUser(_user!.id);
+      try {
+        await repo.followUser(_user!.id);
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _isBlocked = false;
+        _isFollowing = true;
+      });
+      _fetchProfile();
+      ref.read(feedProvider.notifier).loadFeed(isRefresh: true);
+      WHAlert.showSuccess(context, 'Unblocked @${_user!.username}');
+    } catch (_) {
+      if (!mounted) return;
+      WHAlert.showError(context, 'Failed to unblock user.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -641,6 +683,67 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                         onSaved: _fetchProfile,
                       );
                     },
+                  ),
+                if (!_isMe && _user != null)
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
+                    color: AppColors.surfaceElevated,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onSelected: (value) async {
+                      if (value == 'report') {
+                        UgcModerationDialog.showReportDialog(
+                          context,
+                          ref,
+                          targetType: 'USER',
+                          targetId: _user!.id,
+                          targetTitle: _user!.displayName ?? '@${_user!.username}',
+                        );
+                      } else if (value == 'block') {
+                        UgcModerationDialog.confirmBlockUser(
+                          context,
+                          ref,
+                          userId: _user!.id,
+                          username: _user!.username,
+                          onBlocked: () {
+                            setState(() => _isBlocked = true);
+                            ref.read(feedProvider.notifier).removeEntriesByUser(_user!.id);
+                          },
+                        );
+                      } else if (value == 'unblock') {
+                        _handleUnblockUser();
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem<String>(
+                        value: 'report',
+                        height: 38,
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag_outlined, size: 16, color: AppColors.error),
+                            SizedBox(width: 8),
+                            Text('Report User', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: _isBlocked ? 'unblock' : 'block',
+                        height: 38,
+                        child: Row(
+                          children: [
+                            Icon(
+                              _isBlocked ? Icons.person_add_rounded : Icons.block_rounded,
+                              size: 16,
+                              color: _isBlocked ? AppColors.primary : AppColors.error,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isBlocked ? 'Unblock User' : 'Block User',
+                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
               ],
             ),
@@ -872,13 +975,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           // Bio
           if (user.bio != null && user.bio!.trim().isNotEmpty) ...[
             Text(
-              '"${user.bio!}"',
+              user.bio!.trim(),
               style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 13,
-                height: 1.4,
-                color: AppColors.textSecondary,
-                fontStyle: FontStyle.italic,
+                fontSize: 13.5,
+                height: 1.45,
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w400,
               ),
             ),
             const SizedBox(height: 14),
@@ -1040,7 +1142,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                     onPressed: _isActionLoading ? null : _handleFollowToggle,
                     icon: Icon(
                       _isFollowing
-                          ? Icons.person_remove_outlined
+                          ? Icons.check_rounded
                           : _isRequested
                               ? Icons.hourglass_top_rounded
                               : Icons.person_add_rounded,
@@ -1084,7 +1186,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                     padding: const EdgeInsets.all(12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  tooltip: 'Suggest a Movie',
+                  tooltip: user.isFollower ? 'Suggest a Movie' : '@${user.username} must follow you to receive suggestions',
                   onPressed: () {
                     SuggestMovieModal.show(
                       context,
@@ -1397,6 +1499,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
             ? addedAtRaw
             : (addedAtRaw is String && addedAtRaw.isNotEmpty ? DateTime.tryParse(addedAtRaw) : null);
 
+        final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
+        final suggestorUsername = suggestedByUser?['username'] as String? ?? item['suggestedByUsername'] as String?;
+        final suggestorAvatar = suggestedByUser?['profilePictureUrl'] as String?;
+
         return WHEntryGridCard(
           tmdbId: tmdbId,
           title: title.isNotEmpty ? title : 'Untitled',
@@ -1404,6 +1510,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           mediaType: mediaType,
           mode: WHEntryCardMode.watchlist,
           addedAt: addedAt,
+          suggestedByUsername: suggestorUsername,
+          suggestedByAvatarUrl: suggestorAvatar,
           onTap: () {
             if (tmdbId > 0) context.push('/details/$mediaType/$tmdbId');
           },
@@ -1487,7 +1595,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title' ? effectiveTitle : cleanTitle,
         'type': mediaType,
         'isWatching': true,
-        'startedAt': DateTime.now().toIso8601String(),
+        'startedAt': DateTime.now().toUtc().toIso8601String(),
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
       });
 

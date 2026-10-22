@@ -24,7 +24,9 @@ class AuthRepository {
       accessToken: data['accessToken'] as String,
       refreshToken: data['refreshToken'] as String,
     );
-    return User.fromJson(data['user'] as Map<String, dynamic>);
+    final user = User.fromJson(data['user'] as Map<String, dynamic>);
+    await _authManager.saveUser(user);
+    return user;
   }
 
   Future<User> register({
@@ -41,7 +43,9 @@ class AuthRepository {
       accessToken: data['accessToken'] as String,
       refreshToken: data['refreshToken'] as String,
     );
-    return User.fromJson(data['user'] as Map<String, dynamic>);
+    final user = User.fromJson(data['user'] as Map<String, dynamic>);
+    await _authManager.saveUser(user);
+    return user;
   }
 
   Future<User> googleSignIn(String idToken) async {
@@ -54,7 +58,36 @@ class AuthRepository {
       accessToken: data['accessToken'] as String,
       refreshToken: data['refreshToken'] as String,
     );
-    return User.fromJson(data['user'] as Map<String, dynamic>);
+    final user = User.fromJson(data['user'] as Map<String, dynamic>);
+    await _authManager.saveUser(user);
+    return user;
+  }
+
+  Future<User> appleSignIn({
+    required String identityToken,
+    required String userIdentifier,
+    String? email,
+    String? givenName,
+    String? familyName,
+  }) async {
+    final response = await _api.post(
+      ApiEndpoints.appleAuth,
+      data: {
+        'identityToken': identityToken,
+        'userIdentifier': userIdentifier,
+        'email': email,
+        'givenName': givenName,
+        'familyName': familyName,
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    await _authManager.saveTokens(
+      accessToken: data['accessToken'] as String,
+      refreshToken: data['refreshToken'] as String,
+    );
+    final user = User.fromJson(data['user'] as Map<String, dynamic>);
+    await _authManager.saveUser(user);
+    return user;
   }
 
   Future<void> logout() async {
@@ -95,6 +128,7 @@ class AuthRepository {
         }
       } catch (_) {}
     }
+    await _authManager.saveUser(user);
     return user;
   }
 }

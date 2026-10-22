@@ -6,6 +6,7 @@ import '../../../core/auth/auth_manager.dart';
 import '../../../core/notifications/push_notification_service.dart';
 import '../../../shared/models/user.dart';
 import '../../notifications/repositories/push_repository.dart';
+import '../../profile/repositories/user_repository.dart';
 import '../repositories/auth_repository.dart';
 
 // Auth state model
@@ -65,6 +66,16 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
     if (!hasSession) return const AuthState(isAuthenticated: false);
 
+    // 1. Fast Path: If we have a cached user profile, restore session IMMEDIATELY (<15ms)
+    final cachedUser = await authManager.getCachedUser();
+    if (cachedUser != null) {
+      // Optimistic instant auth! User enters app immediately.
+      // Refresh profile & follow stats in the background, and verify session validity.
+      unawaited(_refreshUserInBackground());
+      return AuthState(user: cachedUser, isAuthenticated: true);
+    }
+
+    // 2. Fallback Path: Tokens exist but no cached user (e.g. app upgrade or storage reset)
     try {
       final user = await ref.read(authRepositoryProvider).getMe();
       unawaited(syncDeviceToken());
@@ -83,6 +94,27 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     }
   }
 
+  Future<void> _refreshUserInBackground() async {
+    final authManager = ref.read(authManagerProvider);
+    try {
+      final user = await ref.read(authRepositoryProvider).getMe();
+      await authManager.saveUser(user);
+      state = AsyncData(
+        state.value?.copyWith(user: user, isAuthenticated: true) ??
+            AuthState(user: user, isAuthenticated: true),
+      );
+      unawaited(syncDeviceToken());
+    } catch (e) {
+      if (e is DioException &&
+          (e.response?.statusCode == 401 || e.response?.statusCode == 403)) {
+        await authManager.logout();
+        state = const AsyncData(AuthState(isAuthenticated: false));
+      } else {
+        unawaited(syncDeviceToken());
+      }
+    }
+  }
+
   Future<void> syncDeviceToken() async {
     try {
       final token = await PushNotificationService.instance.getOrFetchToken();
@@ -97,14 +129,17 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
   Future<void> login({required String email, required String password}) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final user = await ref.read(authRepositoryProvider).login(
             email: email,
             password: password,
           );
       unawaited(syncDeviceToken());
-      return AuthState(user: user, isAuthenticated: true);
-    });
+      state = AsyncData(AuthState(user: user, isAuthenticated: true));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   Future<void> register({
@@ -113,24 +148,54 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     required String password,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final user = await ref.read(authRepositoryProvider).register(
             username: username,
             email: email,
             password: password,
           );
       unawaited(syncDeviceToken());
-      return AuthState(user: user, isAuthenticated: true);
-    });
+      state = AsyncData(AuthState(user: user, isAuthenticated: true));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   Future<void> googleSignIn(String idToken) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final user = await ref.read(authRepositoryProvider).googleSignIn(idToken);
       unawaited(syncDeviceToken());
-      return AuthState(user: user, isAuthenticated: true);
-    });
+      state = AsyncData(AuthState(user: user, isAuthenticated: true));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
+  }
+
+  Future<void> appleSignIn({
+    required String identityToken,
+    required String userIdentifier,
+    String? email,
+    String? givenName,
+    String? familyName,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      final user = await ref.read(authRepositoryProvider).appleSignIn(
+            identityToken: identityToken,
+            userIdentifier: userIdentifier,
+            email: email,
+            givenName: givenName,
+            familyName: familyName,
+          );
+      unawaited(syncDeviceToken());
+      state = AsyncData(AuthState(user: user, isAuthenticated: true));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   Future<void> logout() async {
@@ -144,7 +209,20 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     state = const AsyncData(AuthState(isAuthenticated: false));
   }
 
+  Future<void> deleteAccount() async {
+    final token = PushNotificationService.instance.currentToken;
+    if (token != null && token.isNotEmpty) {
+      try {
+        await ref.read(pushRepositoryProvider).unregisterDeviceToken(token);
+      } catch (_) {}
+    }
+    await ref.read(userRepositoryProvider).deleteAccount();
+    await ref.read(authManagerProvider).logout();
+    state = const AsyncData(AuthState(isAuthenticated: false));
+  }
+
   void updateUser(User updatedUser) {
+    unawaited(ref.read(authManagerProvider).saveUser(updatedUser));
     state = AsyncData(
       state.value!.copyWith(user: updatedUser, isAuthenticated: true),
     );

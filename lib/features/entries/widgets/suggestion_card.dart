@@ -77,7 +77,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
         'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' ? effectiveTitle : cleanTitle,
         'type': isTv ? 'TV_SHOW' : 'MOVIE',
         'isWatching': true,
-        'startedAt': DateTime.now().toIso8601String(),
+        'startedAt': DateTime.now().toUtc().toIso8601String(),
         if (firstSuggestor != null) 'suggestedByUserId': firstSuggestor.id,
       });
 
@@ -236,14 +236,20 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
         ? (widget.group.recipients.isNotEmpty ? widget.group.recipients.first : null)
         : (widget.group.suggestors.isNotEmpty ? widget.group.suggestors.first : null);
 
+    final String? truncatedUsername = displayUser != null
+        ? (displayUser.username.length > 10
+            ? '${displayUser.username.substring(0, 10)}...'
+            : displayUser.username)
+        : null;
+
     final String? userDisplay = displayUser != null
         ? (widget.isSent
             ? (widget.group.recipients.length > 1
-                ? 'To: @${displayUser.username} (+${widget.group.recipients.length - 1})'
-                : 'To: @${displayUser.username}')
+                ? 'To: @$truncatedUsername (+${widget.group.recipients.length - 1})'
+                : 'To: @$truncatedUsername')
             : (widget.group.suggestors.length > 1
-                ? '${displayUser.username} (+${widget.group.suggestors.length - 1})'
-                : displayUser.username))
+                ? '$truncatedUsername (+${widget.group.suggestors.length - 1})'
+                : truncatedUsername))
         : null;
 
     final firstSuggestion = widget.group.suggestions.isNotEmpty ? widget.group.suggestions.first : null;

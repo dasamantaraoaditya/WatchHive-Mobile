@@ -76,7 +76,7 @@ void main() {
     expect(find.textContaining('Movie Buff'), findsOneWidget);
 
     // Verify Review
-    expect(find.text('"The first rule of Fight Club is you do not talk about Fight Club."'), findsOneWidget);
+    expect(find.text('“The first rule of Fight Club is you do not talk about Fight Club.”'), findsOneWidget);
 
     // Verify like & comments count
     expect(find.text('42'), findsOneWidget);

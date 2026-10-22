@@ -25,6 +25,7 @@ import '../repositories/watchlist_repository.dart';
 import '../../rankings/widgets/add_to_stack_sheet.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../widgets/platform_logo_badge.dart';
+import '../widgets/add_to_watchlist_sheet.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -53,6 +54,12 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   List<MediaResult> _recommendations = [];
   bool _isLoading = true;
   String? _error;
+  late bool _effectiveIsTv;
+
+  bool get _isTv {
+    final t = widget.mediaType.trim().toLowerCase();
+    return t == 'tv' || t == 'tv_show' || t == 'series';
+  }
 
   // Logged Watch Entry & Review State
   Entry? _loggedEntry;
@@ -63,6 +70,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   bool _inWatchlist = false;
   bool _isWatchlistLoading = false;
   bool _isTransitioning = false;
+  User? _watchlistSuggestedByUser;
+  String? _watchlistSuggestedByUserId;
 
   // TV Seasons Drill-Down State
   int? _selectedSeasonNumber;
@@ -73,6 +82,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    _effectiveIsTv = _isTv;
     _loggedEntry = widget.initialEntry;
     _authorUser = widget.authorUser ?? widget.initialEntry?.user;
     _loadInitialData();
@@ -134,15 +144,51 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
 
   Future<void> _checkWatchlistStatus() async {
     try {
-      final inList = await ref.read(watchlistRepositoryProvider).isInWatchlist(widget.tmdbId);
-      if (mounted) setState(() => _inWatchlist = inList);
+      final data = await ref.read(watchlistRepositoryProvider).getWatchlist();
+      final items = data['items'] as List<dynamic>? ?? [];
+      final match = items.firstWhere(
+        (it) => (it['tmdbId'] as num?)?.toInt() == widget.tmdbId || it['tmdbId'].toString() == widget.tmdbId.toString(),
+        orElse: () => null,
+      );
+      if (mounted) {
+        setState(() {
+          _inWatchlist = match != null;
+          if (match != null) {
+            final userMap = match['suggestedByUser'] as Map<String, dynamic>?;
+            final uid = match['suggestedByUserId'] as String? ?? userMap?['id'] as String?;
+            final uname = userMap?['username'] as String? ?? match['suggestedByUsername'] as String?;
+            if (_watchlistSuggestedByUser == null && userMap != null) {
+              try {
+                _watchlistSuggestedByUser = User.fromJson(userMap);
+              } catch (_) {
+                _watchlistSuggestedByUser = User(
+                  id: uid ?? '',
+                  username: uname ?? '',
+                  displayName: userMap['displayName'] as String?,
+                  profilePictureUrl: userMap['profilePictureUrl'] as String?,
+                  createdAt: DateTime.now(),
+                );
+              }
+            } else if (_watchlistSuggestedByUser == null && uname != null && uname.isNotEmpty) {
+              _watchlistSuggestedByUser = User(
+                id: uid ?? '',
+                username: uname,
+                createdAt: DateTime.now(),
+              );
+            }
+            if (_watchlistSuggestedByUserId == null && uid != null && uid.isNotEmpty) {
+              _watchlistSuggestedByUserId = uid;
+            }
+          }
+        });
+      }
     } catch (_) {}
   }
 
   Future<void> _loadRecommendations() async {
     try {
       final recs = await ref.read(searchRepositoryProvider).getRecommendations(
-        widget.mediaType == 'tv' ? 'tv' : 'movie',
+        _effectiveIsTv ? 'tv' : 'movie',
         widget.tmdbId,
       );
       if (mounted) setState(() => _recommendations = recs);
@@ -152,18 +198,34 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   Future<void> _loadDetails() async {
     try {
       final repo = ref.read(searchRepositoryProvider);
-      final details = widget.mediaType == 'tv'
-          ? await repo.getTvDetails(widget.tmdbId)
-          : await repo.getMovieDetails(widget.tmdbId);
+      Map<String, dynamic> details;
+      bool isTv = _effectiveIsTv;
+
+      try {
+        details = isTv
+            ? await repo.getTvDetails(widget.tmdbId)
+            : await repo.getMovieDetails(widget.tmdbId);
+      } catch (initialError) {
+        // Fallback: If requested type fails (e.g. 404 TMDb ID mismatch), attempt alternate media type
+        try {
+          details = isTv
+              ? await repo.getMovieDetails(widget.tmdbId)
+              : await repo.getTvDetails(widget.tmdbId);
+          isTv = !isTv;
+        } catch (_) {
+          throw initialError;
+        }
+      }
 
       if (mounted) {
         setState(() {
+          _effectiveIsTv = isTv;
           _details = details;
           _isLoading = false;
         });
 
         // Initialize first TV season if TV show
-        if (widget.mediaType == 'tv') {
+        if (isTv) {
           final seasons = details['seasons'] as List<dynamic>? ?? [];
           if (seasons.isNotEmpty) {
             final validSeason = seasons.firstWhere(
@@ -226,17 +288,18 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
           WHAlert.showSuccess(context, 'Removed "$title" from Watchlist');
         }
       } else {
-        await ref.read(watchlistRepositoryProvider).addToWatchlist(
+        final added = await AddToWatchlistSheet.show(
+          context,
           tmdbId: widget.tmdbId,
           title: title,
-          mediaType: widget.mediaType,
+          mediaType: _effectiveIsTv ? 'tv' : 'movie',
           posterPath: _details?['poster_path'] as String?,
           overview: _details?['overview'] as String?,
-          suggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id,
+          prefillSuggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id ?? _watchlistSuggestedByUserId ?? _watchlistSuggestedByUser?.id,
+          prefillSuggestedByUser: widget.suggestedByUser ?? _watchlistSuggestedByUser,
         );
-        setState(() => _inWatchlist = true);
-        if (mounted) {
-          WHAlert.showSuccess(context, 'Added "$title" to your Watchlist! 📌');
+        if (added == true && mounted) {
+          setState(() => _inWatchlist = true);
         }
       }
     } catch (e) {
@@ -252,7 +315,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     final rawTitle = (_details?['title'] ?? _details?['name'])?.toString().trim();
     final title = (rawTitle != null && rawTitle.isNotEmpty && rawTitle != 'Untitled')
         ? rawTitle
-        : (widget.mediaType == 'tv' ? 'this TV show' : 'this movie');
+        : (_effectiveIsTv ? 'this TV show' : 'this movie');
     final confirmed = await WHAlert.confirm(
       context,
       title: 'Log as Currently Watching',
@@ -268,10 +331,10 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       final entry = await ref.read(entriesRepositoryProvider).createEntry({
         'tmdbId': widget.tmdbId,
         'title': title,
-        'type': widget.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
+        'type': _effectiveIsTv ? 'TV_SHOW' : 'MOVIE',
         'isWatching': true,
-        'startedAt': DateTime.now().toIso8601String(),
-        'suggestedByUserId': widget.suggestedByUserId ?? widget.suggestedByUser?.id,
+        'startedAt': DateTime.now().toUtc().toIso8601String(),
+        'suggestedByUserId': widget.suggestedByUserId ?? widget.suggestedByUser?.id ?? _watchlistSuggestedByUserId ?? _watchlistSuggestedByUser?.id,
       });
 
       ref.read(entriesProvider(true).notifier).addEntry(entry);
@@ -296,13 +359,15 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     }
   }
 
-  void _logEntry() {
+  void _logEntry({bool completeWatch = false}) {
     final details = _details;
     if (details == null) return;
 
     final entryToEdit = _isMyEntry ? _loggedEntry : _myOwnEntry;
     final title = (details['title'] ?? details['name'] ?? details['original_title'] ?? details['original_name'])?.toString().trim();
     final posterPath = details['poster_path'] as String?;
+    final effectiveSuggestor = widget.suggestedByUser ?? _watchlistSuggestedByUser;
+    final effectiveSuggestorId = widget.suggestedByUserId ?? _watchlistSuggestedByUserId ?? effectiveSuggestor?.id;
 
     showModalBottomSheet(
       context: context,
@@ -312,11 +377,12 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       builder: (_) => AddEntrySheet(
         editEntry: entryToEdit,
         prefillTmdbId: widget.tmdbId,
-        prefillType: widget.mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
+        prefillType: _effectiveIsTv ? 'TV_SHOW' : 'MOVIE',
         prefillTitle: title,
         prefillPosterPath: posterPath,
-        prefillSuggestor: widget.suggestedByUser,
-        prefillSuggestedByUserId: widget.suggestedByUserId,
+        prefillSuggestor: effectiveSuggestor,
+        prefillSuggestedByUserId: effectiveSuggestorId,
+        prefillIsWatching: completeWatch ? false : null,
         onSuccess: () {
           _checkUserEntry();
         },
@@ -372,14 +438,14 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       builder: (_) => SuggestMovieModal(
         tmdbId: widget.tmdbId,
         title: title,
-        mediaType: widget.mediaType,
+        mediaType: _effectiveIsTv ? 'tv' : 'movie',
       ),
     );
   }
 
   void _shareMovie() {
     final title = (_details?['title'] ?? _details?['name'] ?? 'Movie/Show').toString();
-    final url = WebUrls.movieDetails(widget.mediaType, widget.tmdbId);
+    final url = WebUrls.movieDetails(_effectiveIsTv ? 'tv' : 'movie', widget.tmdbId);
     Share.share(
       'Check out "$title" on WatchersHive! Track movies, series & anime together 🎬🐝\n\n$url',
       subject: 'WatchersHive: $title',
@@ -387,7 +453,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   }
 
   String _formatCategoryLabel() {
-    if (_details == null) return widget.mediaType == 'tv' ? '📺 TV Series' : '🎬 Feature Film';
+    if (_details == null) return _effectiveIsTv ? '📺 TV Series' : '🎬 Feature Film';
     final genres = (_details!['genres'] as List<dynamic>? ?? [])
         .map((g) => (g['name'] as String? ?? '').toLowerCase())
         .toList();
@@ -400,9 +466,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
 
     if (isDoc) return '📽️ Documentary';
     if (isAnimation && (lang == 'ja' || countries.contains('JP'))) return '🎌 Anime';
-    if (widget.mediaType == 'tv' && (lang == 'ko' || countries.contains('KR'))) return '🇰🇷 K-Drama';
-    if (widget.mediaType == 'tv' && (lang == 'ja' || countries.contains('JP')) && !isAnimation) return '🇯🇵 J-Drama';
-    if (widget.mediaType == 'tv') {
+    if (_effectiveIsTv && (lang == 'ko' || countries.contains('KR'))) return '🇰🇷 K-Drama';
+    if (_effectiveIsTv && (lang == 'ja' || countries.contains('JP')) && !isAnimation) return '🇯🇵 J-Drama';
+    if (_effectiveIsTv) {
       final seasons = (_details!['number_of_seasons'] as num?)?.toInt() ?? 1;
       if (seasons == 1) return '⚡ Miniseries / Limited';
       return '📺 TV Series';
@@ -765,41 +831,59 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                             ),
                             const SizedBox(width: 10),
 
-                            // Log Watch or Edit Log
+                            // Log Watch, Edit Log, or Complete Watch
                             Builder(
                               builder: (context) {
                                 final activeSelfEntry = _isMyEntry ? _loggedEntry : _myOwnEntry;
-                                final isLoggedByMe = activeSelfEntry != null;
+                                final isCurrentlyWatching = activeSelfEntry != null && activeSelfEntry.isWatching;
+                                final isCompletedLog = activeSelfEntry != null && !activeSelfEntry.isWatching;
                                 final selfRating = activeSelfEntry?.rating;
 
                                 return Expanded(
                                   child: ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: isLoggedByMe
+                                      backgroundColor: isCurrentlyWatching
                                           ? AppColors.primary
-                                          : AppColors.textPrimary,
-                                      foregroundColor: isLoggedByMe
+                                          : (isCompletedLog
+                                              ? AppColors.surfaceElevated
+                                              : AppColors.textPrimary),
+                                      foregroundColor: isCurrentlyWatching
                                           ? Colors.black
-                                          : Colors.white,
+                                          : (isCompletedLog
+                                              ? AppColors.primaryDark
+                                              : Colors.white),
+                                      side: isCompletedLog
+                                          ? BorderSide(color: AppColors.primaryDark.withValues(alpha: 0.35))
+                                          : null,
                                       elevation: 0,
                                       padding: const EdgeInsets.symmetric(vertical: 13),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                     ),
                                     onPressed: () {
                                       HapticFeedback.lightImpact();
-                                      _logEntry();
+                                      if (isCurrentlyWatching) {
+                                        _logEntry(completeWatch: true);
+                                      } else {
+                                        _logEntry();
+                                      }
                                     },
                                     icon: Icon(
-                                      isLoggedByMe ? Icons.check_circle_rounded : Icons.edit_note_rounded,
+                                      isCurrentlyWatching
+                                          ? Icons.task_alt_rounded
+                                          : (isCompletedLog ? Icons.check_circle_rounded : Icons.edit_note_rounded),
                                       size: 20,
-                                      color: isLoggedByMe ? Colors.black : AppColors.primary,
+                                      color: isCurrentlyWatching
+                                          ? Colors.black
+                                          : (isCompletedLog ? AppColors.primaryDark : AppColors.primary),
                                     ),
                                     label: Text(
-                                      isLoggedByMe
-                                          ? (selfRating != null && selfRating > 0
-                                              ? 'Logged (⭐ ${selfRating.toStringAsFixed(1)})'
-                                              : 'Logged ✓')
-                                          : 'Log Watch',
+                                      isCurrentlyWatching
+                                          ? 'Complete Watch'
+                                          : (isCompletedLog
+                                              ? (selfRating != null && selfRating > 0
+                                                  ? 'Logged (⭐ ${selfRating.toStringAsFixed(1)})'
+                                                  : 'Logged ✓')
+                                              : 'Log Watch'),
                                       style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w800, fontSize: 12),
                                     ),
                                   ),
@@ -974,7 +1058,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                     tmdbId: widget.tmdbId,
                                     title: title,
                                     posterPath: posterPath,
-                                    mediaType: widget.mediaType,
+                                    mediaType: _effectiveIsTv ? 'tv' : 'movie',
                                   );
                                 },
                                 icon: const Icon(Icons.format_list_numbered_rounded, size: 16, color: AppColors.primaryDark),
@@ -1281,7 +1365,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                   ],
 
                   // TV Seasons & Episode Drill Down
-                  if (widget.mediaType == 'tv' && seasons.isNotEmpty) ...[
+                  if (_effectiveIsTv && seasons.isNotEmpty) ...[
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -1603,18 +1687,26 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
             child: Row(
               children: [
                 Icon(
-                  isMe ? Icons.rate_review_rounded : Icons.person_pin_rounded,
+                  entry.isWatching
+                      ? Icons.visibility_rounded
+                      : (isMe ? Icons.rate_review_rounded : Icons.person_pin_rounded),
                   size: 16,
-                  color: isMe ? AppColors.primaryDark : const Color(0xFF818CF8),
+                  color: entry.isWatching
+                      ? const Color(0xFF60A5FA)
+                      : (isMe ? AppColors.primaryDark : const Color(0xFF818CF8)),
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isMe ? 'Your Watch Entry & Review' : "$authorName's Watch Entry",
+                  entry.isWatching
+                      ? (isMe ? 'Currently Watching 👁️' : "$authorName is Currently Watching")
+                      : (isMe ? 'Your Watch Entry & Review' : "$authorName's Watch Entry"),
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
-                    color: isMe ? AppColors.primaryDark : const Color(0xFF818CF8),
+                    color: entry.isWatching
+                        ? const Color(0xFF60A5FA)
+                        : (isMe ? AppColors.primaryDark : const Color(0xFF818CF8)),
                   ),
                 ),
                 const Spacer(),
@@ -1622,6 +1714,32 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (entry.isWatching) ...[
+                        InkWell(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            _logEntry(completeWatch: true);
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.task_alt_rounded, size: 13, color: AppColors.primaryDark),
+                                SizedBox(width: 4),
+                                Text('Complete', style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
                       InkWell(
                         onTap: () {
                           HapticFeedback.lightImpact();
@@ -1806,6 +1924,21 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         const SizedBox(width: 10),
                         Container(height: 18, width: 1, color: AppColors.border),
                         const SizedBox(width: 10),
+                      ] else if (entry.isWatching) ...[
+                        const Icon(Icons.visibility_rounded, size: 18, color: Color(0xFF60A5FA)),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Currently Watching',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF93C5FD),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(height: 18, width: 1, color: AppColors.border),
+                        const SizedBox(width: 10),
                       ] else ...[
                         const Icon(Icons.check_circle_outline_rounded, size: 18, color: Colors.greenAccent),
                         const SizedBox(width: 6),
@@ -1913,8 +2046,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         Text(
                           entry.review!.trim(),
                           style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13.5,
+                            fontSize: 14,
                             height: 1.55,
                             color: AppColors.textPrimary,
                           ),
@@ -2033,10 +2165,16 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.primary),
+                        Icon(
+                          _myOwnEntry!.isWatching ? Icons.visibility_rounded : Icons.check_circle_rounded,
+                          size: 16,
+                          color: _myOwnEntry!.isWatching ? const Color(0xFF60A5FA) : AppColors.primary,
+                        ),
                         const SizedBox(width: 8),
                         Text(
-                          'You also watched this: ⭐ ${_myOwnEntry!.rating != null ? _myOwnEntry!.rating!.toStringAsFixed(1) : 'Watched'}',
+                          _myOwnEntry!.isWatching
+                              ? 'You are currently watching this'
+                              : 'You also watched this: ⭐ ${_myOwnEntry!.rating != null ? _myOwnEntry!.rating!.toStringAsFixed(1) : 'Watched'}',
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,
@@ -2048,11 +2186,15 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         InkWell(
                           onTap: () {
                             HapticFeedback.lightImpact();
-                            _logEntry();
+                            if (_myOwnEntry!.isWatching) {
+                              _logEntry(completeWatch: true);
+                            } else {
+                              _logEntry();
+                            }
                           },
-                          child: const Text(
-                            'Edit Yours',
-                            style: TextStyle(
+                          child: Text(
+                            _myOwnEntry!.isWatching ? 'Complete Watch' : 'Edit Yours',
+                            style: const TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 12,
                               fontWeight: FontWeight.w800,

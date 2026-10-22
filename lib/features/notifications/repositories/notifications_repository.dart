@@ -27,13 +27,15 @@ class PendingFollowRequest {
   String get name => (displayName != null && displayName!.trim().isNotEmpty) ? displayName! : username;
 
   factory PendingFollowRequest.fromJson(Map<String, dynamic> json) {
-    final requester = json['requester'] is Map<String, dynamic>
-        ? json['requester'] as Map<String, dynamic>
-        : (json['user'] is Map<String, dynamic> ? json['user'] as Map<String, dynamic> : json);
+    final requester = json['sender'] is Map<String, dynamic>
+        ? json['sender'] as Map<String, dynamic>
+        : (json['requester'] is Map<String, dynamic>
+            ? json['requester'] as Map<String, dynamic>
+            : (json['user'] is Map<String, dynamic> ? json['user'] as Map<String, dynamic> : json));
 
     return PendingFollowRequest(
       id: json['id']?.toString() ?? '',
-      requesterId: requester['id']?.toString() ?? json['requesterId']?.toString() ?? '',
+      requesterId: requester['id']?.toString() ?? json['senderId']?.toString() ?? json['requesterId']?.toString() ?? '',
       username: requester['username'] as String? ?? 'user',
       displayName: requester['displayName'] as String?,
       profilePictureUrl: requester['profilePictureUrl'] as String?,

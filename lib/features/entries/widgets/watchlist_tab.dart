@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/watchlist_repository.dart';
 import '../repositories/entries_repository.dart';
@@ -26,6 +27,15 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
   List<dynamic> _items = [];
   bool _isLoading = true;
   String? _error;
+  String _searchQuery = '';
+  String _sortBy = 'recent-desc';
+
+  static const _watchlistSortOptions = [
+    WHSortOption(value: 'recent-desc', label: 'Recently Added'),
+    WHSortOption(value: 'recent-asc', label: 'Oldest Added'),
+    WHSortOption(value: 'title-asc', label: 'Title: A-Z'),
+    WHSortOption(value: 'title-desc', label: 'Title: Z-A'),
+  ];
 
   @override
   void initState() {
@@ -182,6 +192,28 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     final mediaType = isTv ? 'TV_SHOW' : 'MOVIE';
     final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
     final suggestedByUserId = item['suggestedByUserId'] as String? ?? suggestedByUser?['id'] as String?;
+    final suggestorUsername = suggestedByUser?['username'] as String? ?? item['suggestedByUsername'] as String?;
+
+    User? parsedSuggestor;
+    if (suggestedByUser != null) {
+      try {
+        parsedSuggestor = User.fromJson(suggestedByUser);
+      } catch (_) {
+        parsedSuggestor = User(
+          id: suggestedByUserId ?? '',
+          username: suggestorUsername ?? '',
+          displayName: suggestedByUser['displayName'] as String?,
+          profilePictureUrl: suggestedByUser['profilePictureUrl'] as String?,
+          createdAt: DateTime.now(),
+        );
+      }
+    } else if (suggestorUsername != null || suggestedByUserId != null) {
+      parsedSuggestor = User(
+        id: suggestedByUserId ?? '',
+        username: suggestorUsername ?? '',
+        createdAt: DateTime.now(),
+      );
+    }
 
     String effectiveTitle = (resolvedTitle != null && resolvedTitle.trim().isNotEmpty && resolvedTitle != 'Untitled' && resolvedTitle.toLowerCase() != 'this title')
         ? resolvedTitle.trim()
@@ -222,7 +254,8 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
             ? effectiveTitle
             : null,
         prefillPosterPath: (item['posterPath'] ?? item['poster_path']) as String?,
-        prefillSuggestedByUserId: suggestedByUserId,
+        prefillSuggestor: parsedSuggestor,
+        prefillSuggestedByUserId: suggestedByUserId ?? parsedSuggestor?.id,
         onSuccess: () {
           ref.read(watchlistRepositoryProvider).removeFromWatchlist(
             tmdbId > 0 ? tmdbId : itemId,
@@ -294,7 +327,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
         'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title' ? effectiveTitle : cleanTitle,
         'type': mediaType,
         'isWatching': true,
-        'startedAt': DateTime.now().toIso8601String(),
+        'startedAt': DateTime.now().toUtc().toIso8601String(),
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
       });
 
@@ -323,129 +356,240 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const WHSkeletonGrid();
-    }
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.cloud_off_rounded, size: 48, color: AppColors.textMuted),
-              const SizedBox(height: 14),
-              const Text(
-                'Could not load your Watchlist',
-                style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
-              ),
-              const SizedBox(height: 18),
-              ElevatedButton.icon(
-                onPressed: _fetchWatchlist,
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                ),
-                label: const Text('Tap to Retry', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    if (_items.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.bookmark_border, size: 48, color: AppColors.textMuted),
-            SizedBox(height: 12),
-            Text(
-              'Your Watchlist is empty',
-              style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-            ),
-            SizedBox(height: 6),
-            Text(
-              'Save movies & shows you want to watch later.',
-              style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-            ),
-          ],
-        ),
-      );
-    }
+    final filteredItems = _items.where((raw) {
+      if (_searchQuery.isEmpty) return true;
+      final item = raw as Map<String, dynamic>;
+      final title = (item['title'] as String? ?? '').toLowerCase();
+      final user = item['suggestedByUser'] as Map<String, dynamic>?;
+      final suggestor = (user?['username'] as String? ?? item['suggestedByUsername'] as String? ?? '').toLowerCase();
+      final q = _searchQuery.toLowerCase();
+      return title.contains(q) || suggestor.contains(q);
+    }).toList();
 
-    return RefreshIndicator(
-      onRefresh: _fetchWatchlist,
-      color: AppColors.primary,
-      child: GridView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 14,
-          crossAxisSpacing: 14,
-          childAspectRatio: 0.63,
+    filteredItems.sort((aRaw, bRaw) {
+      final a = aRaw as Map<String, dynamic>;
+      final b = bRaw as Map<String, dynamic>;
+      final parts = _sortBy.split('-');
+      final field = parts[0];
+      final order = parts.length > 1 ? parts[1] : 'desc';
+
+      if (field == 'recent') {
+        final aDateRaw = a['addedAt'] ?? a['createdAt'] ?? a['updatedAt'];
+        final bDateRaw = b['addedAt'] ?? b['createdAt'] ?? b['updatedAt'];
+        final aDate = aDateRaw is DateTime ? aDateRaw : (aDateRaw is String ? DateTime.tryParse(aDateRaw) : null);
+        final bDate = bDateRaw is DateTime ? bDateRaw : (bDateRaw is String ? DateTime.tryParse(bDateRaw) : null);
+        final aMillis = aDate?.millisecondsSinceEpoch ?? 0;
+        final bMillis = bDate?.millisecondsSinceEpoch ?? 0;
+        return order == 'desc' ? bMillis.compareTo(aMillis) : aMillis.compareTo(bMillis);
+      } else if (field == 'title') {
+        final aTitle = (a['title'] as String? ?? '').toLowerCase();
+        final bTitle = (b['title'] as String? ?? '').toLowerCase();
+        return order == 'desc' ? bTitle.compareTo(aTitle) : aTitle.compareTo(bTitle);
+      }
+      return 0;
+    });
+
+    return Column(
+      children: [
+        WHFilterBar(
+          search: _searchQuery,
+          onSearchChanged: (val) => setState(() => _searchQuery = val),
+          placeholder: 'Search your watchlist...',
+          sortBy: _sortBy,
+          sortOptions: _watchlistSortOptions,
+          onSortChanged: (val) => setState(() => _sortBy = val),
+          count: filteredItems.length,
+          countLabel: _searchQuery.isNotEmpty ? 'Matching Titles' : 'Saved Titles',
         ),
-        itemCount: _items.length,
-        itemBuilder: (ctx, i) {
-          final item = _items[i] as Map<String, dynamic>;
-          final itemId = item['id'] as String;
-          final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
-          final title = item['title'] as String? ?? 'Untitled';
-          final posterPath = item['posterPath'] as String?;
-          final mediaType = item['mediaType'] == 'tv' ? 'tv' : 'movie';
-          final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
-          final suggestorUsername = suggestedByUser?['username'] as String? ?? item['suggestedByUsername'] as String?;
-          final addedAtRaw = item['addedAt'] ?? item['createdAt'] ?? item['updatedAt'];
-          final addedAt = addedAtRaw is DateTime
-              ? addedAtRaw
-              : (addedAtRaw is String && addedAtRaw.isNotEmpty ? DateTime.tryParse(addedAtRaw) : null);
+        Expanded(
+          child: _isLoading
+              ? const WHSkeletonGrid(
+                  padding: EdgeInsets.fromLTRB(16, 6, 16, 16),
+                )
+              : _error != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.cloud_off_rounded, size: 48, color: AppColors.textMuted),
+                            const SizedBox(height: 14),
+                            const Text(
+                              'Could not load your Watchlist',
+                              style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _error!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
+                            ),
+                            const SizedBox(height: 18),
+                            ElevatedButton.icon(
+                              onPressed: _fetchWatchlist,
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.black,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              ),
+                              label: const Text('Tap to Retry', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : filteredItems.isEmpty
+                      ? RefreshIndicator(
+                          onRefresh: _fetchWatchlist,
+                          color: AppColors.primary,
+                          child: SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: Container(
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.all(32),
+                              height: MediaQuery.of(context).size.height * 0.60,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    _searchQuery.isNotEmpty ? Icons.search_off_rounded : Icons.bookmark_border,
+                                    size: 48,
+                                    color: AppColors.textMuted,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    _searchQuery.isNotEmpty ? 'No matching watchlist items' : 'Your Watchlist is empty',
+                                    style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _searchQuery.isNotEmpty
+                                        ? 'No items in your watchlist match "$_searchQuery"'
+                                        : 'Save movies & shows you want to watch later.',
+                                    style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _fetchWatchlist,
+                          color: AppColors.primary,
+                          child: CustomScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            slivers: [
+                              SliverPadding(
+                                padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+                                sliver: SliverGrid(
+                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    mainAxisSpacing: 14,
+                                    crossAxisSpacing: 14,
+                                    childAspectRatio: 0.63,
+                                  ),
+                                  delegate: SliverChildBuilderDelegate(
+                                    (ctx, i) {
+                                      final item = filteredItems[i] as Map<String, dynamic>;
+                                      final itemId = item['id'] as String;
+                                      final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
+                                      final title = item['title'] as String? ?? 'Untitled';
+                                      final posterPath = item['posterPath'] as String?;
+                                      final mediaType = item['mediaType'] == 'tv' ? 'tv' : 'movie';
+                                      final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
+                                      final suggestorUsername = suggestedByUser?['username'] as String? ?? item['suggestedByUsername'] as String?;
+                                      final addedAtRaw = item['addedAt'] ?? item['createdAt'] ?? item['updatedAt'];
+                                      final addedAt = addedAtRaw is DateTime
+                                          ? addedAtRaw
+                                          : (addedAtRaw is String && addedAtRaw.isNotEmpty ? DateTime.tryParse(addedAtRaw) : null);
 
-          return WHEntryGridCard(
-            tmdbId: tmdbId,
-            title: title,
-            initialPosterPath: posterPath,
-            mediaType: mediaType,
-            mode: WHEntryCardMode.watchlist,
-            addedAt: addedAt,
-            suggestedByUsername: suggestorUsername,
-            onTap: () {
-              if (tmdbId > 0) context.push('/details/$mediaType/$tmdbId');
-            },
-            onMoveToWatchingWithTitle: (resolvedTitle) => _addToCurrentlyWatching(
-              item,
-              resolvedTitle: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
-            ),
-            onMoveToWatching: () => _addToCurrentlyWatching(item, resolvedTitle: title),
-            onMarkWatchedWithTitle: (resolvedTitle) => _logWatchlistItem(
-              item,
-              resolvedTitle: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
-            ),
-            onMarkWatched: () => _logWatchlistItem(item, resolvedTitle: title),
-            onDeleteWithTitle: (resolvedTitle) => _removeItem(
-              tmdbId: tmdbId,
-              title: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
-              itemId: itemId,
-              mediaType: mediaType,
-            ),
-            onDelete: () => _removeItem(
-              tmdbId: tmdbId,
-              title: title,
-              itemId: itemId,
-              mediaType: mediaType,
-            ),
-          );
+                                      return WHEntryGridCard(
+                                        tmdbId: tmdbId,
+                                        title: title,
+                                        initialPosterPath: posterPath,
+                                        mediaType: mediaType,
+                                        mode: WHEntryCardMode.watchlist,
+                                        addedAt: addedAt,
+                                        suggestedByUsername: suggestorUsername,
+                                        suggestedByAvatarUrl: suggestedByUser?['profilePictureUrl'] as String?,
+                                        onTap: () {
+                                          if (tmdbId > 0) {
+                                            User? parsedSuggestor;
+                                            if (suggestedByUser != null) {
+                                              try {
+                                                parsedSuggestor = User.fromJson(suggestedByUser);
+                                              } catch (_) {
+                                                parsedSuggestor = User(
+                                                  id: item['suggestedByUserId'] as String? ?? suggestedByUser['id'] as String? ?? '',
+                                                  username: suggestorUsername ?? '',
+                                                  displayName: suggestedByUser['displayName'] as String?,
+                                                  profilePictureUrl: suggestedByUser['profilePictureUrl'] as String?,
+                                                  createdAt: DateTime.now(),
+                                                );
+                                              }
+                                            } else if (suggestorUsername != null || item['suggestedByUserId'] != null) {
+                                              parsedSuggestor = User(
+                                                id: item['suggestedByUserId'] as String? ?? '',
+                                                username: suggestorUsername ?? '',
+                                                createdAt: DateTime.now(),
+                                              );
+                                            }
 
-        },
-      ),
+                                            context.push(
+                                              '/details/$mediaType/$tmdbId',
+                                              extra: {
+                                                'suggestedByUser': parsedSuggestor,
+                                                'suggestedByUserId': (item['suggestedByUserId'] as String?) ?? parsedSuggestor?.id,
+                                              },
+                                            );
+                                          }
+                                        },
+                                        onMoveToWatchingWithTitle: (resolvedTitle) => _addToCurrentlyWatching(
+                                          item,
+                                          resolvedTitle: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+                                        ),
+                                        onMoveToWatching: () => _addToCurrentlyWatching(item, resolvedTitle: title),
+                                        onMarkWatchedWithTitle: (resolvedTitle) => _logWatchlistItem(
+                                          item,
+                                          resolvedTitle: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+                                        ),
+                                        onMarkWatched: () => _logWatchlistItem(item, resolvedTitle: title),
+                                        onDeleteWithTitle: (resolvedTitle) => _removeItem(
+                                          tmdbId: tmdbId,
+                                          title: resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+                                          itemId: itemId,
+                                          mediaType: mediaType,
+                                        ),
+                                        onDelete: () => _removeItem(
+                                          tmdbId: tmdbId,
+                                          title: title,
+                                          itemId: itemId,
+                                          mediaType: mediaType,
+                                        ),
+                                      );
+                                    },
+                                    childCount: filteredItems.length,
+                                  ),
+                                ),
+                              ),
+                              const SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: EdgeInsets.only(bottom: 80),
+                                  child: WHBeeLoadingFooter(
+                                    isLoadingMore: false,
+                                    hasMore: false,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+        ),
+      ],
     );
   }
 }

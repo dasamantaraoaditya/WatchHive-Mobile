@@ -15,6 +15,7 @@ class User {
   final bool showCurrentlyWatching;
   final bool showWatchlist;
   final bool showRankings;
+  final bool notifyFollowingActivity;
   final List<dynamic> badges;
   final int entriesCount;
   final int? watchingCount;
@@ -22,6 +23,7 @@ class User {
   final int followersCount;
   final int followingCount;
   final bool isFollowing;
+  final bool isFollower;
   final bool isRequested;
   final bool isIncomingRequest;
   final String? incomingRequestId;
@@ -43,6 +45,7 @@ class User {
     this.showCurrentlyWatching = true,
     this.showWatchlist = true,
     this.showRankings = true,
+    this.notifyFollowingActivity = true,
     this.xp = 0,
     this.level = 1,
     this.badges = const [],
@@ -52,6 +55,7 @@ class User {
     this.followersCount = 0,
     this.followingCount = 0,
     this.isFollowing = false,
+    this.isFollower = false,
     this.isRequested = false,
     this.isIncomingRequest = false,
     this.incomingRequestId,
@@ -96,6 +100,7 @@ class User {
       showCurrentlyWatching: json['showCurrentlyWatching'] as bool? ?? true,
       showWatchlist: json['showWatchlist'] as bool? ?? true,
       showRankings: json['showRankings'] as bool? ?? true,
+      notifyFollowingActivity: json['notifyFollowingActivity'] as bool? ?? true,
       xp: _parseInt(json['xp']),
       level: _parseInt(json['level']) > 0 ? _parseInt(json['level']) : 1,
       badges: json['badges'] as List<dynamic>? ?? [],
@@ -115,6 +120,7 @@ class User {
         countData?['following'] ?? countData?['followingCount'] ?? json['followingCount'] ?? json['following'],
       ),
       isFollowing: json['isFollowing'] as bool? ?? false,
+      isFollower: json['isFollower'] as bool? ?? false,
       isRequested: json['isRequested'] as bool? ?? false,
       isIncomingRequest: json['isIncomingRequest'] as bool? ?? false,
       incomingRequestId: json['incomingRequestId']?.toString(),
@@ -140,6 +146,7 @@ class User {
         'showCurrentlyWatching': showCurrentlyWatching,
         'showWatchlist': showWatchlist,
         'showRankings': showRankings,
+        'notifyFollowingActivity': notifyFollowingActivity,
         'xp': xp,
         'level': level,
         'badges': badges,
@@ -148,6 +155,8 @@ class User {
         if (watchlistCount != null) 'watchlistCount': watchlistCount,
         'followersCount': followersCount,
         'followingCount': followingCount,
+        'isFollowing': isFollowing,
+        'isFollower': isFollower,
         'createdAt': createdAt.toIso8601String(),
       };
 
@@ -168,6 +177,7 @@ class User {
     bool? showCurrentlyWatching,
     bool? showWatchlist,
     bool? showRankings,
+    bool? notifyFollowingActivity,
     List<dynamic>? badges,
     int? entriesCount,
     int? watchingCount,
@@ -175,6 +185,7 @@ class User {
     int? followersCount,
     int? followingCount,
     bool? isFollowing,
+    bool? isFollower,
     bool? isRequested,
     bool? isIncomingRequest,
     String? incomingRequestId,
@@ -198,6 +209,7 @@ class User {
       showCurrentlyWatching: showCurrentlyWatching ?? this.showCurrentlyWatching,
       showWatchlist: showWatchlist ?? this.showWatchlist,
       showRankings: showRankings ?? this.showRankings,
+      notifyFollowingActivity: notifyFollowingActivity ?? this.notifyFollowingActivity,
       badges: badges ?? this.badges,
       entriesCount: entriesCount ?? this.entriesCount,
       watchingCount: watchingCount ?? this.watchingCount,
@@ -205,6 +217,7 @@ class User {
       followersCount: followersCount ?? this.followersCount,
       followingCount: followingCount ?? this.followingCount,
       isFollowing: isFollowing ?? this.isFollowing,
+      isFollower: isFollower ?? this.isFollower,
       isRequested: isRequested ?? this.isRequested,
       isIncomingRequest: isIncomingRequest ?? this.isIncomingRequest,
       incomingRequestId: incomingRequestId ?? this.incomingRequestId,

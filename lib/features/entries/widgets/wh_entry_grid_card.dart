@@ -72,6 +72,41 @@ class WHEntryGridCard extends ConsumerWidget {
     this.onDeleteWithTitle,
   });
 
+  /// Formats and truncates suggested-by usernames to 10 characters max followed by '...'.
+  static String formatSuggestedBy(String raw) {
+    if (raw.isEmpty) return raw;
+
+    String text = raw.trim();
+    String prefix = '';
+    String suffix = '';
+
+    if (text.startsWith('To: @')) {
+      prefix = 'To: @';
+      text = text.substring(5).trim();
+    } else if (text.startsWith('To: ')) {
+      prefix = 'To: @';
+      text = text.substring(4).trim();
+      if (text.startsWith('@')) {
+        text = text.substring(1).trim();
+      }
+    } else if (text.startsWith('@')) {
+      prefix = '@';
+      text = text.substring(1).trim();
+    } else {
+      prefix = '@';
+    }
+
+    // Check for suffix like "(+2)" or " (+1)"
+    final parenIndex = text.indexOf('(');
+    if (parenIndex != -1) {
+      suffix = ' ${text.substring(parenIndex).trim()}';
+      text = text.substring(0, parenIndex).trim();
+    }
+
+    final truncatedUser = text.length > 10 ? '${text.substring(0, 10)}...' : text;
+    return '$prefix$truncatedUser$suffix';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isTv = mediaType.toLowerCase().contains('tv') || mediaType.toLowerCase().contains('episode');
@@ -282,16 +317,27 @@ class WHEntryGridCard extends ConsumerWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('💡 ', style: TextStyle(fontSize: 8)),
-                            Text(
-                              suggestedByUsername!.startsWith('To: ') || suggestedByUsername!.startsWith('@')
-                                  ? suggestedByUsername!
-                                  : '@$suggestedByUsername',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.amber,
+                            if (suggestedByAvatarUrl != null && suggestedByAvatarUrl!.isNotEmpty) ...[
+                              CircleAvatar(
+                                radius: 6,
+                                backgroundColor: Colors.amber,
+                                backgroundImage: NetworkImage(suggestedByAvatarUrl!),
+                              ),
+                              const SizedBox(width: 4),
+                            ] else
+                              const Text('💡 ', style: TextStyle(fontSize: 8)),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 105),
+                              child: Text(
+                                formatSuggestedBy(suggestedByUsername!),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.amber,
+                                ),
                               ),
                             ),
                           ],
