@@ -45,6 +45,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>WatchersHive needs access to your camera so you can take a profile picture.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>WatchersHive uses your location to discover trending movies, series, and theater screenings available in your region.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>WatchersHive needs access to your photo library so you can pick and upload your profile picture.</string>
 	<key>UIApplicationSceneManifest</key>
