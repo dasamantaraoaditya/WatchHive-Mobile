@@ -69,7 +69,7 @@ void main() {
       );
       expect(completedEntry.activityDate, completedTime);
 
-      // 3. Reviewed entry uses updatedAt
+      // 3. Reviewed entry uses createdAt (or completedAt if watching completed)
       final reviewedEntry = Entry(
         id: '3',
         userId: 'u1',
@@ -81,7 +81,7 @@ void main() {
         review: 'Incredible film',
         createdAt: now.subtract(const Duration(hours: 5)),
       );
-      expect(reviewedEntry.activityDate, updatedTime);
+      expect(reviewedEntry.activityDate, reviewedEntry.createdAt);
 
       // 4. Fallback to watchedAt
       final standardEntry = Entry(
