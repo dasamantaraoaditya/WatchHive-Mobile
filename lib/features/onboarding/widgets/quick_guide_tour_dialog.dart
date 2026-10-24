@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../entries/screens/add_entry_sheet.dart';
 import '../models/tour_step.dart';
 import '../services/tour_service.dart';
 
@@ -65,6 +66,25 @@ class _QuickGuideTourDialogState extends ConsumerState<QuickGuideTourDialog> {
       if (targetRoute != null && targetRoute.isNotEmpty) {
         context.go(targetRoute);
       }
+    }
+  }
+
+  Future<void> _logFirstWatchAndFinish() async {
+    final tourService = ref.read(tourServiceProvider);
+    await tourService.markTourCompleted(widget.userId);
+
+    if (mounted) {
+      widget.onCompleted?.call();
+      Navigator.of(context, rootNavigator: true).pop();
+
+      // Launch AddEntrySheet directly so user can search and log their first watch
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useRootNavigator: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const AddEntrySheet(),
+      );
     }
   }
 
@@ -354,13 +374,14 @@ class _QuickGuideTourDialogState extends ConsumerState<QuickGuideTourDialog> {
                               ),
                             ),
 
-                            // Optional Action Route Shortcut
+                            // Optional Action Route Shortcut or Log First Watch Trigger
                             if (step.actionLabel != null &&
-                                step.actionRoute != null) ...[
+                                (step.actionRoute != null || index == _steps.length - 1)) ...[
                               const SizedBox(height: 12),
                               TextButton.icon(
-                                onPressed: () =>
-                                    _finishTour(step.actionRoute),
+                                onPressed: index == _steps.length - 1
+                                    ? _logFirstWatchAndFinish
+                                    : () => _finishTour(step.actionRoute),
                                 style: TextButton.styleFrom(
                                   visualDensity: VisualDensity.compact,
                                   foregroundColor: step.accentColor ==
@@ -371,10 +392,15 @@ class _QuickGuideTourDialogState extends ConsumerState<QuickGuideTourDialog> {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
-                                icon: const Icon(Icons.arrow_outward_rounded,
+                                icon: Icon(
+                                    index == _steps.length - 1
+                                        ? Icons.edit_note_rounded
+                                        : Icons.arrow_outward_rounded,
                                     size: 14),
                                 label: Text(
-                                  'Jump to ${step.actionLabel}',
+                                  index == _steps.length - 1
+                                      ? 'Log First Watch Now 🎬'
+                                      : 'Jump to ${step.actionLabel}',
                                   style: const TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 12,
@@ -396,78 +422,116 @@ class _QuickGuideTourDialogState extends ConsumerState<QuickGuideTourDialog> {
                 Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 14),
-                  child: Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Back Button (hidden on first page)
-                      if (_currentPage > 0) ...[
-                        OutlinedButton(
-                          onPressed: _prevPage,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.textSecondary,
-                            side: const BorderSide(color: AppColors.border),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                          ),
-                          child: const Text(
-                            'Back',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-
-                      // Next / Finish Button
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _nextPage,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: currentStep.accentColor,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                isLastPage
-                                    ? 'Explore WatchersHive 🚀'
-                                    : 'Next Step',
+                      Row(
+                        children: [
+                          // Back Button (hidden on first page)
+                          if (_currentPage > 0) ...[
+                            OutlinedButton(
+                              onPressed: _prevPage,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.textSecondary,
+                                side: const BorderSide(color: AppColors.border),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                              ),
+                              child: const Text(
+                                'Back',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: currentStep.accentColor ==
-                                          AppColors.primary
-                                      ? Colors.black
-                                      : Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
                                 ),
                               ),
-                              const SizedBox(width: 6),
-                              Icon(
-                                isLastPage
-                                    ? Icons.check_circle_rounded
-                                    : Icons.arrow_forward_rounded,
-                                size: 16,
-                                color: currentStep.accentColor ==
-                                        AppColors.primary
-                                    ? Colors.black
-                                    : Colors.white,
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+
+                          // Next / Log First Watch Button
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: isLastPage
+                                  ? _logFirstWatchAndFinish
+                                  : _nextPage,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isLastPage
+                                    ? AppColors.primary
+                                    : currentStep.accentColor,
+                                foregroundColor: Colors.white,
+                                elevation: isLastPage ? 2 : 0,
+                                shadowColor: isLastPage
+                                    ? AppColors.primary.withAlpha(100)
+                                    : Colors.transparent,
+                                padding: const EdgeInsets.symmetric(vertical: 13),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
-                            ],
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      isLastPage
+                                          ? 'Log My First Watch 🎬'
+                                          : 'Next Step',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: isLastPage ||
+                                                currentStep.accentColor ==
+                                                    AppColors.primary
+                                            ? Colors.black
+                                            : Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Icon(
+                                      isLastPage
+                                          ? Icons.add_circle_rounded
+                                          : Icons.arrow_forward_rounded,
+                                      size: 16,
+                                      color: isLastPage ||
+                                              currentStep.accentColor ==
+                                                  AppColors.primary
+                                          ? Colors.black
+                                          : Colors.white,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (isLastPage) ...[
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => _finishTour(),
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            foregroundColor: AppColors.textMuted,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                          ),
+                          child: const Text(
+                            'Explore WatchersHive first',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),

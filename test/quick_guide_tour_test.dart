@@ -127,5 +127,54 @@ void main() {
       final service = TourService();
       expect(await service.isTourCompleted(testUserId), isTrue);
     });
+
+    testWidgets('last step renders "Log My First Watch 🎬" and "Explore WatchersHive first"', (tester) async {
+      const testUserId = 'test_last_step_user';
+      bool completed = false;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () => QuickGuideTourDialog.show(
+                    context,
+                    userId: testUserId,
+                    onCompleted: () => completed = true,
+                  ),
+                  child: const Text('Open Tour'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Tour'));
+      await tester.pumpAndSettle();
+
+      // Advance through steps 1 to 5 to reach step 6
+      for (int i = 0; i < 5; i++) {
+        await tester.tap(find.text('Next Step'));
+        await tester.pumpAndSettle();
+      }
+
+      // Verify Step 6 content
+      expect(find.text('STEP 6 OF 6'), findsOneWidget);
+      expect(find.text('GET STARTED'), findsOneWidget);
+      expect(find.text('Log My First Watch 🎬'), findsOneWidget);
+      expect(find.text('Explore WatchersHive first'), findsOneWidget);
+
+      // Tap "Explore WatchersHive first" to finish tour
+      await tester.tap(find.text('Explore WatchersHive first'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('STEP 6 OF 6'), findsNothing);
+      expect(completed, isTrue);
+
+      final service = TourService();
+      expect(await service.isTourCompleted(testUserId), isTrue);
+    });
   });
 }

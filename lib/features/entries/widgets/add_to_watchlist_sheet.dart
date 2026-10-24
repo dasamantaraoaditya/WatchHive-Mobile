@@ -146,7 +146,7 @@ class _AddToWatchlistSheetState extends ConsumerState<AddToWatchlistSheet> {
         final tag = _selectedUser != null
             ? ' (suggested by @${_selectedUser!.username})'
             : '';
-        WHAlert.showSuccess(context, 'Added "$cleanTitle"$tag to Watchlist! 📌');
+        WHAlert.showSuccess(context, 'Added "$cleanTitle"$tag to Watchlist.');
       }
     } catch (e) {
       if (mounted) {
@@ -269,7 +269,7 @@ class _AddToWatchlistSheetState extends ConsumerState<AddToWatchlistSheet> {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              isTv ? '📺 TV SERIES' : '🎬 MOVIE',
+                              isTv ? 'TV SERIES' : 'MOVIE',
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 9,
@@ -314,7 +314,7 @@ class _AddToWatchlistSheetState extends ConsumerState<AddToWatchlistSheet> {
                   const Row(
                     children: [
                       Text(
-                        '💡 Suggested By',
+                        'Suggested By',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 13,

@@ -267,7 +267,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
                   (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
                   (itemId != null && it['id'] == itemId));
             });
-            WHAlert.showSuccess(context, 'Logged and removed "$cleanTitle" from Watchlist! ✨');
+            WHAlert.showSuccess(context, 'Logged and removed "$cleanTitle" from Watchlist.');
           }
         },
       ),
@@ -344,7 +344,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
               (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
               (itemId != null && it['id'] == itemId));
         });
-        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching! 🎬');
+        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching.');
       }
     } catch (e) {
       if (mounted) {

@@ -119,7 +119,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
         Navigator.of(context).pop();
         WHAlert.showSuccess(
           context,
-          '"$cleanTitle" added to your Currently Watching log! 👁️✨',
+          'Added "$cleanTitle" to Currently Watching.',
         );
       }
     } catch (e) {

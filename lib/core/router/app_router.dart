@@ -22,6 +22,7 @@ import '../../features/support/screens/support_screen.dart';
 import '../../shared/models/user.dart';
 import '../../shared/models/entry.dart';
 import '../../features/entries/screens/entry_detail_screen.dart';
+import '../../features/scanner/screens/hive_scanner_screen.dart';
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -111,7 +112,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/entries',
-            builder: (context, state) => const EntriesScreen(),
+            builder: (context, state) {
+              final tabParam = state.uri.queryParameters['tab']?.toLowerCase();
+              int initialIndex = 0;
+              if (tabParam == 'rankings' || tabParam == 'stacks') {
+                initialIndex = 3;
+              } else if (tabParam == 'history') {
+                initialIndex = 1;
+              } else if (tabParam == 'watchlist') {
+                initialIndex = 2;
+              } else if (tabParam == 'suggestions') {
+                initialIndex = 4;
+              }
+              return EntriesScreen(initialIndex: initialIndex);
+            },
           ),
           GoRoute(
             path: '/search',
@@ -124,6 +138,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
       // Full-screen routes (no bottom nav)
+      GoRoute(
+        path: '/scanner',
+        builder: (context, state) => const HiveScannerScreen(),
+      ),
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationsScreen(),

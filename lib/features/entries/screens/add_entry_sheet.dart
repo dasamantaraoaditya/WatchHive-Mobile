@@ -337,7 +337,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
           _buildNavPill(
             label: hasFriend
                 ? (_suggestorUsername != null ? '@$_suggestorUsername' : 'Friend ✓')
-                : 'Friend 💡',
+                : 'Friend',
             icon: Icons.people_outline_rounded,
             isCompleted: hasFriend,
             isHighlighted: !hasFriend,
@@ -664,7 +664,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     if (candidateDateTime.isAfter(now)) {
       candidateDateTime = now;
       if (mounted) {
-        WHAlert.showWarning(context, 'Future time not allowed (set to current time).');
+        WHAlert.showWarning(context, 'Watch time cannot be in the future. Reset to current time.');
       }
     }
 
@@ -707,7 +707,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       );
       if (candidate.isAfter(now)) {
         candidate = now;
-        WHAlert.showWarning(context, 'Future time not allowed (set to current time).');
+        WHAlert.showWarning(context, 'Watch time cannot be in the future. Reset to current time.');
       }
       setState(() {
         _watchedDate = candidate;
@@ -733,7 +733,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       }
     }
     if (title.isEmpty) {
-      WHAlert.showWarning(context, 'Please enter or select a movie or TV show title');
+      WHAlert.showWarning(context, 'Please search or select a title.');
       return;
     }
     final now = DateTime.now();
@@ -795,16 +795,16 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         if (isPendingSync) {
           WHAlert.showInfo(
             context,
-            'Saved offline! Will automatically sync to your Hive when reconnected. 📶⏳',
+            'Saved offline. Will sync automatically when reconnected.',
           );
         } else {
           WHAlert.showSuccess(
             context,
             isEditing
                 ? (widget.editEntry?.isWatching == true && !_isWatching
-                    ? 'Completed watching "$title"! 🎉🎬'
-                    : 'Updated "$title" in your Hive! ✨')
-                : (_isWatching ? 'Started watching "$title"! 👁️🎬' : 'Logged "$title" to your Hive! 🐝🎬'),
+                    ? 'Completed "$title".'
+                    : 'Updated "$title".')
+                : (_isWatching ? 'Started watching "$title".' : 'Logged "$title".'),
           );
         }
       }
@@ -860,7 +860,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
               ? (widget.editEntry?.isWatching == true && !_isWatching
                   ? 'Completing your watch...'
                   : 'Updating your entry...')
-              : (_isWatching ? 'Saving to Currently Watching...' : 'Logging to your Hive...'),
+              : (_isWatching ? 'Saving to Currently Watching...' : 'Logging your watch...'),
           child: Container(
             constraints: BoxConstraints(
               maxHeight: screenHeight * 0.92,
@@ -903,13 +903,13 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                           Text(
                             isEditing
                                 ? (widget.editEntry?.isWatching == true && !_isWatching
-                                    ? 'Complete Watch 🎬'
-                                    : 'Edit Watch Entry ✨')
-                                : (_isWatching ? 'Track What You\'re Watching 👁️' : 'Log a Watch to Hive 🐝'),
+                                    ? 'Complete Watch'
+                                    : 'Edit Watch Entry')
+                                : (_isWatching ? 'Track Currently Watching' : 'Log a Watch'),
                             style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                           ),
                           const SizedBox(height: 2),
-                          const Text('Record your cinematic rating, thoughts & review', style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.textMuted)),
+                          const Text('Rate, review, and log your thoughts', style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.textMuted)),
                         ],
                       ),
                     ),
@@ -1355,7 +1355,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            _isRewatch ? 'Repeat Watch 🔁' : 'First Time Watch 🎬',
+                                            _isRewatch ? 'Rewatch' : 'First-Time Watch',
                                             style: const TextStyle(
                                               fontFamily: 'Inter',
                                               fontSize: 13,
@@ -1416,7 +1416,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            _postToFeed ? 'Post to Feed 📢' : 'Log Privately 🔒',
+                                            _postToFeed ? 'Share to Feed' : 'Keep Private',
                                             style: const TextStyle(
                                               fontFamily: 'Inter',
                                               fontSize: 13,
@@ -1557,7 +1557,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const _SectionHeader(title: '💡 Recommended by a Friend', subtitle: 'Tag the cinephile friend who suggested this'),
+                            const _SectionHeader(title: 'Recommended by a Friend', subtitle: 'Tag the friend who suggested this title'),
                             const SizedBox(height: 8),
                             if (_suggestedByUserId != null && _suggestedByUserId!.isNotEmpty)
                               Container(
@@ -1861,11 +1861,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                         child: Text(
                                           isEditing
                                               ? (widget.editEntry?.isWatching == true && !_isWatching
-                                                  ? 'Complete Watch 🎬'
-                                                  : 'Save Changes ✨')
+                                                  ? 'Complete Watch'
+                                                  : 'Save Changes')
                                               : (_isWatching
-                                                  ? 'Track Watching 👁️'
-                                                  : 'Log to Hive 🐝🎬'),
+                                                  ? 'Start Watching'
+                                                  : 'Log Watch'),
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
                                             fontFamily: 'Inter',

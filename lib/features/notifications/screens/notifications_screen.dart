@@ -36,7 +36,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     try {
       await ref.read(notificationsProvider.notifier).acceptRequest(request.id);
       if (mounted) {
-        WHAlert.showSuccess(context, 'Accepted follow request from @${request.username}! 🤝');
+        WHAlert.showSuccess(context, 'Accepted follow request from @${request.username}.');
       }
     } catch (e) {
       if (mounted) {
@@ -69,7 +69,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       await ref.read(notificationsProvider.notifier).acceptRequest(requestId, notificationId: n.id);
       if (mounted) {
         final actor = n.content['actorName'] ?? n.content['actorUsername'] ?? 'User';
-        WHAlert.showSuccess(context, 'Accepted follow request from $actor! 🤝');
+        WHAlert.showSuccess(context, 'Accepted follow request from $actor.');
       }
     } catch (e) {
       if (mounted) {
@@ -868,7 +868,7 @@ class _EmptyNotifications extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('🔔', style: TextStyle(fontSize: 56)),
+            Icon(Icons.notifications_none_rounded, size: 56, color: AppColors.textMuted),
             SizedBox(height: 20),
             Text(
               'No notifications yet',

@@ -239,7 +239,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
         final recipientDesc = widget.initialToUserName != null
             ? '@${widget.initialToUserName}'
             : '${_selectedUserIds.length} friend${_selectedUserIds.length > 1 ? "s" : ""}';
-        WHAlert.showSuccess(context, 'Suggestion for "$title" sent to $recipientDesc! ✨');
+        WHAlert.showSuccess(context, 'Suggested "$title" to $recipientDesc.');
       }
     } catch (e) {
       if (mounted) {

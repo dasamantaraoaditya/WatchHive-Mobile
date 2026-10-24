@@ -11,11 +11,11 @@ import '../../profile/repositories/user_repository.dart';
 import '../../../core/utils/error_handler.dart';
 
 enum TrendingFilter {
-  allTrending('🔥 All Trending', 'all', 'trending'),
-  trendingMovies('🎬 Movies', 'movie', 'trending'),
-  trendingTv('📺 TV Shows', 'tv', 'trending'),
-  popularMovies('⭐ Popular Movies', 'movie', 'popular'),
-  popularTv('📺 Popular TV', 'tv', 'popular');
+  allTrending('All Trending', 'all', 'trending'),
+  trendingMovies('Movies', 'movie', 'trending'),
+  trendingTv('TV Shows', 'tv', 'trending'),
+  popularMovies('Popular Movies', 'movie', 'popular'),
+  popularTv('Popular TV', 'tv', 'popular');
 
   final String label;
   final String mediaType;
@@ -773,7 +773,7 @@ class _DiscoveryView extends StatelessWidget {
                   Icon(Icons.stars_rounded, color: AppColors.primary, size: 20),
                   SizedBox(width: 8),
                   Text(
-                    'Suggested Cinephiles 🐝',
+                    'People to Follow',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 17,
@@ -816,7 +816,7 @@ class _DiscoveryView extends StatelessWidget {
                   Icon(Icons.trending_up_rounded, color: AppColors.primary, size: 20),
                   SizedBox(width: 8),
                   Text(
-                    'Buzzing in the Hive 🐝',
+                    'Popular in the Community',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 17,
@@ -1058,9 +1058,9 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
         });
         if (mounted) {
           if (isReq) {
-            WHAlert.showSuccess(context, 'Follow request sent to @${widget.user.username} ⏳');
+            WHAlert.showSuccess(context, 'Follow request sent to @${widget.user.username}.');
           } else {
-            WHAlert.showSuccess(context, 'Followed @${widget.user.username}! ✨');
+            WHAlert.showSuccess(context, 'Following @${widget.user.username}.');
           }
         }
       }
@@ -1200,7 +1200,7 @@ class _MediaPosterCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      media.mediaType == 'tv' ? '📺 TV' : '🎬 MOVIE',
+                      media.mediaType == 'tv' ? 'TV' : 'MOVIE',
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 9,
@@ -1316,7 +1316,7 @@ class _MediaTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${media.mediaType == "movie" ? "🎬 Movie" : "📺 TV Show"} · ${media.year}',
+                    '${media.mediaType == "movie" ? "Movie" : "TV Series"} · ${media.year}',
                     style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
                   ),
                   if (media.voteAverage != null && media.voteAverage! > 0) ...[
