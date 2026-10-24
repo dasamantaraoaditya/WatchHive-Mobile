@@ -26,16 +26,30 @@ class FakeSearchRepository implements SearchRepository {
   }
 
   @override
+  Future<SmartMediaSearchResult> searchMediaSmart(String query,
+      {String? type}) async {
+    final results = await searchMedia(query, type: type);
+    return SmartMediaSearchResult(
+      results: results,
+      originalQuery: query,
+    );
+  }
+
+  @override
   Future<Map<String, dynamic>> getMovieDetails(int tmdbId) async => {};
 
   @override
   Future<Map<String, dynamic>> getTvDetails(int tmdbId) async => {};
 
   @override
-  Future<Map<String, dynamic>> getTvSeasonDetails(int tvId, int seasonNumber) async => {};
+  Future<Map<String, dynamic>> getTvSeasonDetails(
+          int tvId, int seasonNumber) async =>
+      {};
 
   @override
-  Future<List<MediaResult>> getRecommendations(String mediaType, int tmdbId) async => [];
+  Future<List<MediaResult>> getRecommendations(
+          String mediaType, int tmdbId) async =>
+      [];
 
   @override
   Future<List<User>> searchUsers(String query) async {
@@ -44,7 +58,8 @@ class FakeSearchRepository implements SearchRepository {
   }
 
   @override
-  Future<List<MediaResult>> getTrending({String mediaType = 'all', String timeWindow = 'week'}) async {
+  Future<List<MediaResult>> getTrending(
+      {String mediaType = 'all', String timeWindow = 'week'}) async {
     return [];
   }
 
@@ -84,7 +99,9 @@ void main() {
       fakeRepo = FakeSearchRepository();
     });
 
-    testWidgets('search box auto-focuses on open and sits at the bottom of the screen', (tester) async {
+    testWidgets(
+        'search box auto-focuses on open and sits at the bottom of the screen',
+        (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -112,10 +129,12 @@ void main() {
 
       // Verify position: the search box is located in the bottom half of the screen
       final textFieldRect = tester.getRect(textFieldFinder);
-      expect(textFieldRect.bottom, greaterThan(500)); // Standard test screen is 600 in height
+      expect(textFieldRect.bottom,
+          greaterThan(500)); // Standard test screen is 600 in height
     });
 
-    testWidgets('debounces search by 2 seconds and retains focus across typing', (tester) async {
+    testWidgets('debounces search by 2 seconds and retains focus across typing',
+        (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -173,7 +192,9 @@ void main() {
       expect(focusNode?.hasFocus, isTrue);
     });
 
-    testWidgets('pressing enter/submitted triggers search immediately without waiting 2 seconds', (tester) async {
+    testWidgets(
+        'pressing enter/submitted triggers search immediately without waiting 2 seconds',
+        (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
