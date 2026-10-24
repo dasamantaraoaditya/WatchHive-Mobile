@@ -79,7 +79,7 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
         );
         ref.invalidate(isInWatchlistProvider(widget.entry.tmdbId));
         if (mounted) {
-          WHAlert.showSuccess(context, 'Added "$title" to Watchlist! 📌');
+          WHAlert.showSuccess(context, 'Added "$title" to Watchlist.');
         }
       }
     } catch (e) {
@@ -823,7 +823,7 @@ class FeedMediaHeroBanner extends ConsumerWidget {
                       border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
                     ),
                     child: Text(
-                      entry.type == 'MOVIE' ? '🎬 Movie' : '📺 TV Show',
+                      entry.type == 'MOVIE' ? 'Movie' : 'TV Series',
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 11,
@@ -841,7 +841,7 @@ class FeedMediaHeroBanner extends ConsumerWidget {
                         border: Border.all(color: AppColors.info.withValues(alpha: 0.4)),
                       ),
                       child: const Text(
-                        '🔁 Rewatch',
+                        'Rewatch',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 11,

@@ -365,10 +365,10 @@ class _ProfileStatsViewState extends ConsumerState<ProfileStatsView> {
                 const SizedBox(height: 12),
                 ...typeBreakdown.map((t) {
                   final name = t['name'] == 'MOVIE'
-                      ? '🎬 Movies'
+                      ? 'Movies'
                       : t['name'] == 'TV_SHOW'
-                          ? '📺 TV Shows'
-                          : '📺 Episodes';
+                          ? 'TV Shows'
+                          : 'Episodes';
                   final count = (t['count'] as num?)?.toInt() ?? 0;
                   final percentage = totalCount > 0 ? (count / totalCount) : 0.0;
 

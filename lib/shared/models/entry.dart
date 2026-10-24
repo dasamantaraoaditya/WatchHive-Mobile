@@ -80,9 +80,9 @@ class Entry {
   }
 
   String get typeLabel => switch (type) {
-        'MOVIE' => '🎬 Movie',
-        'TV_SHOW' => '📺 TV Show',
-        'EPISODE' => '📺 Episode',
+        'MOVIE' => 'Movie',
+        'TV_SHOW' => 'TV Show',
+        'EPISODE' => 'Episode',
         _ => type,
       };
 

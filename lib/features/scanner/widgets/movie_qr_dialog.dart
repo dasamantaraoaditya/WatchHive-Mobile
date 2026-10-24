@@ -98,9 +98,10 @@ class MovieQrDialog extends StatelessWidget {
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               // Header with title and close button
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
@@ -382,6 +383,7 @@ class MovieQrDialog extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

@@ -435,7 +435,7 @@ class _EmptyFeed extends ConsumerWidget {
                 ],
               ),
               child: const Center(
-                child: Text('🎬', style: TextStyle(fontSize: 44)),
+                child: Icon(Icons.movie_outlined, size: 44, color: AppColors.primary),
               ),
             ),
             const SizedBox(height: 18),

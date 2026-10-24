@@ -479,7 +479,7 @@ class _QuickGuideTourDialogState extends ConsumerState<QuickGuideTourDialog> {
                                   children: [
                                     Text(
                                       isLastPage
-                                          ? 'Log My First Watch 🎬'
+                                          ? 'Log My First Watch'
                                           : 'Next Step',
                                       style: TextStyle(
                                         fontFamily: 'Inter',

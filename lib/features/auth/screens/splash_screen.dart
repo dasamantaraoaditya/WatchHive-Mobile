@@ -67,7 +67,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 border: Border.all(color: AppColors.border),
               ),
               child: const Center(
-                child: Text('🎬', style: TextStyle(fontSize: 44)),
+                child: Icon(Icons.movie_filter_rounded, size: 44, color: AppColors.primary),
               ),
             ),
             const SizedBox(height: 24),

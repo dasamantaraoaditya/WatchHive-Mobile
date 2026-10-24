@@ -85,7 +85,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Title and Media Banner
-    expect(find.text('Add to Ranking Stack 📚'), findsOneWidget);
+    expect(find.text('Add to Stack'), findsOneWidget);
     expect(find.text('Interstellar'), findsOneWidget);
 
     // Verify Empty State is shown
@@ -125,7 +125,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify create form is revealed
-    expect(find.text('Create New Stack 🏆'), findsOneWidget);
+    expect(find.text('Create New Stack'), findsOneWidget);
     expect(find.text('Stack Name'), findsOneWidget);
     expect(find.text('Public Visibility'), findsOneWidget);
 
@@ -187,6 +187,6 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify form opens
-    expect(find.text('Create New Stack 🏆'), findsOneWidget);
+    expect(find.text('Create New Stack'), findsOneWidget);
   });
 }

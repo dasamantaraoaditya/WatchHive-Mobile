@@ -124,7 +124,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify Save Changes button and friendly Close button are both visible
-      expect(find.text('Save Changes ✨'), findsOneWidget);
+      expect(find.text('Save Changes'), findsOneWidget);
       expect(find.text('Close'), findsOneWidget);
 
       // Tap the friendly Close button
