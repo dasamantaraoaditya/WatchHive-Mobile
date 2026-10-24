@@ -155,7 +155,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final updatedUser = await ref.read(userRepositoryProvider).uploadAvatar(image);
       ref.read(authStateProvider.notifier).updateUser(updatedUser);
       if (mounted) {
-        WHAlert.showSuccess(context, 'Profile picture updated! 📸');
+        WHAlert.showSuccess(context, 'Profile picture updated.');
       }
     } catch (e) {
       if (mounted) {
@@ -242,7 +242,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   void _handleInviteFriends(User user) {
     final profileUrl = WebUrls.userProfile(user.id, refUsername: user.username);
-    final text = 'Join me on WatchersHive! Check out my profile and cinematic journey: 🐝🎥\n\n$profileUrl';
+    final text = 'Check out my profile on WatchersHive:\n\n$profileUrl';
     Share.share(text, subject: 'Join me on WatchersHive');
   }
 

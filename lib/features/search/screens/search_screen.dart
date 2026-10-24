@@ -266,6 +266,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
               ),
             ],
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.primary),
+              tooltip: 'Scan Hive Code / Movie',
+              onPressed: () {
+                _focusNode.unfocus();
+                context.push('/scanner');
+              },
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
         body: GestureDetector(
           behavior: HitTestBehavior.translucent,
@@ -422,6 +433,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                     suffixIcon: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (_query.isEmpty && !hasFocus)
+                          IconButton(
+                            icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.primary, size: 21),
+                            tooltip: 'Scan QR Code',
+                            onPressed: () {
+                              _focusNode.unfocus();
+                              context.push('/scanner');
+                            },
+                          ),
                         if (_isSearching)
                           const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8),
