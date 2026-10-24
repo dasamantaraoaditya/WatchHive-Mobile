@@ -104,17 +104,18 @@ class TourStep {
     ),
     TourStep(
       stepIndex: 6,
-      badgeText: 'LOG ANYWHERE',
-      title: 'Quick Add in Seconds (+)',
+      badgeText: 'GET STARTED',
+      title: 'Quick Add: Log Your First Watch 🎬',
       description:
-          'Look for the golden "+" button floating in the bottom right. Tap it anytime from any screen to log what you are watching or save to your watchlist in seconds!',
+          'Every cinema lover\'s journey begins with one title. Search for any movie, anime, or series you have watched recently, rate it, and plant the first seed of your Hive!',
       highlights: [
-        'Always accessible floating action button',
-        'Quickly log Currently Watching with one tap',
-        'Rate, review, and tag watch locations on the fly',
+        'Always accessible floating "+" button or instant start',
+        'Search over a million movies, anime, & shows',
+        'Rate, review, and earn your first XP boost',
       ],
-      icon: Icons.add_circle_rounded,
+      icon: Icons.movie_filter_rounded,
       accentColor: Color(0xFFFFB700),
+      actionLabel: 'Log First Watch',
     ),
   ];
 }

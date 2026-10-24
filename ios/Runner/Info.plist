@@ -44,7 +44,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>WatchersHive needs access to your camera so you can take a profile picture.</string>
+	<string>WatchersHive needs camera access to scan QR codes for users and movies, or to capture your profile picture.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>WatchersHive uses your location to discover trending movies, series, and theater screenings available in your region.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

@@ -65,6 +65,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
   // Tab content data
   TabController? _tabController;
+  int? _rankingsCount;
   List<Entry> _historyEntries = [];
   List<Entry> _watchingEntries = [];
   List<dynamic> _watchlistItems = [];
@@ -195,8 +196,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     final name = _user!.displayName?.isNotEmpty == true ? _user!.displayName! : _user!.name;
     final profileUrl = WebUrls.userProfile(_user!.id, refUsername: _user!.username);
     final text = _isMe
-        ? 'Join me on WatchersHive! Check out my profile and cinematic journey: 🐝🎥\n\n$profileUrl'
-        : 'Check out $name\'s profile on WatchersHive! 🐝🎬\n\n$profileUrl';
+        ? 'Check out my profile on WatchersHive:\n\n$profileUrl'
+        : 'Check out $name\'s profile on WatchersHive:\n\n$profileUrl';
     Share.share(text, subject: 'WatchersHive: $name');
   }
 
@@ -210,6 +211,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   List<_ProfileTabConfig> _getVisibleTabs() {
     if (_user == null) return [];
     final list = <_ProfileTabConfig>[];
+    if (_user!.showRankings) {
+      list.add(_ProfileTabConfig(
+        label: _formatTabLabel(baseLabel: 'Rankings', count: _rankingsCount),
+        view: UserRankingsTab(
+          userId: _user!.id,
+          onStacksCountChanged: (c) {
+            if (mounted && _rankingsCount != c) {
+              setState(() => _rankingsCount = c);
+            }
+          },
+        ),
+      ));
+    }
     if (_user!.showWatchEntries) {
       final count = _hasLoadedTabs
           ? (_user!.entriesCount > 0 ? _user!.entriesCount : _historyEntries.length)
@@ -235,12 +249,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       list.add(_ProfileTabConfig(
         label: _formatTabLabel(baseLabel: 'Watchlist', count: count),
         view: _buildUserWatchlistTab(),
-      ));
-    }
-    if (_user!.showRankings) {
-      list.add(_ProfileTabConfig(
-        label: 'Rankings',
-        view: UserRankingsTab(userId: _user!.id),
       ));
     }
     return list;
@@ -469,8 +477,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           WHAlert.showSuccess(
             context,
             isPrivate
-                ? 'Follow request sent to @${_user!.username} ⏳'
-                : 'Now following @${_user!.username}! ✨',
+                ? 'Follow request sent to @${_user!.username}.'
+                : 'Following @${_user!.username}.',
           );
         }
       }
@@ -500,7 +508,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         _incomingRequestId = null;
       });
       if (mounted) {
-        WHAlert.showSuccess(context, 'Follow request accepted! 🤝');
+        WHAlert.showSuccess(context, 'Follow request accepted.');
       }
     } catch (e) {
       if (mounted) {
@@ -1341,7 +1349,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
               ),
               const SizedBox(height: 8),
               Text(
-                'Follow @${user.username} to see their watch history, watchlist, and ranking stacks.',
+                'Follow @${user.username} to view their watch history, watchlist, and ranked lists.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
               ),
@@ -1611,7 +1619,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
               (itemId != null && it['id'] == itemId));
           _watchingEntries.insert(0, entry);
         });
-        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching! 🍿');
+        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching.');
       }
     } catch (e) {
       if (mounted) {
@@ -1678,7 +1686,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                   (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
                   (itemId != null && it['id'] == itemId));
             });
-            WHAlert.showSuccess(context, 'Logged and removed "$cleanTitle" from Watchlist! ✨');
+            WHAlert.showSuccess(context, 'Logged and removed "$cleanTitle" from Watchlist.');
           }
         },
       ),

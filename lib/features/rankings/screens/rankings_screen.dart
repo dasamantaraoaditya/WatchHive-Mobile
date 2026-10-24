@@ -83,7 +83,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        isEditing ? 'Edit Ranking Stack ✏️' : 'Create New Stack 🏆',
+                        isEditing ? 'Edit Ranking Stack' : 'Create New Stack',
                         style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 18,
@@ -192,7 +192,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                                   }
                                   if (mounted && newStack != null) {
                                     _onStackSelected(newStack.id);
-                                    WHAlert.showSuccess(context, 'Created "${newStack.name}"! 🏆');
+                                    WHAlert.showSuccess(context, 'Created "${newStack.name}".');
                                   }
                                 }
                               } catch (e) {
@@ -216,7 +216,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                       child: isSubmitting
                           ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
                           : Text(
-                              isEditing ? 'Save Changes' : 'Create Stack 🏆',
+                              isEditing ? 'Save Changes' : 'Create Stack',
                               style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black),
                             ),
                     ),
@@ -301,7 +301,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Rankings & Stacks 📚',
+              'Rankings & Lists',
               style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
             ),
             Text(
@@ -528,7 +528,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Create Your First Stack 🏆', style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w800)),
+              label: const Text('Create Your First Stack', style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w800)),
             ),
           ],
         ),
@@ -570,7 +570,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                   border: Border.all(color: stack.isPublic ? Colors.green.withValues(alpha: 0.4) : AppColors.border),
                 ),
                 child: Text(
-                  stack.isPublic ? '🌐 Public' : '🔒 Private',
+                  stack.isPublic ? 'Public' : 'Private',
                   style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: stack.isPublic ? Colors.greenAccent : AppColors.textMuted),
                 ),
               ),
@@ -595,7 +595,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   icon: const Icon(Icons.add_circle_outline_rounded, size: 16),
-                  label: const Text('Add Title 🎬', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w800)),
+                  label: const Text('Add Title', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w800)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -619,7 +619,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                   final url = stack.userId.isNotEmpty
                       ? WebUrls.userRankings(stack.userId)
                       : WebUrls.rankings();
-                  final text = 'Check out my "${stack.name}" ranked stack on WatchersHive! 🐝🎬\n\n$url';
+                  final text = 'Check out my "${stack.name}" ranked list on WatchersHive:\n\n$url';
                   Share.share(text, subject: 'WatchersHive: ${stack.name}');
                 },
                 tooltip: 'Share Stack',
@@ -935,7 +935,7 @@ class _SearchAddModalState extends ConsumerState<_SearchAddModal> {
       widget.onAdded();
       if (mounted) {
         Navigator.pop(context);
-        WHAlert.showSuccess(context, 'Added "${media.title}" to stack! 🎬');
+        WHAlert.showSuccess(context, 'Added "${media.title}" to stack.');
       }
     } catch (e) {
       if (mounted) {
@@ -969,7 +969,7 @@ class _SearchAddModalState extends ConsumerState<_SearchAddModal> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Add Title to Stack 🎬',
+                'Add Title to Stack',
                 style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
               ),
               IconButton(

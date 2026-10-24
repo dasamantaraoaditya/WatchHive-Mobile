@@ -26,7 +26,7 @@ if (file("google-services.json").exists()) {
 android {
     namespace = "com.watchhive.watchhive_mobile"
     compileSdk = flutter.compileSdkVersion
-    // ndkVersion = flutter.ndkVersion
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true

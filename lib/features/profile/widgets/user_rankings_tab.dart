@@ -12,8 +12,13 @@ import '../../../shared/widgets/wh_skeleton.dart';
 
 class UserRankingsTab extends ConsumerStatefulWidget {
   final String userId;
+  final ValueChanged<int>? onStacksCountChanged;
 
-  const UserRankingsTab({super.key, required this.userId});
+  const UserRankingsTab({
+    super.key,
+    required this.userId,
+    this.onStacksCountChanged,
+  });
 
   @override
   ConsumerState<UserRankingsTab> createState() => _UserRankingsTabState();
@@ -49,6 +54,7 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
           _stacks = stacks;
           _isLoading = false;
         });
+        widget.onStacksCountChanged?.call(stacks.length);
       }
     } catch (e) {
       if (mounted) {
@@ -99,55 +105,58 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
     }
 
     if (_stacks.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.format_list_numbered_rounded, size: 36, color: AppColors.primary),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                isCurrentUser ? 'No Ranking Stacks Created' : 'No Public Rankings',
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                isCurrentUser
-                    ? 'Create ordered lists to rank your absolute top films, director filmographies, or yearly favorites!'
-                    : 'This user hasn\'t shared any public ranking stacks yet.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-              ),
-              if (isCurrentUser) ...[
-                const SizedBox(height: 18),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    await context.push('/rankings');
-                    _fetchRankings();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
                   ),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Create a Stack 🏆', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                  child: const Icon(Icons.format_list_numbered_rounded, size: 36, color: AppColors.primary),
                 ),
+                const SizedBox(height: 14),
+                Text(
+                  isCurrentUser ? 'No Ranking Stacks Created' : 'No Public Rankings',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  isCurrentUser
+                      ? 'Create ordered lists to rank your absolute top films, director filmographies, or yearly favorites!'
+                      : 'This user hasn\'t shared any public ranking stacks yet.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                ),
+                if (isCurrentUser) ...[
+                  const SizedBox(height: 18),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await context.push('/rankings');
+                      _fetchRankings();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Create a Stack 🏆', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       );

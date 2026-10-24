@@ -85,7 +85,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
 
       await Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)));
       if (mounted) {
-        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching! 🎬');
+        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching.');
         widget.onRefresh();
       }
     } catch (e) {

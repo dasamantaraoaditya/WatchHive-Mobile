@@ -244,8 +244,8 @@ class _FollowListSheetState extends ConsumerState<FollowListSheet> {
               const SizedBox(height: 6),
               Text(
                 widget.isFollowers
-                    ? 'Share your profile with friends to build your hive!'
-                    : 'Discover other cinephiles to see what they are watching.',
+                    ? 'Share your profile to connect with friends.'
+                    : 'Follow other members to see what they are watching.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
               ),

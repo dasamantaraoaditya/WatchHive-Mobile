@@ -109,7 +109,7 @@ void main() {
     // Verify Title & Suggested By header are displayed
     expect(find.text('Add to Watchlist'), findsNWidgets(2));
     expect(find.text('Interstellar'), findsOneWidget);
-    expect(find.text('💡 Suggested By'), findsOneWidget);
+    expect(find.text('Suggested By'), findsOneWidget);
     expect(find.text('(optional)'), findsOneWidget);
 
     // Search for friend

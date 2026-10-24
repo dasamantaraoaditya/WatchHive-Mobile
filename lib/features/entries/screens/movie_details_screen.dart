@@ -26,6 +26,7 @@ import '../../rankings/widgets/add_to_stack_sheet.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../widgets/platform_logo_badge.dart';
 import '../widgets/add_to_watchlist_sheet.dart';
+import '../../scanner/widgets/movie_qr_dialog.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -350,7 +351,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
 
 
       if (mounted) {
-        WHAlert.showSuccess(context, 'Moved "$title" to Currently Watching! 👁️');
+        WHAlert.showSuccess(context, 'Moved "$title" to Currently Watching.');
       }
     } catch (e) {
       if (mounted) WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to update watching status'));
@@ -447,13 +448,31 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     final title = (_details?['title'] ?? _details?['name'] ?? 'Movie/Show').toString();
     final url = WebUrls.movieDetails(_effectiveIsTv ? 'tv' : 'movie', widget.tmdbId);
     Share.share(
-      'Check out "$title" on WatchersHive! Track movies, series & anime together 🎬🐝\n\n$url',
+      'Check out "$title" on WatchersHive!\n\n$url',
       subject: 'WatchersHive: $title',
     );
   }
 
+  void _showMovieQrCode() {
+    final title = (_details?['title'] ?? _details?['name'] ?? 'Movie/Show').toString();
+    final posterPath = _details?['poster_path']?.toString();
+    final releaseDate = (_details?['release_date'] ?? _details?['first_air_date'])?.toString();
+    final releaseYear = (releaseDate != null && releaseDate.length >= 4)
+        ? releaseDate.substring(0, 4)
+        : null;
+
+    MovieQrDialog.show(
+      context,
+      tmdbId: widget.tmdbId,
+      mediaType: _effectiveIsTv ? 'tv' : 'movie',
+      title: title,
+      posterPath: posterPath,
+      releaseYear: releaseYear,
+    );
+  }
+
   String _formatCategoryLabel() {
-    if (_details == null) return _effectiveIsTv ? '📺 TV Series' : '🎬 Feature Film';
+    if (_details == null) return _effectiveIsTv ? 'TV Series' : 'Feature Film';
     final genres = (_details!['genres'] as List<dynamic>? ?? [])
         .map((g) => (g['name'] as String? ?? '').toLowerCase())
         .toList();
@@ -464,16 +483,16 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         .map((c) => c.toString())
         .toList();
 
-    if (isDoc) return '📽️ Documentary';
-    if (isAnimation && (lang == 'ja' || countries.contains('JP'))) return '🎌 Anime';
-    if (_effectiveIsTv && (lang == 'ko' || countries.contains('KR'))) return '🇰🇷 K-Drama';
-    if (_effectiveIsTv && (lang == 'ja' || countries.contains('JP')) && !isAnimation) return '🇯🇵 J-Drama';
+    if (isDoc) return 'Documentary';
+    if (isAnimation && (lang == 'ja' || countries.contains('JP'))) return 'Anime';
+    if (_effectiveIsTv && (lang == 'ko' || countries.contains('KR'))) return 'K-Drama';
+    if (_effectiveIsTv && (lang == 'ja' || countries.contains('JP')) && !isAnimation) return 'J-Drama';
     if (_effectiveIsTv) {
       final seasons = (_details!['number_of_seasons'] as num?)?.toInt() ?? 1;
-      if (seasons == 1) return '⚡ Miniseries / Limited';
-      return '📺 TV Series';
+      if (seasons == 1) return 'Limited Series';
+      return 'TV Series';
     }
-    return '🎬 Feature Film';
+    return 'Feature Film';
   }
 
   String _formatDate(String? dateStr) {
@@ -639,6 +658,21 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
               ),
             actions: [
               Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Center(
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.black.withValues(alpha: 0.55),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.qr_code_2_rounded, color: Colors.white, size: 19),
+                      tooltip: 'View on another device (QR)',
+                      onPressed: _showMovieQrCode,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: Center(
                   child: CircleAvatar(
@@ -647,6 +681,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                     child: IconButton(
                       padding: EdgeInsets.zero,
                       icon: const Icon(Icons.share_rounded, color: Colors.white, size: 18),
+                      tooltip: 'Share',
                       onPressed: _shareMovie,
                     ),
                   ),
@@ -1069,6 +1104,63 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                               ),
                             ),
                           ],
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        // Scan to View on Another Device
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: _showMovieQrCode,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceElevated,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.15),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.qr_code_2_rounded, size: 16, color: AppColors.primaryDark),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'View on Another Device',
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Generate QR Code to scan with phone or tablet',
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 11,
+                                            color: AppColors.textMuted,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -1698,7 +1790,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                 const SizedBox(width: 8),
                 Text(
                   entry.isWatching
-                      ? (isMe ? 'Currently Watching 👁️' : "$authorName is Currently Watching")
+                      ? (isMe ? 'Currently Watching' : "$authorName is Currently Watching")
                       : (isMe ? 'Your Watch Entry & Review' : "$authorName's Watch Entry"),
                   style: TextStyle(
                     fontFamily: 'Inter',

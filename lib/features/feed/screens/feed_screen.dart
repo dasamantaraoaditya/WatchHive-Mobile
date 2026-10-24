@@ -11,6 +11,7 @@ import '../../onboarding/services/tour_service.dart';
 import '../../onboarding/widgets/quick_guide_tour_dialog.dart';
 import '../../notifications/providers/notifications_provider.dart';
 import '../../../core/notifications/push_notification_service.dart';
+import '../../entries/screens/add_entry_sheet.dart';
 import '../widgets/wh_feed_card.dart';
 
 export '../providers/feed_provider.dart';
@@ -393,38 +394,197 @@ class _ErrorFeed extends StatelessWidget {
   }
 }
 
-class _EmptyFeed extends StatelessWidget {
+class _EmptyFeed extends ConsumerWidget {
   final VoidCallback? onRefresh;
   const _EmptyFeed({this.onRefresh});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authStateProvider).value?.user;
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('🎬', style: TextStyle(fontSize: 56)),
-            const SizedBox(height: 20),
+            // Glowing Honey Emblem
+            Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withAlpha(45),
+                    AppColors.primary.withAlpha(15),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                border: Border.all(
+                  color: AppColors.primary.withAlpha(100),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withAlpha(50),
+                    blurRadius: 24,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Text('🎬', style: TextStyle(fontSize: 44)),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Badge Category
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withAlpha(30),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.primary.withAlpha(80),
+                  width: 0.8,
+                ),
+              ),
+              child: const Text(
+                'GET STARTED',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.8,
+                  color: AppColors.primaryDark,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Welcome Title
             const Text(
-              'Your feed is empty',
+              'Start Your Watch Journey',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Inter',
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary,
+                letterSpacing: -0.3,
               ),
             ),
             const SizedBox(height: 8),
+
+            // Warm Explanatory Subtitle
             const Text(
-              'Follow people to see what they\'re watching',
+              'Your feed is quiet right now. Log your first movie or show to begin tracking your taste, or discover fellow cinephiles to build your swarm!',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 13.5,
+                color: AppColors.textSecondary,
+                height: 1.45,
+              ),
             ),
+            const SizedBox(height: 24),
+
+            // Primary CTA: Log First Watch
+            Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(maxWidth: 320),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    useRootNavigator: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => const AddEntrySheet(),
+                  );
+                },
+                icon: const Icon(Icons.edit_note_rounded,
+                    color: Colors.black, size: 20),
+                label: const Text(
+                  'Log Your First Watch 🎬',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.black,
+                  elevation: 2,
+                  shadowColor: AppColors.primary.withAlpha(120),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Secondary CTA: Find Friends
+            Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(maxWidth: 320),
+              child: OutlinedButton.icon(
+                onPressed: () => context.push('/search'),
+                icon: const Icon(Icons.people_alt_outlined, size: 18),
+                label: const Text(
+                  'Find Friends to Follow',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: AppColors.border, width: 1.2),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Tertiary Guide Tour Revisit Button
+            TextButton.icon(
+              onPressed: () {
+                QuickGuideTourDialog.show(
+                  context,
+                  userId: user?.id ?? 'guest',
+                  isReplay: true,
+                );
+              },
+              icon: const Icon(Icons.help_outline_rounded,
+                  size: 16, color: AppColors.textMuted),
+              label: const Text(
+                'Revisit Quick Guide Tour',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ),
+
             if (onRefresh != null) ...[
-              const SizedBox(height: 24),
-              OutlinedButton(onPressed: onRefresh, child: const Text('Refresh')),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: onRefresh,
+                child: const Text('Refresh Feed',
+                    style: TextStyle(
+                        fontSize: 12, color: AppColors.textMuted)),
+              ),
             ],
           ],
         ),

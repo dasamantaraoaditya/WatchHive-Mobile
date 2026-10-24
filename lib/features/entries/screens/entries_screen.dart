@@ -8,10 +8,13 @@ import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
 import 'add_entry_sheet.dart';
+import '../widgets/quick_currently_watching_sheet.dart';
 import '../widgets/suggestions_tab.dart';
 import '../widgets/watchlist_tab.dart';
 import '../widgets/wh_entry_grid_card.dart';
 import '../../feed/providers/feed_provider.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../profile/widgets/user_rankings_tab.dart';
 
 // ─── Providers ───────────────────────────────────────────────────────────────
 
@@ -226,7 +229,9 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 class EntriesScreen extends ConsumerStatefulWidget {
-  const EntriesScreen({super.key});
+  final int? initialIndex;
+
+  const EntriesScreen({super.key, this.initialIndex});
 
   @override
   ConsumerState<EntriesScreen> createState() => _EntriesScreenState();
@@ -240,19 +245,42 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
     'Currently Watching',
     'Watch History',
     'Watchlist',
+    'Rankings',
     'Suggestions',
   ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    final initial = widget.initialIndex != null &&
+            widget.initialIndex! >= 0 &&
+            widget.initialIndex! < _tabs.length
+        ? widget.initialIndex!
+        : 0;
+    _tabController = TabController(
+      length: _tabs.length,
+      vsync: this,
+      initialIndex: initial,
+    );
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Widget _buildRankingsTab() {
+    final currentUserId = ref.watch(authStateProvider).value?.user?.id;
+    if (currentUserId == null || currentUserId.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+    return UserRankingsTab(userId: currentUserId);
   }
 
   @override
@@ -262,6 +290,12 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
       appBar: AppBar(
         title: const WHBrandLogo(logoSize: 28, fontSize: 20),
         actions: [
+          if (_tabController.index == 3)
+            IconButton(
+              icon: const Icon(Icons.add_rounded, color: AppColors.primary, size: 24),
+              tooltip: 'New Ranking Stack',
+              onPressed: () => context.push('/rankings'),
+            ),
           IconButton(
             icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),
             tooltip: 'MindLens AI',
@@ -283,6 +317,7 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
           const _EntriesListTab(isWatching: true),
           const _EntriesListTab(isWatching: false),
           const WatchlistTab(),
+          _buildRankingsTab(),
           SuggestionsTab(
             onTapMedia: (tmdbId, type, suggestor) => context.push(
               '/details/$type/$tmdbId',
@@ -624,6 +659,42 @@ class _EmptyEntries extends StatelessWidget {
               : 'Log your completed movies and TV shows to build your Hive!',
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton.icon(
+          onPressed: () {
+            if (isWatching) {
+              QuickCurrentlyWatchingSheet.show(context);
+            } else {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                useRootNavigator: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => const AddEntrySheet(),
+              );
+            }
+          },
+          icon: Icon(
+            isWatching ? Icons.visibility_rounded : Icons.edit_note_rounded,
+            size: 18,
+            color: Colors.black,
+          ),
+          label: Text(
+            isWatching ? 'Add Currently Watching 👁️' : 'Log Your First Watch 🎬',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w800,
+              fontSize: 13.5,
+              color: Colors.black,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.black,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          ),
         ),
       ],
     );
