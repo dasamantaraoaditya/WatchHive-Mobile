@@ -43,10 +43,10 @@ class TourStep {
       badgeText: 'COMMUNITY & BUZZ',
       title: 'See What the World is Watching',
       description:
-          'Explore live reviews, ratings, and watch moments from fellow cinephiles. Discover where others watched their movies with location tags.',
+          'Explore live reviews, ratings, and watch moments from other movie fans. Discover where others watched their titles with location tags.',
       highlights: [
         'Live Community Feed with instant reactions',
-        'Watch location chips (📍 Netflix, 📍 Cinema, 📍 Home)',
+        'Watch location chips (Netflix, Cinema, Home)',
         'Like, comment, and discuss reviews with friends',
       ],
       icon: Icons.dynamic_feed_rounded,

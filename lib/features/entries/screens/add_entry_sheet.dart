@@ -1193,7 +1193,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const _SectionHeader(title: 'Cinematic Score', subtitle: 'Slide timeline to score with 0.1 precision (0.0 to 10.0)'),
+                                const Expanded(
+                                  child: _SectionHeader(title: 'Cinematic Score', subtitle: 'Slide timeline to score with 0.1 precision (0.0 to 10.0)'),
+                                ),
                                 if (_rating > 0)
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

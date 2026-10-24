@@ -163,7 +163,7 @@ void main() {
       // Verify Step 6 content
       expect(find.text('STEP 6 OF 6'), findsOneWidget);
       expect(find.text('GET STARTED'), findsOneWidget);
-      expect(find.text('Log My First Watch 🎬'), findsOneWidget);
+      expect(find.text('Log My First Watch'), findsOneWidget);
       expect(find.text('Explore WatchersHive first'), findsOneWidget);
 
       // Tap "Explore WatchersHive first" to finish tour

@@ -227,7 +227,7 @@ class WHEntryGridCard extends ConsumerWidget {
                         border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
                       ),
                       child: Text(
-                        normalizedType == 'tv' ? '📺 TV' : '🎬 Movie',
+                        normalizedType == 'tv' ? 'TV' : 'MOVIE',
                         style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 10,

@@ -641,10 +641,10 @@ class _EmptyEntries extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(isWatching ? '🎬' : '🍿', style: const TextStyle(fontSize: 56)),
+        Icon(isWatching ? Icons.play_circle_outline_rounded : Icons.history_rounded, size: 56, color: AppColors.textMuted),
         const SizedBox(height: 20),
         Text(
-          isWatching ? 'No active sessions' : 'No watch history yet',
+          isWatching ? 'Nothing currently watching' : 'No watch history yet',
           style: const TextStyle(
             fontFamily: 'Inter',
             fontSize: 20,
@@ -655,8 +655,8 @@ class _EmptyEntries extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           isWatching
-              ? 'Start watching a movie or TV show to track your progress!'
-              : 'Log your completed movies and TV shows to build your Hive!',
+              ? 'Start watching a movie or TV show to track your progress.'
+              : 'Log completed movies and series to build your history.',
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),

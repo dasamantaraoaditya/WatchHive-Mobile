@@ -349,7 +349,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                               ),
                               const SizedBox(height: 4),
                               const Text(
-                                'Start the conversation by sharing your thoughts on this watch! 🐝',
+                                'Be the first to share your thoughts on this watch.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(fontSize: 13, color: AppColors.textMuted),
                               ),

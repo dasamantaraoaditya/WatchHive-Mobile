@@ -103,9 +103,10 @@ class UserQrDialog extends StatelessWidget {
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               // Header with title and close button
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
@@ -147,208 +148,211 @@ class UserQrDialog extends StatelessWidget {
               const Divider(color: AppColors.border, height: 1),
 
               // Main content: User Avatar, Name, and QR Card
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
-                child: Column(
-                  children: [
-                    // Avatar and user identity
-                    WHAvatar(
-                      imageUrl: profilePictureUrl,
-                      name: name,
-                      radius: 32,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+                  child: Column(
+                    children: [
+                      // Avatar and user identity
+                      WHAvatar(
+                        imageUrl: profilePictureUrl,
+                        name: name,
+                        radius: 32,
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (cleanHandle.isNotEmpty) ...[
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 12),
                       Text(
-                        cleanHandle,
+                        name,
                         style: const TextStyle(
                           fontFamily: 'Inter',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (cleanHandle.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          cleanHandle,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+
+                      const SizedBox(height: 20),
+
+                      // QR Code Card (High Contrast White Container for Flawless Camera Scanning)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(22),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            QrImageView(
+                              data: _profileUrl,
+                              version: QrVersions.auto,
+                              size: 200,
+                              backgroundColor: Colors.white,
+                              eyeStyle: const QrEyeStyle(
+                                eyeShape: QrEyeShape.square,
+                                color: Color(0xFF141419),
+                              ),
+                              dataModuleStyle: const QrDataModuleStyle(
+                                dataModuleShape: QrDataModuleShape.square,
+                                color: Color(0xFF141419),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.bolt_rounded,
+                                    size: 11,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'WatchersHive',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF2D2926),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      Text(
+                        isMe
+                            ? 'Friends can scan this code with any camera or the WatchersHive scanner to connect & follow you instantly.'
+                            : 'Scan this code on another device to view and connect with $name on WatchersHive.',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textMuted,
+                          height: 1.4,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                    ],
 
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // QR Code Card (High Contrast White Container for Flawless Camera Scanning)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
+                      // Primary Action Buttons
+                      Row(
                         children: [
-                          QrImageView(
-                            data: _profileUrl,
-                            version: QrVersions.auto,
-                            size: 200,
-                            backgroundColor: Colors.white,
-                            eyeStyle: const QrEyeStyle(
-                              eyeShape: QrEyeShape.square,
-                              color: Color(0xFF141419),
-                            ),
-                            dataModuleStyle: const QrDataModuleStyle(
-                              dataModuleShape: QrDataModuleShape.square,
-                              color: Color(0xFF141419),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.bolt_rounded,
-                                  size: 11,
-                                  color: Colors.black,
-                                ),
+                          // Copy Link
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.textPrimary,
+                                side: const BorderSide(color: AppColors.border),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               ),
-                              const SizedBox(width: 6),
-                              const Text(
-                                'WatchersHive',
+                              onPressed: () => _copyLink(context),
+                              icon: const Icon(Icons.copy_rounded, size: 16),
+                              label: const Text(
+                                'Copy Link',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF2D2926),
-                                  letterSpacing: 0.4,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
-                            ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          // Share
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                elevation: 0,
+                              ),
+                              onPressed: _shareProfile,
+                              icon: const Icon(Icons.share_rounded, size: 16),
+                              label: const Text(
+                                'Share Code',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
 
-                    const SizedBox(height: 18),
+                      const SizedBox(height: 12),
 
-                    Text(
-                      isMe
-                          ? 'Friends can scan this code with any camera or the WatchersHive scanner to connect & follow you instantly.'
-                          : 'Scan this code on another device to view and connect with $name on WatchersHive.',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textMuted,
-                        height: 1.4,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Primary Action Buttons
-                    Row(
-                      children: [
-                        // Copy Link
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.textPrimary,
-                              side: const BorderSide(color: AppColors.border),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                            onPressed: () => _copyLink(context),
-                            icon: const Icon(Icons.copy_rounded, size: 16),
-                            label: const Text(
-                              'Copy Link',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                      // Quick Toggle to Open Camera Scanner
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton.icon(
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.textSecondary,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        // Share
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              elevation: 0,
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            context.push('/scanner');
+                          },
+                          icon: const Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.primary),
+                          label: const Text(
+                            'Scan Someone Else\'s Code',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
                             ),
-                            onPressed: _shareProfile,
-                            icon: const Icon(Icons.share_rounded, size: 16),
-                            label: const Text(
-                              'Share Code',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Quick Toggle to Open Camera Scanner
-                    SizedBox(
-                      width: double.infinity,
-                      child: TextButton.icon(
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.textSecondary,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          context.push('/scanner');
-                        },
-                        icon: const Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.primary),
-                        label: const Text(
-                          'Scan Someone Else\'s Code',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
+      ),
       ),
     );
   }

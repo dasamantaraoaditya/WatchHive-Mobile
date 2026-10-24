@@ -46,7 +46,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           );
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
         context.go('/feed');
-        WHAlert.showSuccess(context, 'Welcome to WatchersHive! 🐝✨');
+        WHAlert.showSuccess(context, 'Welcome to WatchersHive!');
       }
     } catch (e) {
       if (mounted) {
@@ -96,7 +96,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       await ref.read(authStateProvider.notifier).googleSignIn(idToken);
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
         context.go('/feed');
-        WHAlert.showSuccess(context, 'Welcome to WatchersHive! 🐝✨');
+        WHAlert.showSuccess(context, 'Welcome to WatchersHive!');
       }
     } catch (e) {
       debugPrint('Google Sign-In Error: $e');
@@ -139,7 +139,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
         context.go('/feed');
-        WHAlert.showSuccess(context, 'Welcome to WatchersHive! 🐝✨');
+        WHAlert.showSuccess(context, 'Welcome to WatchersHive!');
       }
     } on SignInWithAppleAuthorizationException catch (e) {
       debugPrint('[AppleSignIn] AuthorizationException: ${e.code} - ${e.message}');

@@ -240,14 +240,14 @@ App Diagnostics:
   void _copySupportEmail() {
     HapticFeedback.selectionClick();
     Clipboard.setData(const ClipboardData(text: SupportScreen.supportEmail));
-    WHAlert.showSuccess(context, 'Copied ${SupportScreen.supportEmail} to clipboard!');
+    WHAlert.showSuccess(context, 'Copied ${SupportScreen.supportEmail} to clipboard.');
   }
 
   void _copyFullReport() {
     HapticFeedback.selectionClick();
     final report = _generateFullReportText();
     Clipboard.setData(ClipboardData(text: report));
-    WHAlert.showSuccess(context, 'Full support report copied! Ready to paste anywhere 📋');
+    WHAlert.showSuccess(context, 'Support report copied to clipboard.');
   }
 
   @override

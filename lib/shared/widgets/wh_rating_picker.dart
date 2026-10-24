@@ -48,7 +48,7 @@ class WHRatingPicker extends StatefulWidget {
         color: const Color(0xFFEF4444),
         bgColor: const Color(0xFFEF4444).withValues(alpha: 0.1),
         borderColor: const Color(0xFFEF4444).withValues(alpha: 0.3),
-        text: 'Disaster / Complete Waste of Time 🗑️',
+        text: 'Disaster / Complete Waste of Time',
       );
     }
     if (rating <= 4.0) {
@@ -57,7 +57,7 @@ class WHRatingPicker extends StatefulWidget {
         color: const Color(0xFFF97316),
         bgColor: const Color(0xFFF97316).withValues(alpha: 0.1),
         borderColor: const Color(0xFFF97316).withValues(alpha: 0.3),
-        text: 'Poor / Not Recommended 👎',
+        text: 'Poor / Not Recommended',
       );
     }
     if (rating <= 5.5) {
@@ -66,7 +66,7 @@ class WHRatingPicker extends StatefulWidget {
         color: const Color(0xFFEAB308),
         bgColor: const Color(0xFFEAB308).withValues(alpha: 0.1),
         borderColor: const Color(0xFFEAB308).withValues(alpha: 0.3),
-        text: 'Mediocre / Average 🍿',
+        text: 'Mediocre / Average',
       );
     }
     if (rating <= 7.0) {
@@ -75,7 +75,7 @@ class WHRatingPicker extends StatefulWidget {
         color: const Color(0xFF84CC16),
         bgColor: const Color(0xFF84CC16).withValues(alpha: 0.1),
         borderColor: const Color(0xFF84CC16).withValues(alpha: 0.3),
-        text: 'Decent / Enjoyable 👍',
+        text: 'Decent / Enjoyable',
       );
     }
     if (rating <= 8.5) {
@@ -84,7 +84,7 @@ class WHRatingPicker extends StatefulWidget {
         color: const Color(0xFF10B981),
         bgColor: const Color(0xFF10B981).withValues(alpha: 0.1),
         borderColor: const Color(0xFF10B981).withValues(alpha: 0.3),
-        text: 'Excellent / Highly Recommended 🔥',
+        text: 'Excellent / Highly Recommended',
       );
     }
     if (rating <= 9.5) {
@@ -93,7 +93,7 @@ class WHRatingPicker extends StatefulWidget {
         color: AppColors.primary,
         bgColor: AppColors.primary.withValues(alpha: 0.12),
         borderColor: AppColors.primary.withValues(alpha: 0.4),
-        text: 'Outstanding / Near Flawless 🌟',
+        text: 'Outstanding / Near Flawless',
       );
     }
     return const WHRatingMoodInfo(
@@ -101,7 +101,7 @@ class WHRatingPicker extends StatefulWidget {
       color: Color(0xFFBFA034), // Antique Gold matching reference image 10.0
       bgColor: Color(0xFFFBF8EE), // Warm Pearl Silk
       borderColor: Color(0xFFD8C78F), // Fine Champagne Gold & Silver border
-      text: 'Absolute Masterpiece / Cinematic Perfection 🏆',
+      text: 'Absolute Masterpiece / Cinematic Perfection',
     );
   }
 

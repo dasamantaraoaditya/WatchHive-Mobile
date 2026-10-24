@@ -352,7 +352,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
               border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
             ),
             child: const Center(
-              child: Text('🌱', style: TextStyle(fontSize: 32)),
+              child: Icon(Icons.auto_awesome_rounded, size: 32, color: AppColors.primary),
             ),
           ),
           const SizedBox(height: 16),
@@ -435,7 +435,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
       ),
       child: Row(
         children: [
-          const Text('🧬', style: TextStyle(fontSize: 20)),
+          const Icon(Icons.psychology_outlined, size: 20, color: AppColors.primary),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
