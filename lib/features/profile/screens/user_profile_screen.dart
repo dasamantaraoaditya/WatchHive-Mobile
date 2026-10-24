@@ -24,6 +24,7 @@ import '../widgets/avatar_viewer_dialog.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
 import '../../feed/providers/feed_provider.dart';
+import '../../scanner/widgets/user_qr_dialog.dart';
 
 const _emptyEntriesResult = (
   entries: <Entry>[],
@@ -674,12 +675,18 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 ),
               ),
               actions: [
-                if (_user != null)
+                if (_user != null) ...[
+                  IconButton(
+                    icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.primary),
+                    tooltip: 'Hive Code (QR)',
+                    onPressed: () => UserQrDialog.showForUser(context, _user!, isMe: _isMe),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.share_outlined, color: AppColors.textPrimary),
                     tooltip: 'Share Profile',
                     onPressed: _shareProfile,
                   ),
+                ],
                 if (_isMe)
                   IconButton(
                     icon: const Icon(Icons.tune_rounded, color: AppColors.primaryDark),

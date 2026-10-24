@@ -101,7 +101,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
       final updatedUser = await ref.read(userRepositoryProvider).uploadAvatar(image);
       ref.read(authStateProvider.notifier).updateUser(updatedUser);
       if (mounted) {
-        WHAlert.showSuccess(context, 'Profile picture updated! 📸');
+        WHAlert.showSuccess(context, 'Profile picture updated.');
       }
     } catch (e) {
       if (mounted) {
@@ -210,7 +210,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
       await ref.read(userRepositoryProvider).setPassword(password);
       if (mounted) {
         _passwordController.clear();
-        WHAlert.showSuccess(context, 'Backup password successfully set! 🔒');
+        WHAlert.showSuccess(context, 'Backup password successfully set.');
       }
     } catch (e) {
       if (mounted) {

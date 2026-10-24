@@ -21,6 +21,7 @@ import '../../../core/notifications/push_notification_service.dart';
 import '../../notifications/repositories/push_repository.dart';
 import '../../onboarding/widgets/quick_guide_tour_dialog.dart';
 import '../widgets/blocked_users_sheet.dart';
+import '../../scanner/widgets/user_qr_dialog.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -288,6 +289,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               backgroundColor: AppColors.background,
               title: const WHBrandLogo(logoSize: 26, fontSize: 19),
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.textSecondary),
+                  tooltip: 'Scan QR Code',
+                  onPressed: () => context.push('/scanner'),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.primary),
+                  tooltip: 'My Hive Code',
+                  onPressed: () => UserQrDialog.showForUser(context, user, isMe: true),
+                ),
                 IconButton(
                   icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
                   tooltip: 'Quick Guide Tour',
@@ -1048,6 +1059,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 tooltip: 'Invite Friends',
                 onPressed: () => _handleInviteFriends(user),
                 icon: const Icon(Icons.person_add_outlined, size: 20),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                  foregroundColor: AppColors.primaryDark,
+                  padding: const EdgeInsets.all(12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                tooltip: 'My Hive Code (QR)',
+                onPressed: () => UserQrDialog.showForUser(context, user, isMe: true),
+                icon: const Icon(Icons.qr_code_2_rounded, size: 20),
               ),
             ],
           ),
