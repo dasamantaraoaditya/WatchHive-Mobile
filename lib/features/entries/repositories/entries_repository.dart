@@ -271,4 +271,35 @@ class EntriesRepository {
       return null;
     }
   }
+
+  Future<({bool hasWatched, int watchCount, Entry? existingEntry})> checkPreviousWatch(int tmdbId) async {
+    try {
+      final response = await _api.get(ApiEndpoints.checkEntry(tmdbId));
+      final data = response.data as Map<String, dynamic>;
+      final hasWatched = data['hasWatched'] == true;
+      final watchCount = (data['watchCount'] as num?)?.toInt() ?? 0;
+      Entry? existingEntry;
+      if (data['existingEntry'] != null) {
+        existingEntry = Entry.fromJson(data['existingEntry'] as Map<String, dynamic>);
+      }
+      return (
+        hasWatched: hasWatched,
+        watchCount: watchCount,
+        existingEntry: existingEntry,
+      );
+    } catch (e) {
+      try {
+        final cached = await _storage.getCachedEntries(isWatching: false);
+        final match = cached.where((e) => e.tmdbId == tmdbId && !e.isWatching).toList();
+        if (match.isNotEmpty) {
+          return (
+            hasWatched: true,
+            watchCount: match.length,
+            existingEntry: match.first,
+          );
+        }
+      } catch (_) {}
+      return (hasWatched: false, watchCount: 0, existingEntry: null);
+    }
+  }
 }

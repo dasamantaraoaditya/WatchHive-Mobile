@@ -37,6 +37,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late final TextEditingController _bioTextController;
   bool _isSavingBio = false;
   bool _isUploadingAvatar = false;
+  bool _isPrivacyExpanded = false;
 
   void _scrollToDataManagement() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -289,11 +290,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               backgroundColor: AppColors.background,
               title: const WHBrandLogo(logoSize: 26, fontSize: 19),
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.textSecondary),
-                  tooltip: 'Scan QR Code',
-                  onPressed: () => context.push('/scanner'),
-                ),
                 IconButton(
                   icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.primary),
                   tooltip: 'My Hive Code',
@@ -973,44 +969,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const SizedBox(height: 16),
 
-          // View Public Profile Button (Prominent)
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.black,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              onPressed: () => context.push('/profile/${user.id}'),
-              icon: const Icon(Icons.remove_red_eye_outlined, size: 20),
-              label: const Text(
-                'View Public Profile',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 5),
-          const Center(
-            child: Text(
-              'See how your profile appears to other users for reference',
-              style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Action Buttons: Edit Profile, Compare Taste & Invite Friends
+          // Action Buttons: Edit Profile & Public View
           Row(
             children: [
               Expanded(
-                flex: 3,
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
@@ -1031,46 +993,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton.filledTonal(
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                  foregroundColor: AppColors.primaryDark,
-                  padding: const EdgeInsets.all(12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: const Color(0xFF2D2926),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () => context.push('/profile/${user.id}'),
+                  icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
+                  label: const Text(
+                    'Public View',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
-                tooltip: 'Compare Taste with Friends',
-                onPressed: () => ComparePickerModal.show(context),
-                icon: const Icon(Icons.compare_arrows_rounded, size: 20),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filledTonal(
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.surfaceHighest,
-                  foregroundColor: AppColors.textPrimary,
-                  padding: const EdgeInsets.all(12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                tooltip: 'Invite Friends',
-                onPressed: () => _handleInviteFriends(user),
-                icon: const Icon(Icons.person_add_outlined, size: 20),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filledTonal(
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                  foregroundColor: AppColors.primaryDark,
-                  padding: const EdgeInsets.all(12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                tooltip: 'My Hive Code (QR)',
-                onPressed: () => UserQrDialog.showForUser(context, user, isMe: true),
-                icon: const Icon(Icons.qr_code_2_rounded, size: 20),
               ),
             ],
           ),
@@ -1128,14 +1076,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? user.privacyLevel
         : (user.isPrivate ? 'FOLLOWERS_ONLY' : 'PUBLIC');
 
+    final tierLabel = currentTier == 'PRIVATE'
+        ? 'Strictly Private • Content Hidden'
+        : (currentTier == 'FOLLOWERS_ONLY' ? 'Followers Only' : 'Public Profile');
+
+    final tierBadge = currentTier == 'PRIVATE'
+        ? 'Private'
+        : (currentTier == 'FOLLOWERS_ONLY' ? 'Followers' : 'Public');
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Privacy Card
+          // Privacy Card (Collapsible)
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: _isPrivacyExpanded
+                ? const EdgeInsets.all(20)
+                : const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(24),
@@ -1144,60 +1102,83 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
+                InkWell(
+                  onTap: () => setState(() => _isPrivacyExpanded = !_isPrivacyExpanded),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.primaryDark),
                       ),
-                      child: const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.primaryDark),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Privacy & Visibility',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.textPrimary,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Privacy & Visibility',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Control what other members see when visiting your profile',
-                            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-                          ),
-                        ],
+                            const SizedBox(height: 2),
+                            Text(
+                              tierLabel,
+                              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-
-                const Text(
-                  'PROFILE VISIBILITY TIER',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                    color: AppColors.textMuted,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: currentTier == 'PRIVATE'
+                              ? AppColors.surfaceHighest
+                              : AppColors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: currentTier == 'PRIVATE'
+                                ? AppColors.border
+                                : AppColors.primary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          tierBadge,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: currentTier == 'PRIVATE' ? AppColors.textMuted : AppColors.primaryDark,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      AnimatedRotation(
+                        turns: _isPrivacyExpanded ? 0.5 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: AppColors.textMuted,
+                          size: 24,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 10),
-                _buildPrivacyTierChips(user),
-                const SizedBox(height: 20),
+                if (_isPrivacyExpanded) ...[
+                  const SizedBox(height: 18),
 
-                if (currentTier != 'PRIVATE') ...[
                   const Text(
-                    'TAB VISIBILITY PERMISSIONS',
+                    'PROFILE VISIBILITY TIER',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 10,
@@ -1206,169 +1187,146 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       color: AppColors.textMuted,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Toggle individual sections visible to visitors on your public profile:',
-                    style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-                  ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
+                  _buildPrivacyTierChips(user),
+                  const SizedBox(height: 20),
 
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceHighest.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
+                  if (currentTier != 'PRIVATE') ...[
+                    const Text(
+                      'TAB VISIBILITY PERMISSIONS',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
+                        color: AppColors.textMuted,
+                      ),
                     ),
-                    child: Column(
-                      children: [
-                        _buildSwitchTile(
-                          icon: Icons.history_rounded,
-                          title: 'Show Watch Entries',
-                          subtitle: 'Display movies & shows you have watched',
-                          value: user.showWatchEntries,
-                          onChanged: (v) => _updatePrivacyField('showWatchEntries', v),
-                        ),
-                        const Divider(height: 1, color: AppColors.border),
-                        _buildSwitchTile(
-                          icon: Icons.visibility_outlined,
-                          title: 'Currently Watching',
-                          subtitle: 'Show what you are currently viewing',
-                          value: user.showCurrentlyWatching,
-                          onChanged: (v) => _updatePrivacyField('showCurrentlyWatching', v),
-                        ),
-                        const Divider(height: 1, color: AppColors.border),
-                        _buildSwitchTile(
-                          icon: Icons.list_alt_rounded,
-                          title: 'Show Watchlist',
-                          subtitle: 'Let visitors see your upcoming picks',
-                          value: user.showWatchlist,
-                          onChanged: (v) => _updatePrivacyField('showWatchlist', v),
-                        ),
-                        const Divider(height: 1, color: AppColors.border),
-                        _buildSwitchTile(
-                          icon: Icons.format_list_numbered_rounded,
-                          title: 'Show Rankings & Stacks',
-                          subtitle: 'Allow others to view your ranked stacks',
-                          value: user.showRankings,
-                          onChanged: (v) => _updatePrivacyField('showRankings', v),
-                        ),
-                        const Divider(height: 1, color: AppColors.border),
-                        _buildSwitchTile(
-                          icon: Icons.movie_outlined,
-                          title: "Friends' Activity Alerts",
-                          subtitle: "Push alerts when following friends watch or log titles",
-                          value: user.notifyFollowingActivity,
-                          onChanged: (v) => _updatePrivacyField('notifyFollowingActivity', v),
-                        ),
-                      ],
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Toggle individual sections visible to visitors on your public profile:',
+                      style: TextStyle(fontSize: 11, color: AppColors.textMuted),
                     ),
-                  ),
-                ] else ...[
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceHighest,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.shield_outlined, size: 20, color: AppColors.textMuted),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Your profile is set to Strictly Private. Other users cannot see your watch entries, lists, or rankings.',
-                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.3),
+                    const SizedBox(height: 12),
+
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceHighest.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildSwitchTile(
+                            icon: Icons.history_rounded,
+                            title: 'Show Watch Entries',
+                            subtitle: 'Display movies & shows you have watched',
+                            value: user.showWatchEntries,
+                            onChanged: (v) => _updatePrivacyField('showWatchEntries', v),
                           ),
-                        ),
-                      ],
+                          const Divider(height: 1, color: AppColors.border),
+                          _buildSwitchTile(
+                            icon: Icons.visibility_outlined,
+                            title: 'Currently Watching',
+                            subtitle: 'Show what you are currently viewing',
+                            value: user.showCurrentlyWatching,
+                            onChanged: (v) => _updatePrivacyField('showCurrentlyWatching', v),
+                          ),
+                          const Divider(height: 1, color: AppColors.border),
+                          _buildSwitchTile(
+                            icon: Icons.list_alt_rounded,
+                            title: 'Show Watchlist',
+                            subtitle: 'Let visitors see your upcoming picks',
+                            value: user.showWatchlist,
+                            onChanged: (v) => _updatePrivacyField('showWatchlist', v),
+                          ),
+                          const Divider(height: 1, color: AppColors.border),
+                          _buildSwitchTile(
+                            icon: Icons.format_list_numbered_rounded,
+                            title: 'Show Rankings & Stacks',
+                            subtitle: 'Allow others to view your ranked stacks',
+                            value: user.showRankings,
+                            onChanged: (v) => _updatePrivacyField('showRankings', v),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceHighest,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.shield_outlined, size: 20, color: AppColors.textMuted),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Your profile is set to Strictly Private. Other users cannot see your watch entries, lists, or rankings.',
+                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.3),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 14),
+                  InkWell(
+                    onTap: () => BlockedUsersSheet.show(context),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.block_rounded, size: 16, color: AppColors.error),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Blocked Accounts',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Review and unblock members you have blocked',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 11,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
+                        ],
+                      ),
                     ),
                   ),
                 ],
-
-                const SizedBox(height: 16),
-                InkWell(
-                  onTap: () => context.push('/profile/${user.id}'),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.remove_red_eye_outlined, size: 16, color: AppColors.primaryDark),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Tap here to preview how visitors see your profile',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primaryDark,
-                            ),
-                          ),
-                        ),
-                        Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primaryDark),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                InkWell(
-                  onTap: () => BlockedUsersSheet.show(context),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: AppColors.error.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.block_rounded, size: 16, color: AppColors.error),
-                        ),
-                        const SizedBox(width: 10),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Blocked Accounts',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Review and unblock members you have blocked',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 11,
-                                  color: AppColors.textMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
-                      ],
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
@@ -1413,17 +1371,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 const Divider(height: 1, color: AppColors.border),
                 _buildActionTile(
-                  icon: Icons.explore_outlined,
-                  title: 'App Guide Tour',
-                  subtitle: 'Walkthrough of features & how to use WatchersHive',
-                  onTap: () => QuickGuideTourDialog.show(
-                    context,
-                    userId: user.id,
-                    isReplay: true,
-                  ),
-                ),
-                const Divider(height: 1, color: AppColors.border),
-                _buildActionTile(
                   icon: Icons.shield_outlined,
                   title: 'Privacy Policy & Terms',
                   subtitle: 'Data usage, MindLens metrics & rights',
@@ -1439,6 +1386,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+
           // Offline & Local Storage Management
           const OfflineSyncCard(),
           const SizedBox(height: 16),

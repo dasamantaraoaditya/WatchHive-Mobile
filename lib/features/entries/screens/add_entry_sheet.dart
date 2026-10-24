@@ -124,6 +124,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   String _watchLocation = '';
   List<String> _tags = [];
   DateTime _watchedDate = DateTime.now();
+  bool _hasWatchedBefore = false;
+  Entry? _previousEntry;
 
   List<MediaResult> _searchResults = [];
   bool _isSearching = false;
@@ -225,6 +227,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       }
       if (_tmdbId > 0) {
         _loadMediaDetails(_tmdbId, _type);
+        _checkPreviousWatch(_tmdbId);
         if (_suggestedByUserId == null || _suggestedByUserId!.isEmpty) {
           _checkSuggestionsForTmdbId(_tmdbId);
           _checkWatchlistSuggestionsForTmdbId(_tmdbId);
@@ -443,6 +446,33 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
               _titleController.text = fetched;
             }
           }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _checkPreviousWatch(int tmdbId) async {
+    if (tmdbId <= 0 || isEditing) {
+      if (mounted) {
+        setState(() {
+          _hasWatchedBefore = false;
+          _previousEntry = null;
+        });
+      }
+      return;
+    }
+    try {
+      final result = await ref.read(entriesRepositoryProvider).checkPreviousWatch(tmdbId);
+      if (mounted && result.hasWatched) {
+        setState(() {
+          _hasWatchedBefore = true;
+          _previousEntry = result.existingEntry;
+          _isRewatch = true;
+        });
+      } else if (mounted) {
+        setState(() {
+          _hasWatchedBefore = false;
+          _previousEntry = null;
         });
       }
     } catch (_) {}
@@ -734,6 +764,10 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     }
     if (title.isEmpty) {
       WHAlert.showWarning(context, 'Please search or select a title.');
+      return;
+    }
+    if (_hasWatchedBefore && !_isRewatch && !_isWatching) {
+      WHAlert.showWarning(context, 'You have already watched this title. Rewatch must be enabled to log a duplicate entry.');
       return;
     }
     final now = DateTime.now();
@@ -1047,7 +1081,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                         ],
                                       ),
                                     ),
-                                    if (!isEditing) IconButton(icon: const Icon(Icons.close_rounded, color: AppColors.error, size: 20), onPressed: () => setState(() { _tmdbId = 0; _selectedMedia = null; _mediaDetails = null; _titleController.clear(); _searchController.clear(); })),
+                                    if (!isEditing) IconButton(icon: const Icon(Icons.close_rounded, color: AppColors.error, size: 20), onPressed: () => setState(() { _tmdbId = 0; _selectedMedia = null; _mediaDetails = null; _titleController.clear(); _searchController.clear(); _hasWatchedBefore = false; _previousEntry = null; })),
                                   ],
                                 ),
                               ),
@@ -1102,6 +1136,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                           });
                                           _searchFocusNode.unfocus();
                                           _loadMediaDetails(media.id, _type);
+                                          _checkPreviousWatch(media.id);
                                           _checkSuggestionsForTmdbId(media.id);
                                           _scrollToKey(_scoreKey, alignment: 0.08);
                                         },
@@ -1321,8 +1356,201 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                               ],
                             ),
                             const SizedBox(height: 10),
+                            if (_hasWatchedBefore) ...[
+                              Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: AppColors.primary.withValues(alpha: 0.35),
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary.withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: const Icon(
+                                            Icons.history_rounded,
+                                            size: 20,
+                                            color: AppColors.primaryDark,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Expanded(
+                                                    child: Text(
+                                                      'You already watched this title!',
+                                                      style: TextStyle(
+                                                        fontFamily: 'Inter',
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: AppColors.textPrimary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors.primary.withValues(alpha: 0.25),
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                    child: const Text(
+                                                      'REWATCH REQUIRED',
+                                                      style: TextStyle(
+                                                        fontFamily: 'Inter',
+                                                        fontSize: 9,
+                                                        fontWeight: FontWeight.w900,
+                                                        color: AppColors.primaryDark,
+                                                        letterSpacing: 0.5,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              const Text(
+                                                'Rewatch is enabled by default to record this viewing, creating another entry in your Hive history.',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: AppColors.textSecondary,
+                                                  height: 1.3,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (_previousEntry != null) ...[
+                                      const SizedBox(height: 10),
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surface,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: AppColors.border,
+                                            width: 0.8,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    const Icon(Icons.event_available_rounded, size: 14, color: AppColors.textMuted),
+                                                    const SizedBox(width: 5),
+                                                    Text(
+                                                      'Watched ${DateFormat('MMM d, yyyy').format(_previousEntry!.watchedAt)}',
+                                                      style: const TextStyle(
+                                                        fontFamily: 'Inter',
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: AppColors.textSecondary,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                if (_previousEntry!.rating != null && _previousEntry!.rating! > 0)
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors.primary.withValues(alpha: 0.15),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        const Icon(Icons.star_rounded, size: 12, color: AppColors.primary),
+                                                        const SizedBox(width: 3),
+                                                        Text(
+                                                          '${_previousEntry!.rating!.toStringAsFixed(1)}/10',
+                                                          style: const TextStyle(
+                                                            fontFamily: 'Inter',
+                                                            fontSize: 10,
+                                                            fontWeight: FontWeight.w800,
+                                                            color: AppColors.primaryDark,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                            if (_previousEntry!.watchLocation != null && _previousEntry!.watchLocation!.trim().isNotEmpty) ...[
+                                              const SizedBox(height: 6),
+                                              Row(
+                                                children: [
+                                                  const Icon(Icons.location_on_outlined, size: 13, color: AppColors.primary),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Watched at ${_previousEntry!.watchLocation}',
+                                                    style: const TextStyle(
+                                                      fontFamily: 'Inter',
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: AppColors.textPrimary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                            if (_previousEntry!.review != null && _previousEntry!.review!.trim().isNotEmpty) ...[
+                                              const SizedBox(height: 6),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                                decoration: const BoxDecoration(
+                                                  border: Border(left: BorderSide(color: AppColors.primary, width: 2)),
+                                                ),
+                                                child: Text(
+                                                  '"${_previousEntry!.review!.trim()}"',
+                                                  style: const TextStyle(
+                                                    fontFamily: 'Inter',
+                                                    fontSize: 11,
+                                                    fontStyle: FontStyle.italic,
+                                                    color: AppColors.textSecondary,
+                                                  ),
+                                                  maxLines: 3,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
                             GestureDetector(
                               onTap: () {
+                                if (_hasWatchedBefore && !_isWatching && _isRewatch) {
+                                  HapticFeedback.mediumImpact();
+                                  WHAlert.showWarning(context, 'You already watched this title. Rewatch must be enabled to log a duplicate entry.');
+                                  return;
+                                }
                                 HapticFeedback.lightImpact();
                                 setState(() => _isRewatch = !_isRewatch);
                               },
@@ -1345,13 +1573,13 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
-                                            'Rewatch Status',
+                                          Text(
+                                            _hasWatchedBefore ? 'Rewatch Required for Duplicate' : 'Rewatch Status',
                                             style: TextStyle(
                                               fontFamily: 'Inter',
                                               fontSize: 10,
                                               fontWeight: FontWeight.w600,
-                                              color: AppColors.textMuted,
+                                              color: _hasWatchedBefore ? AppColors.primaryDark : AppColors.textMuted,
                                               letterSpacing: 0.4,
                                             ),
                                           ),
@@ -1373,6 +1601,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                       activeThumbColor: AppColors.primary,
                                       activeTrackColor: AppColors.primary.withValues(alpha: 0.35),
                                       onChanged: (val) {
+                                        if (_hasWatchedBefore && !_isWatching && !val) {
+                                          HapticFeedback.mediumImpact();
+                                          WHAlert.showWarning(context, 'You already watched this title. Rewatch must be enabled to log a duplicate entry.');
+                                          return;
+                                        }
                                         HapticFeedback.lightImpact();
                                         setState(() => _isRewatch = val);
                                       },

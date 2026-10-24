@@ -7,18 +7,34 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/wh_alert.dart';
 import '../../entries/screens/entries_screen.dart';
 
-class OfflineSyncCard extends ConsumerWidget {
-  const OfflineSyncCard({super.key});
+class OfflineSyncCard extends ConsumerStatefulWidget {
+  final bool initiallyExpanded;
+  const OfflineSyncCard({super.key, this.initiallyExpanded = false});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OfflineSyncCard> createState() => _OfflineSyncCardState();
+}
+
+class _OfflineSyncCardState extends ConsumerState<OfflineSyncCard> {
+  late bool _isExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _isExpanded = widget.initiallyExpanded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final connectivity = ref.watch(connectivityServiceProvider);
     final syncState = ref.watch(offlineSyncManagerProvider);
     final isOnline = connectivity.isOnline;
     final isSyncing = syncState.status == SyncStatus.syncing;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: _isExpanded
+          ? const EdgeInsets.all(20)
+          : const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
@@ -27,54 +43,76 @@ class OfflineSyncCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: isOnline
-                      ? AppColors.primary.withValues(alpha: 0.15)
-                      : const Color(0xFFFEF3C7),
-                  shape: BoxShape.circle,
+          // Header (Tappable to expand / collapse)
+          InkWell(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: isOnline
+                        ? AppColors.primary.withValues(alpha: 0.15)
+                        : const Color(0xFFFEF3C7),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isOnline ? Icons.cloud_sync_rounded : Icons.cloud_off_rounded,
+                    size: 20,
+                    color: isOnline ? AppColors.primaryDark : const Color(0xFFB45309),
+                  ),
                 ),
-                child: Icon(
-                  isOnline ? Icons.cloud_sync_rounded : Icons.cloud_off_rounded,
-                  size: 20,
-                  color: isOnline ? AppColors.primaryDark : const Color(0xFFB45309),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Offline & Local Storage',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Offline & Local Storage',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Local cache & offline sync management',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
-                        color: AppColors.textMuted,
+                      const SizedBox(height: 2),
+                      Text(
+                        isOnline ? 'Online • Cache & Sync Active' : 'Offline Mode',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isOnline ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                  ),
+                ),
+                AnimatedRotation(
+                  turns: _isExpanded ? 0.5 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.textMuted,
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
           ),
-
-          const SizedBox(height: 16),
+          if (_isExpanded) ...[
+            const SizedBox(height: 16),
 
           // Connection status pill
           Container(
@@ -213,7 +251,7 @@ class OfflineSyncCard extends ConsumerWidget {
                         ),
                         const SizedBox(height: 6),
                         GestureDetector(
-                          onTap: () => _showQueueSheet(context, ref),
+                          onTap: () => _showQueueSheet(context),
                           child: const Text(
                             'Inspect or discard pending changes →',
                             style: TextStyle(
@@ -296,7 +334,7 @@ class OfflineSyncCard extends ConsumerWidget {
                     side: const BorderSide(color: AppColors.border),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  onPressed: () => _showQueueSheet(context, ref),
+                  onPressed: () => _showQueueSheet(context),
                   icon: const Icon(Icons.list_alt_rounded, size: 18, color: AppColors.textPrimary),
                 ),
               ],
@@ -327,12 +365,13 @@ class OfflineSyncCard extends ConsumerWidget {
               ),
             ],
           ),
+          ],
         ],
       ),
     );
   }
 
-  void _showQueueSheet(BuildContext context, WidgetRef ref) {
+  void _showQueueSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

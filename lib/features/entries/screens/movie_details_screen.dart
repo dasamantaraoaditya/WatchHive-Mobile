@@ -26,7 +26,6 @@ import '../../rankings/widgets/add_to_stack_sheet.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../widgets/platform_logo_badge.dart';
 import '../widgets/add_to_watchlist_sheet.dart';
-import '../../scanner/widgets/movie_qr_dialog.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -453,24 +452,6 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     );
   }
 
-  void _showMovieQrCode() {
-    final title = (_details?['title'] ?? _details?['name'] ?? 'Movie/Show').toString();
-    final posterPath = _details?['poster_path']?.toString();
-    final releaseDate = (_details?['release_date'] ?? _details?['first_air_date'])?.toString();
-    final releaseYear = (releaseDate != null && releaseDate.length >= 4)
-        ? releaseDate.substring(0, 4)
-        : null;
-
-    MovieQrDialog.show(
-      context,
-      tmdbId: widget.tmdbId,
-      mediaType: _effectiveIsTv ? 'tv' : 'movie',
-      title: title,
-      posterPath: posterPath,
-      releaseYear: releaseYear,
-    );
-  }
-
   String _formatCategoryLabel() {
     if (_details == null) return _effectiveIsTv ? 'TV Series' : 'Feature Film';
     final genres = (_details!['genres'] as List<dynamic>? ?? [])
@@ -657,21 +638,6 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                 ),
               ),
             actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Center(
-                  child: CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.black.withValues(alpha: 0.55),
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.qr_code_2_rounded, color: Colors.white, size: 19),
-                      tooltip: 'View on another device (QR)',
-                      onPressed: _showMovieQrCode,
-                    ),
-                  ),
-                ),
-              ),
               Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: Center(
@@ -1098,69 +1064,12 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                 },
                                 icon: const Icon(Icons.format_list_numbered_rounded, size: 16, color: AppColors.primaryDark),
                                 label: const Text(
-                                  'Rank 🏆',
+                                  'Rank',
                                   style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 12),
                                 ),
                               ),
                             ),
                           ],
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        // Scan to View on Another Device
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(14),
-                            onTap: _showMovieQrCode,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceElevated,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: AppColors.border),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: 0.15),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(Icons.qr_code_2_rounded, size: 16, color: AppColors.primaryDark),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'View on Another Device',
-                                          style: TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppColors.textPrimary,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Generate QR Code to scan with phone or tablet',
-                                          style: TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 11,
-                                            color: AppColors.textMuted,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
-                                ],
-                              ),
-                            ),
-                          ),
                         ),
                       ],
                     ),

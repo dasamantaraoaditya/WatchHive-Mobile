@@ -292,7 +292,7 @@ void main() {
           child: MaterialApp(
             home: Scaffold(
               body: SingleChildScrollView(
-                child: OfflineSyncCard(),
+                child: OfflineSyncCard(initiallyExpanded: true),
               ),
             ),
           ),
