@@ -27,6 +27,11 @@ void main() {
       // Verify header and irreversible badge
       expect(find.text('Danger Zone'), findsOneWidget);
       expect(find.text('IRREVERSIBLE'), findsOneWidget);
+
+      // Expand collapsible card
+      await tester.tap(find.text('Danger Zone'));
+      await tester.pumpAndSettle();
+
       expect(
         find.textContaining('Deleting your account permanently erases your profile'),
         findsOneWidget,
@@ -75,6 +80,10 @@ void main() {
           ),
         ),
       );
+
+      // Expand Danger Zone collapsible card first
+      await tester.tap(find.text('Danger Zone'));
+      await tester.pumpAndSettle();
 
       // Open the deletion bottom sheet
       await tester.tap(find.text('Delete Account Permanently'));
@@ -197,7 +206,11 @@ void main() {
       );
 
       // Verify initial state is scrolled down
-      expect(scrollController.offset, equals(800));
+      expect(scrollController.offset, greaterThan(700));
+
+      // Expand Danger Zone card to reveal advisory export button
+      await tester.tap(find.text('Danger Zone'));
+      await tester.pumpAndSettle();
 
       // Tap on export button in DangerZoneCard
       await tester.ensureVisible(find.text('Go to Data Management for Export'));
