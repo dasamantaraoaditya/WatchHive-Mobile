@@ -168,7 +168,9 @@ class Entry {
       watchLocation: dataMap['watchLocation'] as String?,
       createdAt: dataMap['createdAt'] != null
           ? (DateTime.tryParse(dataMap['createdAt'].toString())?.toLocal() ?? DateTime.now())
-          : DateTime.now(),
+          : (json['timestamp'] != null
+              ? (DateTime.tryParse(json['timestamp'].toString())?.toLocal() ?? (isSuggestion ? DateTime.fromMillisecondsSinceEpoch(0) : DateTime.now()))
+              : (isSuggestion ? DateTime.fromMillisecondsSinceEpoch(0) : DateTime.now())),
       updatedAt: dataMap['updatedAt'] != null
           ? DateTime.tryParse(dataMap['updatedAt'].toString())?.toLocal()
           : (json['timestamp'] != null

@@ -73,6 +73,74 @@ final feedProvider = StateNotifierProvider<FeedNotifier, FeedState>((ref) {
 /// Reactive trigger to scroll to top and refresh feed (e.g. tapping Home bottom-nav item).
 final feedRefreshTriggerProvider = StateProvider<int>((ref) => 0);
 
+/// Organizes and interleaves community feed entries.
+///
+/// Rules:
+/// 1. Excludes imported entries (`isImported` or tag 'imported').
+/// 2. User entries are strictly ordered chronologically by [activityDate] descending.
+/// 3. Hive recommendations ([isSuggestion] == true or [user] == null) are NEVER placed
+///    at the top of the feed when user posts exist.
+/// 4. Recommendations are smoothly mixed up / interleaved into the feed (every 2-3 user posts).
+/// 5. If only recommendations exist (e.g. fresh user with 0 posts and 0 follows),
+///    recommendations are displayed.
+List<Entry> mixFeedEntries(List<Entry> entries) {
+  final userEntries = <Entry>[];
+  final recommendations = <Entry>[];
+  final seenIds = <String>{};
+
+  for (final entry in entries) {
+    if (entry.isImported || entry.tags.contains('imported')) {
+      continue;
+    }
+    // Deduplicate entries by non-empty ID
+    if (entry.id.isNotEmpty && !seenIds.add(entry.id)) {
+      continue;
+    }
+
+    final isRec = entry.isSuggestion || entry.type == 'SUGGESTION' || (entry.userId.isEmpty && entry.user == null);
+    if (isRec) {
+      recommendations.add(entry);
+    } else {
+      userEntries.add(entry);
+    }
+  }
+
+  // User posts are ordered chronologically by activityDate descending (newest on top)
+  userEntries.sort((a, b) => b.activityDate.compareTo(a.activityDate));
+
+  // If no user entries exist, show recommendations
+  if (userEntries.isEmpty) {
+    return recommendations;
+  }
+
+  // If no recommendations exist, return sorted user entries
+  if (recommendations.isEmpty) {
+    return userEntries;
+  }
+
+  // Interleave recommendations so they are mixed in and NEVER on top
+  final interleaveInterval = userEntries.length <= 3 ? 2 : 3;
+  final result = <Entry>[];
+  int recIndex = 0;
+
+  for (int i = 0; i < userEntries.length; i++) {
+    result.add(userEntries[i]);
+
+    if ((i + 1) % interleaveInterval == 0 && recIndex < recommendations.length) {
+      result.add(recommendations[recIndex]);
+      recIndex++;
+    }
+  }
+
+  // Any remaining recommendations are placed at the end of the feed
+  while (recIndex < recommendations.length) {
+    result.add(recommendations[recIndex]);
+    recIndex++;
+  }
+
+  return result;
+}
+
 class FeedNotifier extends StateNotifier<FeedState> {
   final FeedRepository _repo;
   static const _pageSize = 20;
@@ -85,9 +153,10 @@ class FeedNotifier extends StateNotifier<FeedState> {
     try {
       final cached = await _repo.getCachedFeed();
       if (cached.isNotEmpty && state.entries.isEmpty) {
-        final initialLiked = cached.where((e) => e.isLiked).map((e) => e.id).toSet();
+        final mixed = mixFeedEntries(cached);
+        final initialLiked = mixed.where((e) => e.isLiked).map((e) => e.id).toSet();
         state = state.copyWith(
-          entries: cached,
+          entries: mixed,
           likedEntryIds: initialLiked,
           isLoading: false,
         );
@@ -145,13 +214,13 @@ class FeedNotifier extends StateNotifier<FeedState> {
       updateEntry(entry);
       return;
     }
-    final updatedEntries = [entry, ...state.entries]
-      ..sort((a, b) => b.activityDate.compareTo(a.activityDate));
+    final updatedEntries = [entry, ...state.entries];
+    final mixed = mixFeedEntries(updatedEntries);
     final updatedLiked = Set<String>.from(state.likedEntryIds);
     if (entry.isLiked) updatedLiked.add(entry.id);
 
     state = state.copyWith(
-      entries: updatedEntries,
+      entries: mixed,
       likedEntryIds: updatedLiked,
       isStale: true,
     );
@@ -180,10 +249,10 @@ class FeedNotifier extends StateNotifier<FeedState> {
       // Only completed watching updates bump the post to the top of the feed.
       // Regular edits (reviews, rating tweaks, location, tags) maintain their existing position.
       if (isCompletedWatchingTransition) {
-        updatedEntries.sort((a, b) => b.activityDate.compareTo(a.activityDate));
+        state = state.copyWith(entries: mixFeedEntries(updatedEntries));
+      } else {
+        state = state.copyWith(entries: updatedEntries);
       }
-
-      state = state.copyWith(entries: updatedEntries);
     }
   }
 
@@ -199,10 +268,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
 
     try {
       final result = await _repo.getFeed(limit: _pageSize, offset: 0);
-      final incoming = result.entries
-          .where((e) => !e.isImported && !e.tags.contains('imported'))
-          .toList()
-        ..sort((a, b) => b.activityDate.compareTo(a.activityDate));
+      final incoming = mixFeedEntries(result.entries);
       final initialLiked = incoming.where((e) => e.isLiked).map((e) => e.id).toSet();
 
       // If silent refresh and user is scrolled down into feed, don't disorient them:
@@ -252,12 +318,8 @@ class FeedNotifier extends StateNotifier<FeedState> {
     state = state.copyWith(isLoadingMore: true);
     try {
       final result = await _repo.getFeed(limit: _pageSize, offset: state.entries.length);
-      final moreEntries = result.entries
-          .where((e) => !e.isImported && !e.tags.contains('imported'))
-          .toList();
-      final combined = [...state.entries, ...moreEntries]
-        ..sort((a, b) => b.activityDate.compareTo(a.activityDate));
-      final moreLiked = moreEntries.where((e) => e.isLiked).map((e) => e.id);
+      final combined = mixFeedEntries([...state.entries, ...result.entries]);
+      final moreLiked = result.entries.where((e) => e.isLiked).map((e) => e.id);
       state = state.copyWith(
         entries: combined,
         likedEntryIds: {...state.likedEntryIds, ...moreLiked},
