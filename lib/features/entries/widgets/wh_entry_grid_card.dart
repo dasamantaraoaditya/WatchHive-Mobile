@@ -129,7 +129,9 @@ class WHEntryGridCard extends ConsumerWidget {
         ? initialPosterPath
         : tmdbPoster;
 
-    final voteAvg = (detailsAsync?.value?['vote_average'] as num?)?.toDouble() ?? rating;
+    final effectiveUserRating = (rating != null && rating! > 0) ? rating : null;
+    final tmdbScore = (detailsAsync?.value?['vote_average'] as num?)?.toDouble();
+    final displayRating = effectiveUserRating ?? (tmdbScore != null && tmdbScore > 0 ? tmdbScore : null);
     final releaseDate = (detailsAsync?.value?['release_date'] as String?) ??
         (detailsAsync?.value?['first_air_date'] as String?);
     final year = releaseDate != null && releaseDate.length >= 4 ? releaseDate.substring(0, 4) : null;
@@ -344,7 +346,7 @@ class WHEntryGridCard extends ConsumerWidget {
                         ),
                       ),
                     )
-                  else if (voteAvg != null)
+                  else if (displayRating != null)
                     Positioned(
                       top: 8,
                       right: 8,
@@ -361,7 +363,7 @@ class WHEntryGridCard extends ConsumerWidget {
                             const Icon(Icons.star_rounded, color: AppColors.primary, size: 12),
                             const SizedBox(width: 3),
                             Text(
-                              voteAvg.toStringAsFixed(1),
+                              displayRating.toStringAsFixed(1),
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 10,

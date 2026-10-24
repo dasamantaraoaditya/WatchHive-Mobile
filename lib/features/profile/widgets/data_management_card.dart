@@ -20,16 +20,23 @@ class DataManagementCard extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<DataManagementCard> createState() => _DataManagementCardState();
+  ConsumerState<DataManagementCard> createState() => DataManagementCardState();
 }
 
-class _DataManagementCardState extends ConsumerState<DataManagementCard> {
+class DataManagementCardState extends ConsumerState<DataManagementCard> {
+  bool _isExpanded = false;
   bool _includeEntries = true;
   bool _includeLists = true;
   String _exportFormat = 'json'; // 'json' or 'csv'
   bool _isExporting = false;
   bool _isImporting = false;
   Map<String, dynamic>? _importResult;
+
+  void expand() {
+    if (!_isExpanded && mounted) {
+      setState(() => _isExpanded = true);
+    }
+  }
 
   Future<void> _handleExport() async {
     if (!_includeEntries && !_includeLists) {
@@ -263,7 +270,9 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: _isExpanded
+          ? const EdgeInsets.all(20)
+          : const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
@@ -272,43 +281,57 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+          // Header (Tappable to expand / collapse)
+          InkWell(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.sync_alt_rounded, size: 18, color: AppColors.primaryDark),
                 ),
-                child: const Icon(Icons.sync_alt_rounded, size: 18, color: AppColors.primaryDark),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Data Management',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Data Management',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Export or import your watch entries and lists',
-                      style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-                    ),
-                  ],
+                      SizedBox(height: 2),
+                      Text(
+                        'Export or import your watch entries and lists',
+                        style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                AnimatedRotation(
+                  turns: _isExpanded ? 0.5 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.textMuted,
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 18),
+          if (_isExpanded) ...[
+            const SizedBox(height: 18),
 
           const Text(
             'DATA TYPES TO INCLUDE',
@@ -578,6 +601,7 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
                 ],
               ),
             ),
+          ],
           ],
         ],
       ),

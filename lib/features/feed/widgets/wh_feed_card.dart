@@ -855,7 +855,7 @@ class FeedMediaHeroBanner extends ConsumerWidget {
             ),
 
             // Top-Right Badge: Rating
-            if (entry.rating != null)
+            if (entry.rating != null && entry.rating! > 0)
               Positioned(
                 top: 10,
                 right: 10,

@@ -21,6 +21,8 @@ class DangerZoneCard extends ConsumerStatefulWidget {
 }
 
 class _DangerZoneCardState extends ConsumerState<DangerZoneCard> {
+  bool _isExpanded = false;
+
   void _openDeletionBottomSheet() {
     showModalBottomSheet(
       context: context,
@@ -38,7 +40,9 @@ class _DangerZoneCardState extends ConsumerState<DangerZoneCard> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: _isExpanded
+          ? const EdgeInsets.all(20)
+          : const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.cardBg,
         borderRadius: BorderRadius.circular(24),
@@ -57,72 +61,86 @@ class _DangerZoneCardState extends ConsumerState<DangerZoneCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+          // Header Row (Tappable to expand / collapse)
+          InkWell(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.error,
+                    size: 22,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.warning_amber_rounded,
-                  color: AppColors.error,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Text(
-                          'Danger Zone',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.error,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.error.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'IRREVERSIBLE',
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Danger Zone',
                             style: TextStyle(
                               fontFamily: 'Inter',
-                              fontSize: 9,
+                              fontSize: 16,
                               fontWeight: FontWeight.w900,
                               color: AppColors.error,
-                              letterSpacing: 0.5,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Permanent account erasure & data removal',
-                      style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-                    ),
-                  ],
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'IRREVERSIBLE',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.error,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Permanent account erasure & data removal',
+                        style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                AnimatedRotation(
+                  turns: _isExpanded ? 0.5 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.error,
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
+          if (_isExpanded) ...[
+            const SizedBox(height: 14),
 
           // Core Explanation
           const Text(
@@ -250,6 +268,7 @@ class _DangerZoneCardState extends ConsumerState<DangerZoneCard> {
               ),
             ),
           ),
+          ],
         ],
       ),
     );

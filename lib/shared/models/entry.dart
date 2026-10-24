@@ -154,7 +154,7 @@ class Entry {
           : (json['timestamp'] != null ? (DateTime.tryParse(json['timestamp'].toString())?.toLocal() ?? DateTime.now()) : DateTime.now()),
       rating: dataMap['rating'] != null
           ? double.tryParse(dataMap['rating'].toString())
-          : (dataMap['vote_average'] != null ? double.tryParse(dataMap['vote_average'].toString()) : null),
+          : (isSuggestion && dataMap['vote_average'] != null ? double.tryParse(dataMap['vote_average'].toString()) : null),
       review: dataMap['review'] as String? ?? (isSuggestion && dataMap['overview'] != null ? dataMap['overview'].toString() : null),
       tags: (dataMap['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       isRewatch: dataMap['isRewatch'] as bool? ?? false,

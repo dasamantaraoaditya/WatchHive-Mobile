@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/config/web_urls.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/models/models.dart';
@@ -190,16 +188,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         });
       }
     } catch (_) {}
-  }
-
-  void _shareProfile() {
-    if (_user == null) return;
-    final name = _user!.displayName?.isNotEmpty == true ? _user!.displayName! : _user!.name;
-    final profileUrl = WebUrls.userProfile(_user!.id, refUsername: _user!.username);
-    final text = _isMe
-        ? 'Check out my profile on WatchersHive:\n\n$profileUrl'
-        : 'Check out $name\'s profile on WatchersHive:\n\n$profileUrl';
-    Share.share(text, subject: 'WatchersHive: $name');
   }
 
   String _formatTabLabel({required String baseLabel, required int? count}) {
@@ -675,18 +663,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 ),
               ),
               actions: [
-                if (_user != null) ...[
+                if (!_isMe && _user != null)
                   IconButton(
                     icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.primary),
                     tooltip: 'Hive Code (QR)',
-                    onPressed: () => UserQrDialog.showForUser(context, _user!, isMe: _isMe),
+                    onPressed: () => UserQrDialog.showForUser(context, _user!, isMe: false),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.share_outlined, color: AppColors.textPrimary),
-                    tooltip: 'Share Profile',
-                    onPressed: _shareProfile,
-                  ),
-                ],
                 if (_isMe)
                   IconButton(
                     icon: const Icon(Icons.tune_rounded, color: AppColors.primaryDark),
@@ -1107,7 +1089,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.black,
+                      foregroundColor: const Color(0xFF2D2926),
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
