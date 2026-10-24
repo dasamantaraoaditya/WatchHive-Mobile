@@ -230,6 +230,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               suggestedByUserId = suggestedByUser.id;
             }
           }
+
+          suggestedByUserId ??= state.uri.queryParameters['suggestedByUserId'] ??
+              state.uri.queryParameters['suggestedBy'] ??
+              state.uri.queryParameters['ref'];
+          final suggestedByUsername = state.uri.queryParameters['suggestedByUsername'] ??
+              state.uri.queryParameters['refUsername'] ??
+              state.uri.queryParameters['username'];
+          if (suggestedByUser == null && suggestedByUsername != null && suggestedByUsername.isNotEmpty) {
+            suggestedByUser = User(
+              id: suggestedByUserId ?? '',
+              username: suggestedByUsername,
+              createdAt: DateTime.now(),
+            );
+          }
+
           return MovieDetailsScreen(
             mediaType: state.pathParameters['mediaType']!,
             tmdbId: int.parse(state.pathParameters['tmdbId']!),

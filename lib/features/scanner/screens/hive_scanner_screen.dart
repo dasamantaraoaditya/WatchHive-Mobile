@@ -82,7 +82,18 @@ class _HiveScannerScreenState extends ConsumerState<HiveScannerScreen>
         // Stop camera controller and navigate directly to target movie/series details
         await _controller.stop();
         if (mounted) {
-          context.pushReplacement('/details/${movieResult.mediaType}/${movieResult.tmdbId}');
+          final queryParams = <String, String>{};
+          if (movieResult.suggestedByUserId != null && movieResult.suggestedByUserId!.isNotEmpty) {
+            queryParams['suggestedByUserId'] = movieResult.suggestedByUserId!;
+          }
+          if (movieResult.suggestedByUsername != null && movieResult.suggestedByUsername!.isNotEmpty) {
+            queryParams['suggestedByUsername'] = movieResult.suggestedByUsername!;
+          }
+          final uri = Uri(
+            path: '/details/${movieResult.mediaType}/${movieResult.tmdbId}',
+            queryParameters: queryParams.isNotEmpty ? queryParams : null,
+          );
+          context.pushReplacement(uri.toString());
         }
         break;
 

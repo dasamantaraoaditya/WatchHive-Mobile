@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/config/web_urls.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/wh_alert.dart';
 
 /// Modal dialog that generates a QR code for a movie or TV show.
@@ -16,6 +17,9 @@ class MovieQrDialog extends StatelessWidget {
   final String title;
   final String? posterPath;
   final String? releaseYear;
+  final User? suggestedByUser;
+  final String? suggestedByUserId;
+  final String? suggestedByUsername;
 
   const MovieQrDialog({
     super.key,
@@ -24,6 +28,9 @@ class MovieQrDialog extends StatelessWidget {
     required this.title,
     this.posterPath,
     this.releaseYear,
+    this.suggestedByUser,
+    this.suggestedByUserId,
+    this.suggestedByUsername,
   });
 
   static void show(
@@ -33,6 +40,9 @@ class MovieQrDialog extends StatelessWidget {
     required String title,
     String? posterPath,
     String? releaseYear,
+    User? suggestedByUser,
+    String? suggestedByUserId,
+    String? suggestedByUsername,
   }) {
     showDialog(
       context: context,
@@ -44,11 +54,23 @@ class MovieQrDialog extends StatelessWidget {
         title: title,
         posterPath: posterPath,
         releaseYear: releaseYear,
+        suggestedByUser: suggestedByUser,
+        suggestedByUserId: suggestedByUserId,
+        suggestedByUsername: suggestedByUsername,
       ),
     );
   }
 
-  String get _movieUrl => WebUrls.movieDetails(mediaType, tmdbId);
+  String get _movieUrl {
+    final uid = suggestedByUser?.id ?? suggestedByUserId;
+    final uname = suggestedByUser?.username ?? suggestedByUsername;
+    return WebUrls.movieDetails(
+      mediaType,
+      tmdbId,
+      suggestedByUserId: uid,
+      suggestedByUsername: uname,
+    );
+  }
 
   String? get _resolvedPosterUrl {
     if (posterPath == null || posterPath!.isEmpty) return null;
@@ -285,6 +307,37 @@ class MovieQrDialog extends StatelessWidget {
                         ],
                       ),
                     ),
+
+                    if (suggestedByUser != null || (suggestedByUsername != null && suggestedByUsername!.isNotEmpty)) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.auto_awesome_rounded, size: 14, color: AppColors.primaryDark),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'Scanning credits @${suggestedByUser?.username ?? suggestedByUsername} as recommender',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primaryDark,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 18),
 
