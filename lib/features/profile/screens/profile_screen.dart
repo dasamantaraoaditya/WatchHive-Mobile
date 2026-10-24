@@ -483,7 +483,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         setModalState(() => isSending = false);
                                         if (ctx.mounted) {
                                           if (success) {
-                                            WHAlert.showSuccess(ctx, 'Device registered successfully! 🚀');
+                                            WHAlert.showSuccess(ctx, 'Notifications enabled for this device.');
                                           } else {
                                             WHAlert.showError(ctx, 'Backend rejected device token registration.');
                                           }
@@ -609,7 +609,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               if (ctx.mounted) {
                                 setModalState(() => isSending = false);
                                 if (sent) {
-                                  WHAlert.showSuccess(ctx, 'Test notification dispatched! 🔔');
+                                  WHAlert.showSuccess(ctx, 'Test notification sent.');
                                 } else {
                                   WHAlert.showError(ctx, 'Backend test push failed.');
                                 }
