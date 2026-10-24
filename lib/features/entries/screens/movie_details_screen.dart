@@ -1762,7 +1762,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         AppColors.primary.withValues(alpha: 0.05),
                       ]
                     : [
-                        const Color(0xFF6366F1).withValues(alpha: 0.22),
+                        AppColors.surfaceElevated,
                         AppColors.surface,
                       ],
                 begin: Alignment.centerLeft,
@@ -1784,8 +1784,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                       : (isMe ? Icons.rate_review_rounded : Icons.person_pin_rounded),
                   size: 16,
                   color: entry.isWatching
-                      ? const Color(0xFF60A5FA)
-                      : (isMe ? AppColors.primaryDark : const Color(0xFF818CF8)),
+                      ? AppColors.primaryDark
+                      : (isMe ? AppColors.primaryDark : AppColors.textSecondary),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -1797,8 +1797,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
                     color: entry.isWatching
-                        ? const Color(0xFF60A5FA)
-                        : (isMe ? AppColors.primaryDark : const Color(0xFF818CF8)),
+                        ? AppColors.textPrimary
+                        : (isMe ? AppColors.primaryDark : AppColors.textPrimary),
                   ),
                 ),
                 const Spacer(),
@@ -2001,7 +2001,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                             fontFamily: 'Inter',
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFFFBBF24),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                         const Text(
@@ -2017,7 +2017,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         Container(height: 18, width: 1, color: AppColors.border),
                         const SizedBox(width: 10),
                       ] else if (entry.isWatching) ...[
-                        const Icon(Icons.visibility_rounded, size: 18, color: Color(0xFF60A5FA)),
+                        const Icon(Icons.visibility_rounded, size: 18, color: AppColors.primaryDark),
                         const SizedBox(width: 6),
                         const Text(
                           'Currently Watching',
@@ -2025,14 +2025,14 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                             fontFamily: 'Inter',
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF93C5FD),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                         const SizedBox(width: 10),
                         Container(height: 18, width: 1, color: AppColors.border),
                         const SizedBox(width: 10),
                       ] else ...[
-                        const Icon(Icons.check_circle_outline_rounded, size: 18, color: Colors.greenAccent),
+                        const Icon(Icons.check_circle_outline_rounded, size: 18, color: AppColors.success),
                         const SizedBox(width: 6),
                         const Text(
                           'Watched',
@@ -2260,7 +2260,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         Icon(
                           _myOwnEntry!.isWatching ? Icons.visibility_rounded : Icons.check_circle_rounded,
                           size: 16,
-                          color: _myOwnEntry!.isWatching ? const Color(0xFF60A5FA) : AppColors.primary,
+                          color: _myOwnEntry!.isWatching ? AppColors.primaryDark : AppColors.primary,
                         ),
                         const SizedBox(width: 8),
                         Text(

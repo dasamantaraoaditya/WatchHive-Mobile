@@ -993,8 +993,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   padding: const EdgeInsets.symmetric(vertical: 10),
-                                  decoration: BoxDecoration(color: _isWatching ? const Color(0xFF3B82F6) : Colors.transparent, borderRadius: BorderRadius.circular(12)),
-                                  child: Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.visibility_rounded, size: 16, color: _isWatching ? Colors.white : AppColors.textMuted), const SizedBox(width: 6), Text('Currently Watching', style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w800, color: _isWatching ? Colors.white : AppColors.textMuted))])),
+                                  decoration: BoxDecoration(color: _isWatching ? AppColors.primary : Colors.transparent, borderRadius: BorderRadius.circular(12)),
+                                  child: Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.visibility_rounded, size: 16, color: _isWatching ? Colors.black : AppColors.textMuted), const SizedBox(width: 6), Text('Currently Watching', style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w800, color: _isWatching ? Colors.black : AppColors.textMuted))])),
                                 ),
                               ),
                             ),
@@ -1032,7 +1032,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                         children: [
                                           Row(
                                             children: [
-                                              Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3), decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6), border: Border.all(color: AppColors.primary.withValues(alpha: 0.3))), child: Text(_type == 'TV_SHOW' || _type == 'tv' ? '📺 TV SERIES' : '🎬 MOVIE', style: const TextStyle(fontFamily: 'Inter', fontSize: 9, fontWeight: FontWeight.w900, color: AppColors.primary, letterSpacing: 0.5))),
+                                              Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3), decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6), border: Border.all(color: AppColors.primary.withValues(alpha: 0.3))), child: Text(_type == 'TV_SHOW' || _type == 'tv' ? '📺 TV SERIES' : '🎬 MOVIE', style: const TextStyle(fontFamily: 'Inter', fontSize: 9, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: 0.5))),
                                               if (releaseYear.isNotEmpty) ...[const SizedBox(width: 6), Text(releaseYear, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted))],
                                               if (runtime.isNotEmpty) ...[const SizedBox(width: 6), const Text('•', style: TextStyle(color: AppColors.textMuted, fontSize: 12)), const SizedBox(width: 6), Text(runtime, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w500))],
                                             ],
@@ -1041,7 +1041,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                           Text(displayTitle, style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
                                           if (voteAverage != null && voteAverage > 0) ...[
                                             const SizedBox(height: 4),
-                                            Row(children: [const Icon(Icons.star_rounded, size: 14, color: AppColors.primary), const SizedBox(width: 4), Text(voteAverage.toStringAsFixed(1), style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)), const Text(' TMDB Score', style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted))]),
+                                            Row(children: [const Icon(Icons.star_rounded, size: 14, color: AppColors.primary), const SizedBox(width: 4), Text(voteAverage.toStringAsFixed(1), style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary)), const Text(' TMDB Score', style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted))]),
                                           ],
                                           if (overview != null && overview.isNotEmpty) ...[const SizedBox(height: 6), Text(overview, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.textMuted, height: 1.3))],
                                         ],
