@@ -87,7 +87,7 @@ class _AddToStackSheetState extends ConsumerState<AddToStackSheet> {
 
       if (mounted) {
         Navigator.pop(context);
-        WHAlert.showSuccess(context, 'Added "${widget.title}" to ${stack.name}! 🏆');
+        WHAlert.showSuccess(context, 'Added "${widget.title}" to ${stack.name}.');
       }
     } catch (e) {
       if (mounted) {
@@ -141,7 +141,7 @@ class _AddToStackSheetState extends ConsumerState<AddToStackSheet> {
           Navigator.pop(context);
           WHAlert.showSuccess(
             context,
-            'Created "${newStack.name}" & added "${widget.title}"! 🏆',
+            'Created "${newStack.name}" and added "${widget.title}".',
           );
         }
       } catch (itemErr) {
@@ -195,7 +195,7 @@ class _AddToStackSheetState extends ConsumerState<AddToStackSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Add to Ranking Stack 📚',
+                  'Add to Stack',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 17,
@@ -426,7 +426,7 @@ class _AddToStackSheetState extends ConsumerState<AddToStackSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Create New Stack 🏆',
+                'Create New Stack',
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 15,
@@ -560,7 +560,7 @@ class _AddToStackSheetState extends ConsumerState<AddToStackSheet> {
                         Icon(Icons.add_rounded, size: 20, color: Colors.black),
                         SizedBox(width: 6),
                         Text(
-                          'Create & Add to Stack 🏆',
+                          'Create and Add to Stack',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14,
