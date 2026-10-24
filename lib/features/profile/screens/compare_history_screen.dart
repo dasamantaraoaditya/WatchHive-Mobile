@@ -191,7 +191,7 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
                     border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                   ),
                   child: Text(
-                    '🔥 ${_result!.stats.matchPercentage}% MATCH',
+                    '${_result!.stats.matchPercentage}% MATCH',
                     style: const TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 12,
@@ -498,21 +498,21 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
                 Expanded(
                   child: _buildTabButton(
                     index: 0,
-                    label: '🤝 Common',
+                    label: 'In Common',
                     count: stats.totalCommon,
                   ),
                 ),
                 Expanded(
                   child: _buildTabButton(
                     index: 1,
-                    label: '👤 Only You',
+                    label: 'Only You',
                     count: stats.totalUserAOnly,
                   ),
                 ),
                 Expanded(
                   child: _buildTabButton(
                     index: 2,
-                    label: '👥 $friendFirstName',
+                    label: friendFirstName,
                     count: stats.totalUserBOnly,
                   ),
                 ),
