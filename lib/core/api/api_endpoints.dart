@@ -75,6 +75,7 @@ class ApiEndpoints {
   // Entries
   static const String entries = '/entries';
   static String entry(String id) => '/entries/$id';
+  static String checkEntry(int tmdbId) => '/entries/check/$tmdbId';
   static const String entryStats = '/entries/stats/summary';
   static String compareEntries(String userId) => '/entries/compare/$userId';
 
