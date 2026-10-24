@@ -171,9 +171,18 @@ class FeedNotifier extends StateNotifier<FeedState> {
     }
     final targetIndex = state.entries.indexWhere((e) => e.id == updated.id);
     if (targetIndex != -1) {
+      final oldEntry = state.entries[targetIndex];
+      final isCompletedWatchingTransition = oldEntry.isWatching && !updated.isWatching;
+
       final updatedEntries = [...state.entries];
       updatedEntries[targetIndex] = updated;
-      updatedEntries.sort((a, b) => b.activityDate.compareTo(a.activityDate));
+
+      // Only completed watching updates bump the post to the top of the feed.
+      // Regular edits (reviews, rating tweaks, location, tags) maintain their existing position.
+      if (isCompletedWatchingTransition) {
+        updatedEntries.sort((a, b) => b.activityDate.compareTo(a.activityDate));
+      }
+
       state = state.copyWith(entries: updatedEntries);
     }
   }
