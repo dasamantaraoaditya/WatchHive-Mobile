@@ -66,15 +66,22 @@ class Entry {
   });
 
   /// Computes the effective latest activity date for feed sorting and status display.
+  /// Standard: Posts are ordered chronologically by when they were created (createdAt).
+  /// Exception: Completed watching milestones (transition from watching to completed) use completedAt.
+  /// Regular edits/updates do NOT bump a post to the top.
   DateTime get activityDate {
     final now = DateTime.now();
     DateTime raw;
+    final isCompletedWatchingUpdate = !isWatching &&
+        completedAt != null &&
+        (startedAt != null || completedAt!.difference(createdAt).inSeconds > 2);
+
     if (isWatching) {
-      raw = startedAt ?? updatedAt ?? createdAt;
-    } else if (completedAt != null) {
+      raw = startedAt ?? createdAt;
+    } else if (isCompletedWatchingUpdate) {
       raw = completedAt!;
     } else {
-      raw = updatedAt ?? watchedAt;
+      raw = createdAt;
     }
     return raw.isAfter(now) ? now : raw;
   }
