@@ -6,6 +6,21 @@ import '../../../core/api/api_endpoints.dart';
 import '../../../core/services/offline_storage_service.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/models/user.dart';
+import '../services/smart_search_engine.dart';
+
+class SmartMediaSearchResult {
+  final List<MediaResult> results;
+  final String? correctedQuery;
+  final String originalQuery;
+  final bool isSmartCorrected;
+
+  const SmartMediaSearchResult({
+    required this.results,
+    this.correctedQuery,
+    required this.originalQuery,
+    this.isSmartCorrected = false,
+  });
+}
 
 final searchRepositoryProvider = Provider<SearchRepository>((ref) {
   return SearchRepository(ref.read(apiClientProvider));
@@ -15,6 +30,7 @@ class SearchRepository {
   final ApiClient _api;
   final FlutterSecureStorage _storage;
   static const String _recentSearchesKey = 'watchhive_recent_searches';
+  List<User> _lastSuggestedUsers = [];
 
   SearchRepository(this._api, [FlutterSecureStorage? storage])
       : _storage = storage ??
@@ -22,28 +38,92 @@ class SearchRepository {
               aOptions: AndroidOptions(encryptedSharedPreferences: true),
             );
 
-  Future<List<MediaResult>> searchMedia(String query, {String? type}) async {
-    final response = await _api.get(
-      ApiEndpoints.tmdbSearch,
-      queryParameters: {
-        'query': query,
-        if (type != null) 'type': type,
-      },
+  Future<List<MediaResult>> _rawSearchMedia(String query,
+      {String? type}) async {
+    final clean = query.trim();
+    if (clean.isEmpty) return [];
+    try {
+      final response = await _api.get(
+        ApiEndpoints.tmdbSearch,
+        queryParameters: {
+          'query': clean,
+          if (type != null) 'type': type,
+        },
+      );
+      final data = response.data as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results
+          .map((e) => MediaResult.fromJson(e as Map<String, dynamic>))
+          .where((r) => r.mediaType == 'movie' || r.mediaType == 'tv')
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Performs an intelligent, typo-tolerant search across TMDB media.
+  /// If direct search produces no matches, attempts heuristic recovery and dictionary-guided fuzzy matching.
+  Future<SmartMediaSearchResult> searchMediaSmart(String query,
+      {String? type}) async {
+    final clean = query.trim();
+    if (clean.isEmpty) {
+      return SmartMediaSearchResult(results: [], originalQuery: clean);
+    }
+
+    final engine = SmartSearchEngine.instance;
+
+    // 1. Direct search with user query
+    final directResults = await _rawSearchMedia(clean, type: type);
+    if (directResults.isNotEmpty) {
+      engine.registerTitles(directResults.map((r) => r.title));
+      final ranked = engine.rankMediaResults(clean, directResults);
+      return SmartMediaSearchResult(
+        results: ranked,
+        originalQuery: clean,
+        isSmartCorrected: false,
+      );
+    }
+
+    // 2. Direct search returned 0 results. Try typo correction and fuzzy candidate variations.
+    if (clean.length >= 3) {
+      final candidates = engine.generateQueryCandidates(clean);
+
+      for (final candidate in candidates) {
+        if (candidate.toLowerCase() == clean.toLowerCase()) continue;
+
+        final candidateResults = await _rawSearchMedia(candidate, type: type);
+        if (candidateResults.isNotEmpty) {
+          engine.registerTitles(candidateResults.map((r) => r.title));
+          final ranked = engine.rankMediaResults(clean, candidateResults);
+          return SmartMediaSearchResult(
+            results: ranked,
+            originalQuery: clean,
+            correctedQuery: candidate,
+            isSmartCorrected: true,
+          );
+        }
+      }
+    }
+
+    return SmartMediaSearchResult(
+      results: [],
+      originalQuery: clean,
+      isSmartCorrected: false,
     );
-    final data = response.data as Map<String, dynamic>;
-    final results = data['results'] as List<dynamic>? ?? [];
-    return results
-        .map((e) => MediaResult.fromJson(e as Map<String, dynamic>))
-        .where((r) => r.mediaType == 'movie' || r.mediaType == 'tv')
-        .toList();
+  }
+
+  Future<List<MediaResult>> searchMedia(String query, {String? type}) async {
+    final smart = await searchMediaSmart(query, type: type);
+    return smart.results;
   }
 
   Future<List<User>> searchUsers(String query) async {
-    if (query.trim().isEmpty) return [];
+    final clean = query.trim().replaceAll('@', '');
+    if (clean.isEmpty) return [];
     try {
       final response = await _api.get(
         ApiEndpoints.searchUsers,
-        queryParameters: {'q': query.trim()},
+        queryParameters: {'q': clean},
       );
       final data = response.data;
       List<dynamic> users = [];
@@ -52,10 +132,20 @@ class SearchRepository {
       } else if (data is List) {
         users = data;
       }
-      return users.map((u) => User.fromJson(u as Map<String, dynamic>)).toList();
-    } catch (e) {
-      return [];
+      final parsed =
+          users.map((u) => User.fromJson(u as Map<String, dynamic>)).toList();
+      if (parsed.isNotEmpty) {
+        return SmartSearchEngine.instance.fuzzySearchUsers(clean, parsed);
+      }
+    } catch (_) {}
+
+    // Fallback: If backend returns 0 users, run fuzzy search on suggested/cached users!
+    if (_lastSuggestedUsers.isNotEmpty) {
+      return SmartSearchEngine.instance
+          .fuzzySearchUsers(clean, _lastSuggestedUsers);
     }
+
+    return [];
   }
 
   Future<List<User>> getSuggestedUsers() async {
@@ -68,7 +158,10 @@ class SearchRepository {
       } else if (data is List) {
         users = data;
       }
-      return users.map((u) => User.fromJson(u as Map<String, dynamic>)).toList();
+      final parsed =
+          users.map((u) => User.fromJson(u as Map<String, dynamic>)).toList();
+      _lastSuggestedUsers = parsed;
+      return parsed;
     } catch (e) {
       return [];
     }
@@ -84,14 +177,18 @@ class SearchRepository {
     return response.data as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> getTvSeasonDetails(int tvId, int seasonNumber) async {
+  Future<Map<String, dynamic>> getTvSeasonDetails(
+      int tvId, int seasonNumber) async {
     final response = await _api.get('/tmdb/tv/$tvId/season/$seasonNumber');
     return response.data as Map<String, dynamic>;
   }
 
-  Future<List<MediaResult>> getRecommendations(String mediaType, int tmdbId) async {
+  Future<List<MediaResult>> getRecommendations(
+      String mediaType, int tmdbId) async {
     try {
-      final endpoint = mediaType == 'tv' ? '/tmdb/tv/$tmdbId/recommendations' : '/tmdb/movie/$tmdbId/recommendations';
+      final endpoint = mediaType == 'tv'
+          ? '/tmdb/tv/$tmdbId/recommendations'
+          : '/tmdb/movie/$tmdbId/recommendations';
       final response = await _api.get(endpoint);
       final data = response.data as Map<String, dynamic>;
       final results = data['results'] as List<dynamic>? ?? [];
@@ -106,16 +203,19 @@ class SearchRepository {
     }
   }
 
-
-  Future<List<MediaResult>> getTrending({String mediaType = 'all', String timeWindow = 'week'}) async {
+  Future<List<MediaResult>> getTrending(
+      {String mediaType = 'all', String timeWindow = 'week'}) async {
     try {
-      final response = await _api.get(ApiEndpoints.tmdbTrending(mediaType: mediaType, timeWindow: timeWindow));
+      final response = await _api.get(ApiEndpoints.tmdbTrending(
+          mediaType: mediaType, timeWindow: timeWindow));
       final data = response.data as Map<String, dynamic>;
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final mapped = results
           .map((e) => MediaResult.fromJson(e as Map<String, dynamic>))
           .where((r) => r.mediaType == 'movie' || r.mediaType == 'tv')
           .toList();
+      SmartSearchEngine.instance.registerTitles(mapped.map((m) => m.title));
+      return mapped;
     } catch (e) {
       return [];
     }
@@ -123,16 +223,19 @@ class SearchRepository {
 
   Future<List<MediaResult>> getPopular({String type = 'movie'}) async {
     try {
-      final endpoint = type == 'tv' ? ApiEndpoints.tmdbPopularTv : ApiEndpoints.tmdbPopular;
+      final endpoint =
+          type == 'tv' ? ApiEndpoints.tmdbPopularTv : ApiEndpoints.tmdbPopular;
       final response = await _api.get(endpoint);
       final data = response.data as Map<String, dynamic>;
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final mapped = results
           .map((e) => MediaResult.fromJson({
                 ...e as Map<String, dynamic>,
                 'media_type': type,
               }))
           .toList();
+      SmartSearchEngine.instance.registerTitles(mapped.map((m) => m.title));
+      return mapped;
     } catch (e) {
       return [];
     }
@@ -179,7 +282,8 @@ class SearchRepository {
   Future<void> removeRecentSearch(String query) async {
     try {
       final current = await getRecentSearches();
-      current.removeWhere((item) => item.toLowerCase() == query.trim().toLowerCase());
+      current.removeWhere(
+          (item) => item.toLowerCase() == query.trim().toLowerCase());
       await _storage.write(key: _recentSearchesKey, value: jsonEncode(current));
     } catch (_) {}
   }
@@ -191,8 +295,8 @@ class SearchRepository {
   }
 }
 
-
-final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({int tmdbId, String mediaType})>((ref, arg) async {
+final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?,
+    ({int tmdbId, String mediaType})>((ref, arg) async {
   if (arg.tmdbId <= 0) return null;
   final searchRepo = ref.read(searchRepositoryProvider);
   final storage = ref.read(offlineStorageServiceProvider);
@@ -206,7 +310,10 @@ final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({
       if (res['poster_path'] == null && res['backdrop_path'] == null) {
         try {
           final movieRes = await searchRepo.getMovieDetails(arg.tmdbId);
-          if (movieRes['poster_path'] != null || movieRes['backdrop_path'] != null) res = movieRes;
+          if (movieRes['poster_path'] != null ||
+              movieRes['backdrop_path'] != null) {
+            res = movieRes;
+          }
         } catch (_) {}
       }
     } else {
@@ -214,7 +321,9 @@ final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({
       if (res['poster_path'] == null && res['backdrop_path'] == null) {
         try {
           final tvRes = await searchRepo.getTvDetails(arg.tmdbId);
-          if (tvRes['poster_path'] != null || tvRes['backdrop_path'] != null) res = tvRes;
+          if (tvRes['poster_path'] != null || tvRes['backdrop_path'] != null) {
+            res = tvRes;
+          }
         } catch (_) {}
       }
     }
@@ -225,7 +334,8 @@ final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({
     final poster = res['poster_path'] as String?;
     final backdrop = res['backdrop_path'] as String?;
     if (poster != null || backdrop != null) {
-      await storage.updateEntryPostersByTmdbId(arg.tmdbId, posterPath: poster, backdropPath: backdrop);
+      await storage.updateEntryPostersByTmdbId(arg.tmdbId,
+          posterPath: poster, backdropPath: backdrop);
       storage.prewarmImage(poster);
     }
 
@@ -244,7 +354,8 @@ final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({
       await storage.saveMediaDetails(arg.tmdbId, altType, altRes);
       return altRes;
     } catch (_) {
-      return await storage.getCachedMediaDetails(arg.tmdbId, isTv ? 'movie' : 'tv');
+      return await storage.getCachedMediaDetails(
+          arg.tmdbId, isTv ? 'movie' : 'tv');
     }
   }
 });
