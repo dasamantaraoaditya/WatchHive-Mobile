@@ -858,7 +858,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                           fontFamily: 'Inter',
                                           fontSize: 12,
                                           fontWeight: FontWeight.w800,
-                                          color: AppColors.primaryDark,
+                                          color: Color(0xFF2D2926),
                                         ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -890,7 +890,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                 fontFamily: 'Inter',
                                 fontSize: 9,
                                 fontWeight: FontWeight.w900,
-                                color: AppColors.primaryDark,
+                                color: Color(0xFF2D2926),
                                 letterSpacing: 0.4,
                               ),
                             ),
@@ -970,12 +970,12 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                               ? AppColors.surfaceElevated
                                               : AppColors.textPrimary),
                                       foregroundColor: isCurrentlyWatching
-                                          ? Colors.black
+                                          ? const Color(0xFF2D2926)
                                           : (isCompletedLog
-                                              ? AppColors.primaryDark
+                                              ? const Color(0xFF2D2926)
                                               : Colors.white),
                                       side: isCompletedLog
-                                          ? BorderSide(color: AppColors.primaryDark.withValues(alpha: 0.35))
+                                          ? BorderSide(color: const Color(0xFF2D2926).withValues(alpha: 0.25), width: 1.2)
                                           : null,
                                       elevation: 0,
                                       padding: const EdgeInsets.symmetric(vertical: 13),
@@ -995,8 +995,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                           : (isCompletedLog ? Icons.check_circle_rounded : Icons.edit_note_rounded),
                                       size: 20,
                                       color: isCurrentlyWatching
-                                          ? Colors.black
-                                          : (isCompletedLog ? AppColors.primaryDark : AppColors.primary),
+                                          ? const Color(0xFF2D2926)
+                                          : (isCompletedLog ? const Color(0xFF2D2926) : AppColors.primary),
                                     ),
                                     label: Text(
                                       isCurrentlyWatching
@@ -1006,7 +1006,14 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                                   ? 'Logged (⭐ ${selfRating.toStringAsFixed(1)})'
                                                   : 'Logged ✓')
                                               : 'Log Watch'),
-                                      style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w800, fontSize: 12),
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12,
+                                        color: (isCurrentlyWatching || isCompletedLog)
+                                            ? const Color(0xFF2D2926)
+                                            : Colors.white,
+                                      ),
                                     ),
                                   ),
                                 );
@@ -1814,21 +1821,19 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                       : (isMe ? Icons.rate_review_rounded : Icons.person_pin_rounded),
                   size: 16,
                   color: entry.isWatching
-                      ? AppColors.primaryDark
-                      : (isMe ? AppColors.primaryDark : AppColors.textSecondary),
+                      ? const Color(0xFF2D2926)
+                      : (isMe ? const Color(0xFF2D2926) : AppColors.textSecondary),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   entry.isWatching
                       ? (isMe ? 'Currently Watching' : "$authorName is Currently Watching")
                       : (isMe ? 'Your Watch Entry & Review' : "$authorName's Watch Entry"),
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
-                    color: entry.isWatching
-                        ? AppColors.textPrimary
-                        : (isMe ? AppColors.primaryDark : AppColors.textPrimary),
+                    color: Color(0xFF2D2926),
                   ),
                 ),
                 const Spacer(),
@@ -1853,9 +1858,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.task_alt_rounded, size: 13, color: AppColors.primaryDark),
+                                Icon(Icons.task_alt_rounded, size: 13, color: Color(0xFF2D2926)),
                                 SizedBox(width: 4),
-                                Text('Complete', style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                                Text('Complete', style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2D2926))),
                               ],
                             ),
                           ),
@@ -2184,19 +2189,19 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                       _logEntry();
                     },
                     borderRadius: BorderRadius.circular(10),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                       child: Row(
                         children: [
-                          const Icon(Icons.add_comment_outlined, size: 14, color: AppColors.primary),
-                          const SizedBox(width: 6),
+                          Icon(Icons.add_comment_outlined, size: 14, color: Color(0xFF2D2926)),
+                          SizedBox(width: 6),
                           Text(
                             'Add a written review to this entry...',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.primary.withValues(alpha: 0.9),
+                              color: Color(0xFF2D2926),
                             ),
                           ),
                         ],
@@ -2247,7 +2252,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                           ),
                           child: Text(
                             '#$tag',
-                            style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+                            style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2D2926)),
                           ),
                         ),
                       ),
@@ -2255,18 +2260,18 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.amber.withValues(alpha: 0.12),
+                            color: Colors.amber.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                            border: Border.all(color: Colors.amber.withValues(alpha: 0.35)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.auto_awesome_rounded, size: 12, color: Colors.amber),
+                              const Icon(Icons.auto_awesome_rounded, size: 12, color: Color(0xFF2D2926)),
                               const SizedBox(width: 5),
                               Text(
                                 'Suggested by @${entry.suggestedByUser!.username}',
-                                style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber),
+                                style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2D2926)),
                               ),
                             ],
                           ),
@@ -2320,7 +2325,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                               fontFamily: 'Inter',
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.primaryDark,
+                              color: Color(0xFF2D2926),
                             ),
                           ),
                         ),
