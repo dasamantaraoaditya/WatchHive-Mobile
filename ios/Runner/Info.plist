@@ -52,6 +52,20 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>nflx</string>
+		<string>primevideo</string>
+		<string>aiv</string>
+		<string>hotstar</string>
+		<string>jiocinema</string>
+		<string>zee5</string>
+		<string>sonyliv</string>
+		<string>appletv</string>
+		<string>youtube</string>
+		<string>https</string>
+		<string>http</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
