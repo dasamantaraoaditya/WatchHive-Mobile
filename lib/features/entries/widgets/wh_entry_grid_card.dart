@@ -617,7 +617,7 @@ class WHEntryGridCard extends ConsumerWidget {
                                           fontFamily: 'Inter',
                                           fontSize: 9,
                                           fontWeight: FontWeight.w800,
-                                          color: AppColors.primaryDark,
+                                          color: Color(0xFF2D2926),
                                         ),
                                       ),
                                     ),

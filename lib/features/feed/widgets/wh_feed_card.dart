@@ -341,17 +341,42 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                   ),
                   const SizedBox(width: 6),
                 ],
-                // Compact header timestamp (e.g. "2:30 PM" or "Aug 23")
-                Text(
-                  _formatCompactHeaderDate(entry.activityDate),
-                  maxLines: 1,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
+                // Where did you watch platform badge (e.g., Netflix, Prime, Cinema) to the right of the card in the same line
+                if (entry.watchLocation != null && entry.watchLocation!.trim().isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        PlatformBrandLogo(
+                          platform: entry.watchLocation!.trim(),
+                          size: 13,
+                        ),
+                        const SizedBox(width: 4),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 88),
+                          child: Text(
+                            entry.watchLocation!.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 4),
+                ],
                 if (!widget.isOwnEntry && !isSuggestion && entry.user != null) ...[
                   const SizedBox(width: 2),
                   SizedBox(
@@ -439,65 +464,38 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                 ),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: isSuggestion
-                                    ? (entry.suggestionReason ?? 'Recommended for You')
-                                    : (entry.isWatching
-                                        ? 'Started watching • '
-                                        : (entry.completedAt != null || entry.startedAt != null
-                                            ? 'Completed watching • '
-                                            : (entry.review != null && entry.review!.isNotEmpty ? 'Reviewed • ' : 'Logged • '))),
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12,
-                                  fontWeight: isSuggestion ? FontWeight.w600 : FontWeight.w500,
-                                  color: isSuggestion ? AppColors.primary : AppColors.textMuted,
-                                ),
-                              ),
-                              if (!isSuggestion)
-                                TextSpan(
-                                  text: _formatFullTimestamp(entry.activityDate),
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                            ],
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: isSuggestion
+                              ? (entry.suggestionReason ?? 'Recommended for You')
+                              : (entry.isWatching
+                                  ? 'Started watching • '
+                                  : (entry.completedAt != null || entry.startedAt != null
+                                      ? 'Completed watching • '
+                                      : (entry.review != null && entry.review!.isNotEmpty ? 'Reviewed • ' : 'Logged • '))),
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                            fontWeight: isSuggestion ? FontWeight.w600 : FontWeight.w500,
+                            color: isSuggestion ? AppColors.primary : AppColors.textMuted,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      if (entry.watchLocation != null && entry.watchLocation!.trim().isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        PlatformBrandLogo(
-                          platform: entry.watchLocation!.trim(),
-                          size: 14,
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            entry.watchLocation!.trim(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        if (!isSuggestion)
+                          TextSpan(
+                            text: _formatFullTimestamp(entry.activityDate),
                             style: const TextStyle(
                               fontFamily: 'Inter',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textMuted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
                             ),
                           ),
-                        ),
                       ],
-                    ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -643,15 +641,6 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
         ],
       ),
     );
-  }
-
-  String _formatCompactHeaderDate(DateTime date) {
-    final now = DateTime.now();
-    final effectiveDate = date.isAfter(now) ? now : date;
-    final diff = now.difference(effectiveDate);
-    if (diff.inDays == 0) return DateFormat('h:mm a').format(effectiveDate.toLocal());
-    if (diff.inDays < 7) return DateFormat('EEE, h:mm a').format(effectiveDate.toLocal());
-    return DateFormat('MMM d').format(effectiveDate.toLocal());
   }
 
   String _formatFullTimestamp(DateTime date) {

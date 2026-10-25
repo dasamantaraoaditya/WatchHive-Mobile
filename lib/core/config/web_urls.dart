@@ -6,10 +6,24 @@ class WebUrls {
   static const String baseUrl = 'https://watchershive.com';
 
   /// Deep link URL for a movie or TV show details page.
-  /// Example: https://watchhive-web.vercel.app/watch-hive/details/movie/550
-  static String movieDetails(String mediaType, int tmdbId) {
+  /// Supports optional referrer / suggested by attribution.
+  /// Example: https://watchhive-web.vercel.app/watch-hive/details/movie/550?suggestedByUserId=123
+  static String movieDetails(
+    String mediaType,
+    int tmdbId, {
+    String? suggestedByUserId,
+    String? suggestedByUsername,
+  }) {
     final cleanMediaType = mediaType.toLowerCase().trim();
-    return '$baseUrl/watch-hive/details/$cleanMediaType/$tmdbId';
+    final params = <String>[];
+    if (suggestedByUserId != null && suggestedByUserId.trim().isNotEmpty) {
+      params.add('suggestedByUserId=${Uri.encodeComponent(suggestedByUserId.trim())}');
+    }
+    if (suggestedByUsername != null && suggestedByUsername.trim().isNotEmpty) {
+      params.add('suggestedByUsername=${Uri.encodeComponent(suggestedByUsername.trim())}');
+    }
+    final query = params.isNotEmpty ? '?${params.join('&')}' : '';
+    return '$baseUrl/watch-hive/details/$cleanMediaType/$tmdbId$query';
   }
 
   /// Deep link URL for a user profile.

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:watchhive_mobile/shared/models/entry.dart';
+import 'package:watchhive_mobile/shared/models/user.dart';
 import 'package:watchhive_mobile/shared/models/models.dart';
 import 'package:watchhive_mobile/features/feed/providers/feed_provider.dart';
 import 'package:watchhive_mobile/features/feed/repositories/feed_repository.dart';
@@ -245,6 +246,142 @@ void main() {
       expect(notifier.state.entries.length, equals(2));
       expect(notifier.state.entries[0].id, equals('v-newer'));
       expect(notifier.state.entries[1].id, equals('v-older'));
+    });
+
+    test('mixFeedEntries mixes Hive recommendations into feed and never places them on top', () {
+      final now = DateTime.now();
+
+      final user1 = User(id: 'u1', username: 'alice', displayName: 'Alice', createdAt: now);
+      final user2 = User(id: 'u2', username: 'bob', displayName: 'Bob', createdAt: now);
+      final user3 = User(id: 'u3', username: 'charlie', displayName: 'Charlie', createdAt: now);
+      final user4 = User(id: 'u4', username: 'david', displayName: 'David', createdAt: now);
+
+      final uPost1 = Entry(
+        id: 'u-1',
+        userId: 'u1',
+        user: user1,
+        tmdbId: 101,
+        title: 'User Post 1 (Newest)',
+        type: 'MOVIE',
+        watchedAt: now,
+        createdAt: now.subtract(const Duration(minutes: 5)),
+      );
+
+      final uPost2 = Entry(
+        id: 'u-2',
+        userId: 'u2',
+        user: user2,
+        tmdbId: 102,
+        title: 'User Post 2',
+        type: 'MOVIE',
+        watchedAt: now,
+        createdAt: now.subtract(const Duration(hours: 1)),
+      );
+
+      final uPost3 = Entry(
+        id: 'u-3',
+        userId: 'u3',
+        user: user3,
+        tmdbId: 103,
+        title: 'User Post 3',
+        type: 'MOVIE',
+        watchedAt: now,
+        createdAt: now.subtract(const Duration(hours: 2)),
+      );
+
+      final uPost4 = Entry(
+        id: 'u-4',
+        userId: 'u4',
+        user: user4,
+        tmdbId: 104,
+        title: 'User Post 4 (Oldest)',
+        type: 'MOVIE',
+        watchedAt: now,
+        createdAt: now.subtract(const Duration(hours: 3)),
+      );
+
+      final rec1 = Entry(
+        id: 'rec-1',
+        userId: '',
+        user: null,
+        isSuggestion: true,
+        suggestionReason: '✨ Recommended for You',
+        tmdbId: 201,
+        title: 'Hive Recommendation A',
+        type: 'MOVIE',
+        watchedAt: now,
+        createdAt: now, // Even with now timestamp, must NOT be at top
+      );
+
+      final rec2 = Entry(
+        id: 'rec-2',
+        userId: '',
+        user: null,
+        isSuggestion: true,
+        suggestionReason: 'Trending Now',
+        tmdbId: 202,
+        title: 'Hive Recommendation B',
+        type: 'MOVIE',
+        watchedAt: now,
+        createdAt: now,
+      );
+
+      // Raw feed list where recommendations might be at the beginning
+      final rawList = <Entry>[rec1, rec2, uPost4, uPost2, uPost1, uPost3];
+      final mixed = mixFeedEntries(rawList);
+
+      // 1. Top entry must ALWAYS be the newest user post, NEVER a recommendation
+      expect(mixed[0].id, equals('u-1'));
+      expect(mixed[0].isSuggestion, isFalse);
+
+      // 2. Second entry is user post 2
+      expect(mixed[1].id, equals('u-2'));
+
+      // 3. User posts remain chronologically ordered
+      final userPostIds = mixed.where((e) => !e.isSuggestion && e.user != null).map((e) => e.id).toList();
+      expect(userPostIds, equals(['u-1', 'u-2', 'u-3', 'u-4']));
+
+      // 4. Recommendations are mixed up inside the feed, not grouped at top
+      final recIds = mixed.where((e) => e.isSuggestion || e.user == null).map((e) => e.id).toList();
+      expect(recIds, containsAll(['rec-1', 'rec-2']));
+      expect(mixed.indexWhere((e) => e.id == 'rec-1'), greaterThanOrEqualTo(2));
+    });
+
+    test('loadFeed with recommendations guarantees top post is user post and recommendations are interleaved', () async {
+      final now = DateTime.now();
+      final user = User(id: 'u1', username: 'alice', displayName: 'Alice', createdAt: now);
+
+      fakeRepo.stubEntries = [
+        Entry(
+          id: 'rec-top',
+          userId: '',
+          user: null,
+          isSuggestion: true,
+          tmdbId: 999,
+          title: 'Hive Rec',
+          type: 'MOVIE',
+          watchedAt: now,
+          createdAt: now,
+        ),
+        Entry(
+          id: 'user-post',
+          userId: 'u1',
+          user: user,
+          tmdbId: 555,
+          title: 'Interstellar',
+          type: 'MOVIE',
+          watchedAt: now,
+          createdAt: now.subtract(const Duration(hours: 1)),
+        ),
+      ];
+
+      final notifier = FeedNotifier(fakeRepo);
+      await notifier.loadFeed();
+
+      // Top post is user post
+      expect(notifier.state.entries[0].id, equals('user-post'));
+      // Recommendation is mixed below
+      expect(notifier.state.entries[1].id, equals('rec-top'));
     });
   });
 }

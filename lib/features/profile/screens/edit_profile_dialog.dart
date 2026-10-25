@@ -7,6 +7,7 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../repositories/user_repository.dart';
 import '../widgets/data_management_card.dart';
+import '../widgets/avatar_viewer_dialog.dart';
 import '../../../core/utils/error_handler.dart';
 
 class EditProfileDialog extends ConsumerStatefulWidget {
@@ -410,16 +411,27 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.primary, width: 2),
-                ),
-                child: WHAvatar(
-                  imageUrl: currentUser.profilePictureUrl,
-                  name: currentUser.name,
-                  radius: 46,
+              GestureDetector(
+                onTap: () {
+                  AvatarViewerDialog.show(
+                    context,
+                    imageUrl: currentUser.profilePictureUrl,
+                    name: currentUser.name,
+                    username: currentUser.username,
+                    onRemoveAvatar: _removeAvatar,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primary, width: 2),
+                  ),
+                  child: WHAvatar(
+                    imageUrl: currentUser.profilePictureUrl,
+                    name: currentUser.name,
+                    radius: 46,
+                  ),
                 ),
               ),
               if (_isUploadingAvatar)
@@ -458,29 +470,6 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                   ),
                 ),
               ),
-              if (currentUser.profilePictureUrl != null && currentUser.profilePictureUrl!.isNotEmpty)
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: _removeAvatar,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.close_rounded, size: 14, color: AppColors.error),
-                    ),
-                  ),
-                ),
             ],
           ),
         ),

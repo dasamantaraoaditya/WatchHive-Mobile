@@ -87,8 +87,32 @@ void main() {
       expect(movieResult.mediaType, 'movie');
     });
 
-    test('Parses JSON payload for movie', () {
-      const json = '{"type":"movie","id":550,"title":"Fight Club","mediaType":"movie"}';
+    test('Parses deep link movie details with recommender query params', () {
+      const url = 'watchershive://movie/872585?suggestedByUserId=usr-123&suggestedByUsername=cinemafan';
+      final result = QrPayloadParser.parse(url);
+
+      expect(result, isA<MovieQrResult>());
+      final movieResult = result as MovieQrResult;
+      expect(movieResult.tmdbId, 872585);
+      expect(movieResult.mediaType, 'movie');
+      expect(movieResult.suggestedByUserId, 'usr-123');
+      expect(movieResult.suggestedByUsername, 'cinemafan');
+    });
+
+    test('Parses movie details web URL with suggestedByUserId parameter', () {
+      const url = 'https://watchershive.com/watch-hive/details/movie/550?suggestedByUserId=usr-abc&suggestedByUsername=filmbuff';
+      final result = QrPayloadParser.parse(url);
+
+      expect(result, isA<MovieQrResult>());
+      final movieResult = result as MovieQrResult;
+      expect(movieResult.tmdbId, 550);
+      expect(movieResult.mediaType, 'movie');
+      expect(movieResult.suggestedByUserId, 'usr-abc');
+      expect(movieResult.suggestedByUsername, 'filmbuff');
+    });
+
+    test('Parses JSON payload for movie with recommender', () {
+      const json = '{"type":"movie","id":550,"title":"Fight Club","mediaType":"movie","suggestedByUserId":"usr-999","suggestedByUsername":"tarantino"}';
       final result = QrPayloadParser.parse(json);
 
       expect(result, isA<MovieQrResult>());
@@ -96,6 +120,8 @@ void main() {
       expect(movieResult.tmdbId, 550);
       expect(movieResult.mediaType, 'movie');
       expect(movieResult.title, 'Fight Club');
+      expect(movieResult.suggestedByUserId, 'usr-999');
+      expect(movieResult.suggestedByUsername, 'tarantino');
     });
 
     test('Returns UnknownQrResult for unrecognized payloads', () {

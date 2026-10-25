@@ -107,6 +107,51 @@ void main() {
       expect(navigatedRoute, equals('/profile/user-abc-123'));
     });
 
+    testWidgets('shows where did you watch field to the right in the same line, and does not show compact header time', (tester) async {
+      final netflixEntry = Entry(
+        id: 'entry-netflix',
+        userId: 'user-abc-123',
+        tmdbId: 603,
+        title: 'The Matrix',
+        type: 'MOVIE',
+        watchedAt: DateTime(2025, 8, 15, 20, 30),
+        watchLocation: 'Netflix',
+        user: testUser,
+        likesCount: 1,
+        commentsCount: 0,
+        createdAt: DateTime(2025, 8, 15, 20, 30),
+      );
+
+      final router = GoRouter(
+        initialLocation: '/feed',
+        routes: [
+          GoRoute(
+            path: '/feed',
+            builder: (context, state) => const FeedScreen(),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            feedRepositoryProvider.overrideWithValue(_FakeFeedRepository([netflixEntry])),
+          ],
+          child: MaterialApp.router(
+            routerConfig: router,
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify watch location 'Netflix' is rendered in the header row
+      expect(find.text('Netflix'), findsOneWidget);
+
+      // Verify that top header compact time (e.g. 8:30 PM) is NOT shown
+      expect(find.text('8:30 PM'), findsNothing);
+    });
+
     testWidgets('suggestion entry displays cleanly without @ and taps friend profile', (tester) async {
       String? navigatedRoute;
 

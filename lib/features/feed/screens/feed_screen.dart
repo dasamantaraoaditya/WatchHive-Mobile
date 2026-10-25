@@ -161,21 +161,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObse
                   title: const WHBrandLogo(logoSize: 30, fontSize: 21),
                   actions: [
                     IconButton(
-                      icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
-                      tooltip: 'Quick Guide Tour',
-                      onPressed: () {
-                        final user = ref.read(authStateProvider).value?.user;
-                        QuickGuideTourDialog.show(
-                          context,
-                          userId: user?.id ?? 'guest',
-                          isReplay: true,
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),
-                      tooltip: 'MindLens AI',
-                      onPressed: () => context.push('/mindlens'),
+                      icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.textPrimary),
+                      tooltip: 'Scan Hive Code / Movie',
+                      onPressed: () => context.push('/scanner'),
                     ),
                     IconButton(
                       icon: Consumer(

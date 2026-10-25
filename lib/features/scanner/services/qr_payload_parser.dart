@@ -26,15 +26,20 @@ class MovieQrResult extends ParsedQrResult {
   final int tmdbId;
   final String mediaType; // 'movie' or 'tv'
   final String? title;
+  final String? suggestedByUserId;
+  final String? suggestedByUsername;
 
   const MovieQrResult({
     required this.tmdbId,
     this.mediaType = 'movie',
     this.title,
+    this.suggestedByUserId,
+    this.suggestedByUsername,
   });
 
   @override
-  String toString() => 'MovieQrResult(tmdbId: $tmdbId, mediaType: $mediaType, title: $title)';
+  String toString() =>
+      'MovieQrResult(tmdbId: $tmdbId, mediaType: $mediaType, title: $title, suggestedByUserId: $suggestedByUserId, suggestedByUsername: $suggestedByUsername)';
 }
 
 /// An unknown or unparseable scanned payload.
@@ -107,10 +112,18 @@ class QrPayloadParser {
             final mediaType = (map['mediaType']?.toString().toLowerCase() == 'tv' || type == 'tv')
                 ? 'tv'
                 : 'movie';
+            final suggestedByUserId = map['suggestedByUserId']?.toString() ??
+                map['suggestedBy']?.toString() ??
+                map['ref']?.toString();
+            final suggestedByUsername = map['suggestedByUsername']?.toString() ??
+                map['username']?.toString() ??
+                map['refUsername']?.toString();
             return MovieQrResult(
               tmdbId: id,
               mediaType: mediaType,
               title: map['title']?.toString() ?? map['name']?.toString(),
+              suggestedByUserId: suggestedByUserId,
+              suggestedByUsername: suggestedByUsername,
             );
           }
         }
@@ -123,6 +136,13 @@ class QrPayloadParser {
     final scheme = uri.scheme.toLowerCase();
     final host = uri.host.toLowerCase();
     final segments = uri.pathSegments;
+
+    final suggestedByUserId = uri.queryParameters['suggestedByUserId'] ??
+        uri.queryParameters['suggestedBy'] ??
+        uri.queryParameters['ref'];
+    final suggestedByUsername = uri.queryParameters['suggestedByUsername'] ??
+        uri.queryParameters['refUsername'] ??
+        uri.queryParameters['username'];
 
     // A. Custom Deep Link: watchershive://user/{id} or watchhive://user/{id}
     if (scheme == 'watchershive' || scheme == 'watchhive') {
@@ -137,7 +157,12 @@ class QrPayloadParser {
       if (host == 'movie' || host == 'tv') {
         final rawId = segments.isNotEmpty ? int.tryParse(segments.first) : null;
         if (rawId != null) {
-          return MovieQrResult(tmdbId: rawId, mediaType: host == 'tv' ? 'tv' : 'movie');
+          return MovieQrResult(
+            tmdbId: rawId,
+            mediaType: host == 'tv' ? 'tv' : 'movie',
+            suggestedByUserId: suggestedByUserId,
+            suggestedByUsername: suggestedByUsername,
+          );
         }
       }
 
@@ -146,7 +171,12 @@ class QrPayloadParser {
         final mediaType = segments[0].toLowerCase() == 'tv' ? 'tv' : 'movie';
         final rawId = int.tryParse(segments[1]);
         if (rawId != null) {
-          return MovieQrResult(tmdbId: rawId, mediaType: mediaType);
+          return MovieQrResult(
+            tmdbId: rawId,
+            mediaType: mediaType,
+            suggestedByUserId: suggestedByUserId,
+            suggestedByUsername: suggestedByUsername,
+          );
         }
       }
     }
@@ -171,7 +201,12 @@ class QrPayloadParser {
         final mediaType = normSegments[1].toLowerCase() == 'tv' ? 'tv' : 'movie';
         final rawId = int.tryParse(normSegments[2]);
         if (rawId != null) {
-          return MovieQrResult(tmdbId: rawId, mediaType: mediaType);
+          return MovieQrResult(
+            tmdbId: rawId,
+            mediaType: mediaType,
+            suggestedByUserId: suggestedByUserId,
+            suggestedByUsername: suggestedByUsername,
+          );
         }
       }
 
@@ -180,7 +215,12 @@ class QrPayloadParser {
         final mediaType = normSegments[0] == 'tv' ? 'tv' : 'movie';
         final rawId = int.tryParse(normSegments[1]);
         if (rawId != null) {
-          return MovieQrResult(tmdbId: rawId, mediaType: mediaType);
+          return MovieQrResult(
+            tmdbId: rawId,
+            mediaType: mediaType,
+            suggestedByUserId: suggestedByUserId,
+            suggestedByUsername: suggestedByUsername,
+          );
         }
       }
     }

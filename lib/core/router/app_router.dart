@@ -37,6 +37,65 @@ final routerNotifierProvider = Provider<RouterNotifier>((ref) => RouterNotifier(
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Tracks a pending deep link received during cold startup or before auth resolution.
+String? _pendingDeepLink;
+
+/// Consumes and returns any saved pending deep link.
+String? consumePendingDeepLink() {
+  final link = _pendingDeepLink;
+  _pendingDeepLink = null;
+  return link;
+}
+
+/// Normalizes web and custom scheme deep link URIs into canonical GoRouter routes.
+String? normalizeIncomingRoute(Uri uri) {
+  final scheme = uri.scheme.toLowerCase();
+  final host = uri.host.toLowerCase();
+  final path = uri.path;
+
+  // 1. Custom URL Scheme: watchershive:// or watchhive://
+  if (scheme == 'watchershive' || scheme == 'watchhive') {
+    final query = uri.hasQuery ? '?${uri.query}' : '';
+    // e.g. watchershive://details/movie/550
+    if (host == 'details') {
+      return '/details$path$query';
+    }
+    // e.g. watchershive://movie/550 or watchershive://tv/123
+    if (host == 'movie' || host == 'tv') {
+      return '/details/$host$path$query';
+    }
+    // e.g. watchershive://profile/:id or watchershive://user/:id
+    if (host == 'profile' || host == 'user') {
+      return '/profile$path$query';
+    }
+    if (host == 'feed' || host == 'entries' || host == 'search' || host == 'notifications') {
+      return '/$host$path$query';
+    }
+    if (path.isNotEmpty && path != '/') {
+      return '$path$query';
+    }
+  }
+
+  // 2. Web Paths with /watch-hive or /watchers-hive or /watcher-hive prefix
+  if (path.startsWith('/watch-hive') || path.startsWith('/watchers-hive') || path.startsWith('/watcher-hive')) {
+    final stripped = path.replaceFirst(RegExp(r'^/watch(?:ers?)?-hive'), '');
+    final cleanPath = stripped.isEmpty ? '/feed' : stripped;
+    final resolvedPath = cleanPath.startsWith('/user/')
+        ? cleanPath.replaceFirst('/user/', '/profile/')
+        : cleanPath;
+    final query = uri.hasQuery ? '?${uri.query}' : '';
+    return '$resolvedPath$query';
+  }
+
+  // 3. /user/:id -> /profile/:id
+  if (path.startsWith('/user/')) {
+    final query = uri.hasQuery ? '?${uri.query}' : '';
+    return path.replaceFirst('/user/', '/profile/') + query;
+  }
+
+  return null;
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
 
@@ -49,6 +108,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isLoading = authState.isLoading;
       final isAuthenticated = authState.value?.isAuthenticated ?? false;
 
+      // 0. Handle incoming deep link normalization
+      final normalized = normalizeIncomingRoute(state.uri);
+      if (normalized != null &&
+          normalized != state.uri.toString() &&
+          normalized != state.matchedLocation) {
+        return normalized;
+      }
+
       final isSplash = state.matchedLocation == '/splash';
       final isAuthPage = state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/signup') ||
@@ -57,12 +124,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           state.matchedLocation.startsWith('/privacy-policy') ||
           state.matchedLocation.startsWith('/support');
 
+      // Preserve deep link destination if navigating during initial cold start / loading
+      if (!isSplash &&
+          !isAuthPage &&
+          !isPublicPage &&
+          (state.matchedLocation.startsWith('/details') ||
+              state.matchedLocation.startsWith('/profile') ||
+              state.matchedLocation.startsWith('/entry'))) {
+        final currentFullUri = state.uri.toString();
+        if (currentFullUri != '/feed' && currentFullUri != '/splash') {
+          _pendingDeepLink = currentFullUri;
+        }
+      }
+
       // 1. If currently on splash screen:
       if (isSplash) {
         // While still resolving initial session / auto-login, STAY on splash screen
         if (isLoading) return null;
-        // Once resolved, go to /feed if authenticated, or /login if not
-        return isAuthenticated ? '/feed' : '/login';
+        // Once resolved: if we have a pending deep link, navigate there!
+        if (isAuthenticated) {
+          if (_pendingDeepLink != null && _pendingDeepLink!.isNotEmpty && _pendingDeepLink != '/splash') {
+            final dest = _pendingDeepLink!;
+            _pendingDeepLink = null;
+            return dest;
+          }
+          return '/feed';
+        }
+        return '/login';
       }
 
       // 2. If session restore is in flight and user is on a protected route:
@@ -77,6 +165,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // 4. User is authenticated and attempting to view auth pages:
       if (isAuthenticated && isAuthPage) {
+        if (_pendingDeepLink != null && _pendingDeepLink!.isNotEmpty && _pendingDeepLink != '/splash') {
+          final dest = _pendingDeepLink!;
+          _pendingDeepLink = null;
+          return dest;
+        }
         return '/feed';
       }
 
@@ -230,6 +323,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               suggestedByUserId = suggestedByUser.id;
             }
           }
+
+          suggestedByUserId ??= state.uri.queryParameters['suggestedByUserId'] ??
+              state.uri.queryParameters['suggestedBy'] ??
+              state.uri.queryParameters['ref'];
+          final suggestedByUsername = state.uri.queryParameters['suggestedByUsername'] ??
+              state.uri.queryParameters['refUsername'] ??
+              state.uri.queryParameters['username'];
+          if (suggestedByUser == null && suggestedByUsername != null && suggestedByUsername.isNotEmpty) {
+            suggestedByUser = User(
+              id: suggestedByUserId ?? '',
+              username: suggestedByUsername,
+              createdAt: DateTime.now(),
+            );
+          }
+
           return MovieDetailsScreen(
             mediaType: state.pathParameters['mediaType']!,
             tmdbId: int.parse(state.pathParameters['tmdbId']!),
@@ -238,6 +346,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             suggestedByUser: suggestedByUser,
             suggestedByUserId: suggestedByUserId,
           );
+        },
+      ),
+      // Deep link compatibility routes for web URLs and external QR scans
+      GoRoute(
+        path: '/watch-hive/details/:mediaType/:tmdbId',
+        redirect: (context, state) {
+          final query = state.uri.hasQuery ? '?${state.uri.query}' : '';
+          return '/details/${state.pathParameters['mediaType']}/${state.pathParameters['tmdbId']}$query';
+        },
+      ),
+      GoRoute(
+        path: '/watch-hive/profile/:id',
+        redirect: (context, state) {
+          final query = state.uri.hasQuery ? '?${state.uri.query}' : '';
+          return '/profile/${state.pathParameters['id']}$query';
+        },
+      ),
+      GoRoute(
+        path: '/user/:id',
+        redirect: (context, state) {
+          final query = state.uri.hasQuery ? '?${state.uri.query}' : '';
+          return '/profile/${state.pathParameters['id']}$query';
+        },
+      ),
+      GoRoute(
+        path: '/watch-hive/user/:id',
+        redirect: (context, state) {
+          final query = state.uri.hasQuery ? '?${state.uri.query}' : '';
+          return '/profile/${state.pathParameters['id']}$query';
         },
       ),
       GoRoute(

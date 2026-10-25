@@ -70,5 +70,24 @@ void main() {
       expect(find.text('Share Code'), findsOneWidget);
       expect(find.text('Open QR Scanner'), findsOneWidget);
     });
+
+    testWidgets('MovieQrDialog displays recommender credit badge when user passes suggestor', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MovieQrDialog(
+              tmdbId: 550,
+              mediaType: 'movie',
+              title: 'Fight Club',
+              suggestedByUsername: 'aditya',
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      expect(find.text('Scanning credits @aditya as recommender'), findsOneWidget);
+    });
   });
 }

@@ -3,11 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/config/web_urls.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
 import '../../../shared/models/models.dart';
@@ -26,6 +24,8 @@ import '../../rankings/widgets/add_to_stack_sheet.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../widgets/platform_logo_badge.dart';
 import '../widgets/add_to_watchlist_sheet.dart';
+import '../../profile/repositories/user_repository.dart';
+import '../../scanner/widgets/movie_qr_dialog.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -72,6 +72,17 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   bool _isTransitioning = false;
   User? _watchlistSuggestedByUser;
   String? _watchlistSuggestedByUserId;
+  User? _suggestedByUser;
+  String? _suggestedByUserId;
+
+  User? get _effectiveSuggestor =>
+      _suggestedByUser ?? widget.suggestedByUser ?? _watchlistSuggestedByUser;
+
+  String? get _effectiveSuggestorId =>
+      _suggestedByUserId ??
+      widget.suggestedByUserId ??
+      _watchlistSuggestedByUserId ??
+      _effectiveSuggestor?.id;
 
   // TV Seasons Drill-Down State
   int? _selectedSeasonNumber;
@@ -85,7 +96,25 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     _effectiveIsTv = _isTv;
     _loggedEntry = widget.initialEntry;
     _authorUser = widget.authorUser ?? widget.initialEntry?.user;
+    _suggestedByUser = widget.suggestedByUser;
+    _suggestedByUserId = widget.suggestedByUserId ?? widget.suggestedByUser?.id;
+    if (_suggestedByUserId != null && _suggestedByUserId!.isNotEmpty) {
+      if (_suggestedByUser == null || _suggestedByUser!.displayName == null) {
+        _fetchSuggestorProfile(_suggestedByUserId!);
+      }
+    }
     _loadInitialData();
+  }
+
+  Future<void> _fetchSuggestorProfile(String userId) async {
+    try {
+      final user = await ref.read(userRepositoryProvider).getUserProfile(userId);
+      if (mounted) {
+        setState(() {
+          _suggestedByUser = user;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadInitialData() async {
@@ -295,8 +324,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
           mediaType: _effectiveIsTv ? 'tv' : 'movie',
           posterPath: _details?['poster_path'] as String?,
           overview: _details?['overview'] as String?,
-          prefillSuggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id ?? _watchlistSuggestedByUserId ?? _watchlistSuggestedByUser?.id,
-          prefillSuggestedByUser: widget.suggestedByUser ?? _watchlistSuggestedByUser,
+          prefillSuggestedByUserId: _effectiveSuggestorId,
+          prefillSuggestedByUser: _effectiveSuggestor,
         );
         if (added == true && mounted) {
           setState(() => _inWatchlist = true);
@@ -334,7 +363,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         'type': _effectiveIsTv ? 'TV_SHOW' : 'MOVIE',
         'isWatching': true,
         'startedAt': DateTime.now().toUtc().toIso8601String(),
-        'suggestedByUserId': widget.suggestedByUserId ?? widget.suggestedByUser?.id ?? _watchlistSuggestedByUserId ?? _watchlistSuggestedByUser?.id,
+        if (_effectiveSuggestorId != null && _effectiveSuggestorId!.isNotEmpty)
+          'suggestedByUserId': _effectiveSuggestorId,
       });
 
       ref.read(entriesProvider(true).notifier).addEntry(entry);
@@ -366,8 +396,6 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     final entryToEdit = _isMyEntry ? _loggedEntry : _myOwnEntry;
     final title = (details['title'] ?? details['name'] ?? details['original_title'] ?? details['original_name'])?.toString().trim();
     final posterPath = details['poster_path'] as String?;
-    final effectiveSuggestor = widget.suggestedByUser ?? _watchlistSuggestedByUser;
-    final effectiveSuggestorId = widget.suggestedByUserId ?? _watchlistSuggestedByUserId ?? effectiveSuggestor?.id;
 
     showModalBottomSheet(
       context: context,
@@ -380,8 +408,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         prefillType: _effectiveIsTv ? 'TV_SHOW' : 'MOVIE',
         prefillTitle: title,
         prefillPosterPath: posterPath,
-        prefillSuggestor: effectiveSuggestor,
-        prefillSuggestedByUserId: effectiveSuggestorId,
+        prefillSuggestor: _effectiveSuggestor,
+        prefillSuggestedByUserId: _effectiveSuggestorId,
         prefillIsWatching: completeWatch ? false : null,
         onSuccess: () {
           _checkUserEntry();
@@ -443,12 +471,23 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     );
   }
 
-  void _shareMovie() {
+  void _showMovieQrCode() {
+    final currentUser = ref.read(authStateProvider).value?.user;
     final title = (_details?['title'] ?? _details?['name'] ?? 'Movie/Show').toString();
-    final url = WebUrls.movieDetails(_effectiveIsTv ? 'tv' : 'movie', widget.tmdbId);
-    Share.share(
-      'Check out "$title" on WatchersHive!\n\n$url',
-      subject: 'WatchersHive: $title',
+    final posterPath = _details?['poster_path']?.toString();
+    final releaseDate = (_details?['release_date'] ?? _details?['first_air_date'])?.toString();
+    final releaseYear = (releaseDate != null && releaseDate.length >= 4)
+        ? releaseDate.substring(0, 4)
+        : null;
+
+    MovieQrDialog.show(
+      context,
+      tmdbId: widget.tmdbId,
+      mediaType: _effectiveIsTv ? 'tv' : 'movie',
+      title: title,
+      posterPath: posterPath,
+      releaseYear: releaseYear,
+      suggestedByUser: currentUser,
     );
   }
 
@@ -646,9 +685,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                     backgroundColor: Colors.black.withValues(alpha: 0.55),
                     child: IconButton(
                       padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.share_rounded, color: Colors.white, size: 18),
-                      tooltip: 'Share',
-                      onPressed: _shareMovie,
+                      icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.primary, size: 20),
+                      tooltip: 'Hive Code (QR)',
+                      onPressed: _showMovieQrCode,
                     ),
                   ),
                 ),
@@ -779,6 +818,88 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Recommender Banner (e.g. from QR scan or watchlist attribution)
+                  if (_effectiveSuggestor != null && !_isMyEntry) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        children: [
+                          WHAvatar(
+                            imageUrl: _effectiveSuggestor!.profilePictureUrl,
+                            name: _effectiveSuggestor!.displayName ?? _effectiveSuggestor!.username,
+                            radius: 14,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Text(
+                                      'Recommended by ',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    Flexible(
+                                      child: Text(
+                                        '@${_effectiveSuggestor!.username}',
+                                        style: const TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF2D2926),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 1),
+                                const Text(
+                                  'Adding to watchlist or logging will credit this recommender',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'HIVE QR',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF2D2926),
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   // Action Bar (Web Parity)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -822,7 +943,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                     : Icon(
                                         _inWatchlist ? Icons.bookmark_added_rounded : Icons.bookmark_add_outlined,
                                         size: 19,
-                                        color: _inWatchlist ? Colors.black : AppColors.primaryDark,
+                                        color: _inWatchlist ? Colors.black : const Color(0xFF2D2926),
                                       ),
                                 label: Text(
                                   _inWatchlist ? 'In Watchlist' : 'Add to Watchlist',
@@ -849,12 +970,12 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                               ? AppColors.surfaceElevated
                                               : AppColors.textPrimary),
                                       foregroundColor: isCurrentlyWatching
-                                          ? Colors.black
+                                          ? const Color(0xFF2D2926)
                                           : (isCompletedLog
-                                              ? AppColors.primaryDark
+                                              ? const Color(0xFF2D2926)
                                               : Colors.white),
                                       side: isCompletedLog
-                                          ? BorderSide(color: AppColors.primaryDark.withValues(alpha: 0.35))
+                                          ? BorderSide(color: const Color(0xFF2D2926).withValues(alpha: 0.25), width: 1.2)
                                           : null,
                                       elevation: 0,
                                       padding: const EdgeInsets.symmetric(vertical: 13),
@@ -874,8 +995,8 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                           : (isCompletedLog ? Icons.check_circle_rounded : Icons.edit_note_rounded),
                                       size: 20,
                                       color: isCurrentlyWatching
-                                          ? Colors.black
-                                          : (isCompletedLog ? AppColors.primaryDark : AppColors.primary),
+                                          ? const Color(0xFF2D2926)
+                                          : (isCompletedLog ? const Color(0xFF2D2926) : AppColors.primary),
                                     ),
                                     label: Text(
                                       isCurrentlyWatching
@@ -885,7 +1006,14 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                                   ? 'Logged (⭐ ${selfRating.toStringAsFixed(1)})'
                                                   : 'Logged ✓')
                                               : 'Log Watch'),
-                                      style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w800, fontSize: 12),
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12,
+                                        color: (isCurrentlyWatching || isCompletedLog)
+                                            ? const Color(0xFF2D2926)
+                                            : Colors.white,
+                                      ),
                                     ),
                                   ),
                                 );
@@ -936,14 +1064,14 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                                         height: 14,
                                                         child: CircularProgressIndicator(
                                                           strokeWidth: 2,
-                                                          color: AppColors.primaryDark,
+                                                          color: Color(0xFF2D2926),
                                                         ),
                                                       ),
                                                     )
                                                   : const Icon(
                                                       Icons.play_arrow_rounded,
                                                       size: 20,
-                                                      color: AppColors.primaryDark,
+                                                      color: Color(0xFF2D2926),
                                                     ),
                                             ),
                                             const SizedBox(width: 10),
@@ -1034,7 +1162,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                   HapticFeedback.lightImpact();
                                   _openSuggestModal();
                                 },
-                                icon: const Icon(Icons.send_rounded, size: 15, color: AppColors.primaryDark),
+                                icon: const Icon(Icons.send_rounded, size: 15, color: Color(0xFF2D2926)),
                                 label: const Text(
                                   'Suggest',
                                   style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 12),
@@ -1062,7 +1190,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                     mediaType: _effectiveIsTv ? 'tv' : 'movie',
                                   );
                                 },
-                                icon: const Icon(Icons.format_list_numbered_rounded, size: 16, color: AppColors.primaryDark),
+                                icon: const Icon(Icons.format_list_numbered_rounded, size: 16, color: Color(0xFF2D2926)),
                                 label: const Text(
                                   'Rank',
                                   style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 12),
@@ -1693,21 +1821,19 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                       : (isMe ? Icons.rate_review_rounded : Icons.person_pin_rounded),
                   size: 16,
                   color: entry.isWatching
-                      ? AppColors.primaryDark
-                      : (isMe ? AppColors.primaryDark : AppColors.textSecondary),
+                      ? const Color(0xFF2D2926)
+                      : (isMe ? const Color(0xFF2D2926) : AppColors.textSecondary),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   entry.isWatching
                       ? (isMe ? 'Currently Watching' : "$authorName is Currently Watching")
                       : (isMe ? 'Your Watch Entry & Review' : "$authorName's Watch Entry"),
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
-                    color: entry.isWatching
-                        ? AppColors.textPrimary
-                        : (isMe ? AppColors.primaryDark : AppColors.textPrimary),
+                    color: Color(0xFF2D2926),
                   ),
                 ),
                 const Spacer(),
@@ -1732,9 +1858,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.task_alt_rounded, size: 13, color: AppColors.primaryDark),
+                                Icon(Icons.task_alt_rounded, size: 13, color: Color(0xFF2D2926)),
                                 SizedBox(width: 4),
-                                Text('Complete', style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                                Text('Complete', style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2D2926))),
                               ],
                             ),
                           ),
@@ -1926,7 +2052,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         Container(height: 18, width: 1, color: AppColors.border),
                         const SizedBox(width: 10),
                       ] else if (entry.isWatching) ...[
-                        const Icon(Icons.visibility_rounded, size: 18, color: AppColors.primaryDark),
+                        const Icon(Icons.visibility_rounded, size: 18, color: Color(0xFF2D2926)),
                         const SizedBox(width: 6),
                         const Text(
                           'Currently Watching',
@@ -2002,9 +2128,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.repeat_rounded, size: 12, color: Colors.amber),
+                              Icon(Icons.repeat_rounded, size: 12, color: Color(0xFF2D2926)),
                               SizedBox(width: 4),
-                              Text('Rewatch', style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w800, color: Colors.amber)),
+                              Text('Rewatch', style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF2D2926))),
                             ],
                           ),
                         ),
@@ -2063,19 +2189,19 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                       _logEntry();
                     },
                     borderRadius: BorderRadius.circular(10),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                       child: Row(
                         children: [
-                          const Icon(Icons.add_comment_outlined, size: 14, color: AppColors.primary),
-                          const SizedBox(width: 6),
+                          Icon(Icons.add_comment_outlined, size: 14, color: Color(0xFF2D2926)),
+                          SizedBox(width: 6),
                           Text(
                             'Add a written review to this entry...',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.primary.withValues(alpha: 0.9),
+                              color: Color(0xFF2D2926),
                             ),
                           ),
                         ],
@@ -2126,7 +2252,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                           ),
                           child: Text(
                             '#$tag',
-                            style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+                            style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2D2926)),
                           ),
                         ),
                       ),
@@ -2134,18 +2260,18 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.amber.withValues(alpha: 0.12),
+                            color: Colors.amber.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                            border: Border.all(color: Colors.amber.withValues(alpha: 0.35)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.auto_awesome_rounded, size: 12, color: Colors.amber),
+                              const Icon(Icons.auto_awesome_rounded, size: 12, color: Color(0xFF2D2926)),
                               const SizedBox(width: 5),
                               Text(
                                 'Suggested by @${entry.suggestedByUser!.username}',
-                                style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber),
+                                style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2D2926)),
                               ),
                             ],
                           ),
@@ -2169,7 +2295,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         Icon(
                           _myOwnEntry!.isWatching ? Icons.visibility_rounded : Icons.check_circle_rounded,
                           size: 16,
-                          color: _myOwnEntry!.isWatching ? AppColors.primaryDark : AppColors.primary,
+                          color: const Color(0xFF2D2926),
                         ),
                         const SizedBox(width: 8),
                         Text(
@@ -2199,7 +2325,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                               fontFamily: 'Inter',
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.primaryDark,
+                              color: Color(0xFF2D2926),
                             ),
                           ),
                         ),

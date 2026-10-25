@@ -386,7 +386,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         ? AppColors.textPrimary
         : AppColors.textSecondary;
     final iconColor = isCompleted
-        ? AppColors.primaryDark
+        ? const Color(0xFF2D2926)
         : AppColors.textMuted;
 
     return Material(
@@ -1382,7 +1382,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                           child: const Icon(
                                             Icons.history_rounded,
                                             size: 20,
-                                            color: AppColors.primaryDark,
+                                            color: Color(0xFF2D2926),
                                           ),
                                         ),
                                         const SizedBox(width: 10),
@@ -1415,7 +1415,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                                         fontFamily: 'Inter',
                                                         fontSize: 9,
                                                         fontWeight: FontWeight.w900,
-                                                        color: AppColors.primaryDark,
+                                                        color: Color(0xFF2D2926),
                                                         letterSpacing: 0.5,
                                                       ),
                                                     ),
@@ -1489,7 +1489,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                                             fontFamily: 'Inter',
                                                             fontSize: 10,
                                                             fontWeight: FontWeight.w800,
-                                                            color: AppColors.primaryDark,
+                                                            color: Color(0xFF2D2926),
                                                           ),
                                                         ),
                                                       ],
@@ -1567,7 +1567,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.repeat_rounded, size: 18, color: _isRewatch ? AppColors.primaryDark : AppColors.textMuted),
+                                    Icon(Icons.repeat_rounded, size: 18, color: _isRewatch ? const Color(0xFF2D2926) : AppColors.textMuted),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
@@ -1579,7 +1579,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                               fontFamily: 'Inter',
                                               fontSize: 10,
                                               fontWeight: FontWeight.w600,
-                                              color: _hasWatchedBefore ? AppColors.primaryDark : AppColors.textMuted,
+                                              color: _hasWatchedBefore ? const Color(0xFF2D2926) : AppColors.textMuted,
                                               letterSpacing: 0.4,
                                             ),
                                           ),
@@ -1633,7 +1633,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.rss_feed_rounded, size: 18, color: _postToFeed ? AppColors.primaryDark : AppColors.textMuted),
+                                    Icon(Icons.rss_feed_rounded, size: 18, color: _postToFeed ? const Color(0xFF2D2926) : AppColors.textMuted),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
@@ -1812,14 +1812,14 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(_suggestorDisplayName ?? '@${_suggestorUsername ?? "user"}', style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                                          if (_suggestorUsername != null) Text('@$_suggestorUsername', style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: Colors.amber, fontWeight: FontWeight.w600)),
+                                          if (_suggestorUsername != null) Text('@$_suggestorUsername', style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: Color(0xFF2D2926), fontWeight: FontWeight.w600)),
                                         ],
                                       ),
                                     ),
                                     IconButton(
                                       constraints: const BoxConstraints(),
                                       padding: const EdgeInsets.all(6),
-                                      icon: const Icon(Icons.close_rounded, color: Colors.amber, size: 20),
+                                      icon: const Icon(Icons.close_rounded, color: Color(0xFF2D2926), size: 20),
                                       onPressed: () {
                                         setState(() {
                                           _suggestedByUserId = null;
