@@ -545,9 +545,9 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -565,13 +565,13 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: stack.isPublic ? Colors.green.withValues(alpha: 0.15) : AppColors.surfaceHighest,
+                  color: stack.isPublic ? AppColors.success.withValues(alpha: 0.12) : AppColors.surfaceHighest,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: stack.isPublic ? Colors.green.withValues(alpha: 0.4) : AppColors.border),
+                  border: Border.all(color: stack.isPublic ? AppColors.success.withValues(alpha: 0.3) : AppColors.border),
                 ),
                 child: Text(
                   stack.isPublic ? 'Public' : 'Private',
-                  style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: stack.isPublic ? Colors.greenAccent : AppColors.textMuted),
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: stack.isPublic ? const Color(0xFF15803D) : AppColors.textMuted),
                 ),
               ),
             ],
@@ -684,23 +684,28 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
 
     Color badgeBgColor;
     Color badgeTextColor;
+    Border? badgeBorder;
     String medalEmoji = '';
 
     if (rankNumber == 1) {
-      badgeBgColor = const Color(0xFFFFD700);
-      badgeTextColor = Colors.black;
+      badgeBgColor = const Color(0xFFFFB700);
+      badgeTextColor = const Color(0xFF2D2926);
+      badgeBorder = Border.all(color: const Color(0xFFE59700), width: 1.2);
       medalEmoji = ' 🥇';
     } else if (rankNumber == 2) {
-      badgeBgColor = const Color(0xFFE0E0E0);
-      badgeTextColor = Colors.black;
+      badgeBgColor = const Color(0xFFE2E8F0);
+      badgeTextColor = const Color(0xFF2D2926);
+      badgeBorder = Border.all(color: const Color(0xFFCBD5E1), width: 1.2);
       medalEmoji = ' 🥈';
     } else if (rankNumber == 3) {
-      badgeBgColor = const Color(0xFFCD7F32);
+      badgeBgColor = const Color(0xFFD97706);
       badgeTextColor = Colors.white;
+      badgeBorder = Border.all(color: const Color(0xFFB45309), width: 1.2);
       medalEmoji = ' 🥉';
     } else {
-      badgeBgColor = AppColors.surfaceHighest;
-      badgeTextColor = AppColors.primary;
+      badgeBgColor = AppColors.surface;
+      badgeTextColor = AppColors.textPrimary;
+      badgeBorder = Border.all(color: AppColors.border, width: 1.0);
     }
 
     return Container(
@@ -729,6 +734,14 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                 decoration: BoxDecoration(
                   color: badgeBgColor,
                   borderRadius: BorderRadius.circular(10),
+                  border: badgeBorder,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Center(
                   child: Text(
@@ -738,6 +751,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                       fontSize: 13,
                       fontWeight: FontWeight.w900,
                       color: badgeTextColor,
+                      letterSpacing: -0.5,
                     ),
                   ),
                 ),
@@ -798,21 +812,21 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                           const SizedBox(width: 6),
                           const Text('•', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                           const SizedBox(width: 4),
-                          Icon(Icons.star_rounded, size: 12, color: Colors.amber[400]),
+                          const Icon(Icons.star_rounded, size: 12, color: AppColors.primaryDark),
                           const SizedBox(width: 2),
                           Text(
                             item.localRating!.toStringAsFixed(1),
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber[400]),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
                           ),
                         ] else if (item.voteAverage != null && item.voteAverage! > 0) ...[
                           const SizedBox(width: 6),
                           const Text('•', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                           const SizedBox(width: 4),
-                          const Icon(Icons.star_rounded, size: 12, color: AppColors.primary),
+                          const Icon(Icons.star_rounded, size: 12, color: AppColors.primaryDark),
                           const SizedBox(width: 2),
                           Text(
                             item.voteAverage!.toStringAsFixed(1),
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
                           ),
                         ],
                       ],
@@ -827,7 +841,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_upward_rounded, size: 18),
-                    color: index > 0 ? AppColors.primary : AppColors.textMuted.withValues(alpha: 0.2),
+                    color: index > 0 ? AppColors.textPrimary : AppColors.textMuted.withValues(alpha: 0.25),
                     tooltip: 'Move Up',
                     onPressed: index > 0
                         ? () {
@@ -838,7 +852,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.arrow_downward_rounded, size: 18),
-                    color: index < totalCount - 1 ? AppColors.primary : AppColors.textMuted.withValues(alpha: 0.2),
+                    color: index < totalCount - 1 ? AppColors.textPrimary : AppColors.textMuted.withValues(alpha: 0.25),
                     tooltip: 'Move Down',
                     onPressed: index < totalCount - 1
                         ? () {

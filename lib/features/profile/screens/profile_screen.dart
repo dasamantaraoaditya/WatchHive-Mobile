@@ -709,6 +709,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         imageUrl: user.profilePictureUrl,
                         name: user.name,
                         username: user.username,
+                        onRemoveAvatar: _removeAvatar,
                       );
                     },
                     child: Container(
@@ -756,25 +757,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                  if (user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty)
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: _removeAvatar,
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: Colors.black12, blurRadius: 4),
-                            ],
-                          ),
-                          child: const Icon(Icons.close_rounded, size: 11, color: AppColors.error),
                         ),
                       ),
                     ),

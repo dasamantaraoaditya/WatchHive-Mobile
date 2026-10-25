@@ -8,12 +8,14 @@ class AvatarViewerDialog extends StatelessWidget {
   final String? imageUrl;
   final String name;
   final String? username;
+  final VoidCallback? onRemoveAvatar;
 
   const AvatarViewerDialog({
     super.key,
     required this.imageUrl,
     required this.name,
     this.username,
+    this.onRemoveAvatar,
   });
 
   static void show(
@@ -21,6 +23,7 @@ class AvatarViewerDialog extends StatelessWidget {
     required String? imageUrl,
     required String name,
     String? username,
+    VoidCallback? onRemoveAvatar,
   }) {
     showDialog(
       context: context,
@@ -30,6 +33,7 @@ class AvatarViewerDialog extends StatelessWidget {
         imageUrl: imageUrl,
         name: name,
         username: username,
+        onRemoveAvatar: onRemoveAvatar,
       ),
     );
   }
@@ -38,7 +42,7 @@ class AvatarViewerDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolvedUrl = ApiEndpoints.resolveAvatarUrl(imageUrl);
     final size = MediaQuery.of(context).size;
-    final maxDimension = (size.width * 0.85).clamp(240.0, 360.0);
+    final maxDimension = (size.width * 0.85).clamp(220.0, 340.0);
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -70,9 +74,10 @@ class AvatarViewerDialog extends StatelessWidget {
                 ),
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 // Top bar: Name/Handle + Close Button
                 Row(
                   children: [
@@ -179,9 +184,36 @@ class AvatarViewerDialog extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (onRemoveAvatar != null && imageUrl != null && imageUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: BorderSide(color: AppColors.error.withValues(alpha: 0.4)),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      onRemoveAvatar!();
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.error),
+                    label: const Text(
+                      'Remove Profile Photo',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
+        ),
         ],
       ),
     );
