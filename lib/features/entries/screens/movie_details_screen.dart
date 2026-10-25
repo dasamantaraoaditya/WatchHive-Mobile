@@ -528,30 +528,102 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   Future<void> _launchProviderUrl(String providerName, String? fallbackLink, String title) async {
     final name = providerName.toLowerCase();
     final query = Uri.encodeComponent(title);
-    String url = fallbackLink ?? 'https://www.google.com/search?q=$query+watch+online';
+    final isAndroid = Theme.of(context).platform == TargetPlatform.android;
+    final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+
+    String webUrl;
+    final List<String> candidateUris = [];
 
     if (name.contains('netflix')) {
-      url = 'https://www.netflix.com/search?q=$query';
+      webUrl = 'https://www.netflix.com/search?q=$query';
+      if (isAndroid) {
+        candidateUris.add('intent:#Intent;action=android.intent.action.SEARCH;package=com.netflix.mediaclient;S.query=$title;S.browser_fallback_url=${Uri.encodeComponent(webUrl)};end');
+      } else if (isIOS) {
+        candidateUris.add('nflx://www.netflix.com/search?q=$query');
+      }
     } else if (name.contains('amazon') || name.contains('prime')) {
-      url = 'https://www.primevideo.com/search/ref=atv_sr_sug_1?phrase=$query';
+      webUrl = 'https://www.primevideo.com/search/ref=atv_nb_sr?phrase=$query';
+      if (isAndroid) {
+        candidateUris.add('intent:#Intent;action=android.intent.action.SEARCH;package=com.amazon.avod.thirdpartyclient;S.query=$title;S.browser_fallback_url=${Uri.encodeComponent(webUrl)};end');
+        candidateUris.add('https://www.primevideo.com/search/ref=atv_nb_sr?phrase=$query');
+        candidateUris.add('https://www.amazon.com/s?k=$query&i=instant-video');
+      } else if (isIOS) {
+        candidateUris.add('primevideo://search?phrase=$query');
+      }
     } else if (name.contains('hotstar') || name.contains('disney')) {
-      url = 'https://www.hotstar.com/in/explore?searchQuery=$query';
-    } else if (name.contains('zee5')) {
-      url = 'https://www.zee5.com/search?q=$query';
-    } else if (name.contains('sonyliv')) {
-      url = 'https://www.sonyliv.com/search?query=$query';
+      webUrl = 'https://www.hotstar.com/in/explore?q=$query';
+      if (isAndroid) {
+        candidateUris.add('intent:#Intent;action=android.intent.action.SEARCH;package=in.startv.hotstar;S.query=$title;S.browser_fallback_url=${Uri.encodeComponent(webUrl)};end');
+      } else if (isIOS) {
+        candidateUris.add('hotstar://explore?q=$query');
+      }
     } else if (name.contains('jiocinema')) {
-      url = 'https://www.jiocinema.com/search?q=$query';
+      webUrl = 'https://www.jiocinema.com/search/$query';
+      if (isAndroid) {
+        candidateUris.add('intent:#Intent;action=android.intent.action.VIEW;package=com.jio.media.ondemand;S.browser_fallback_url=${Uri.encodeComponent(webUrl)};end');
+      }
+    } else if (name.contains('zee5')) {
+      webUrl = 'https://www.zee5.com/search?q=$query';
+      if (isAndroid) {
+        candidateUris.add('intent:#Intent;action=android.intent.action.SEARCH;package=com.graymatrix.did;S.query=$title;S.browser_fallback_url=${Uri.encodeComponent(webUrl)};end');
+      }
+    } else if (name.contains('sonyliv')) {
+      webUrl = 'https://www.sonyliv.com/search?query=$query';
+      if (isAndroid) {
+        candidateUris.add('intent:#Intent;action=android.intent.action.SEARCH;package=com.sonyliv;S.query=$title;S.browser_fallback_url=${Uri.encodeComponent(webUrl)};end');
+      }
     } else if (name.contains('apple')) {
-      url = 'https://tv.apple.com/in/search?q=$query';
+      webUrl = 'https://tv.apple.com/search?q=$query';
+      if (isIOS) {
+        candidateUris.add('appletv://search?q=$query');
+      }
     } else if (name.contains('youtube')) {
-      url = 'https://www.youtube.com/results?search_query=$query+movie';
+      webUrl = 'https://www.youtube.com/results?search_query=$query';
+      candidateUris.add('vnd.youtube://results?search_query=$query');
+    } else if (name.contains('google play') || name.contains('google tv')) {
+      webUrl = 'https://play.google.com/store/search?q=$query&c=movies';
+      if (isAndroid) {
+        candidateUris.add('market://search?q=$query&c=movies');
+      }
+    } else if (name.contains('hulu')) {
+      webUrl = 'https://www.hulu.com/search?q=$query';
+    } else if (name.contains('max') || name.contains('hbo')) {
+      webUrl = 'https://play.max.com/search?q=$query';
+    } else if (name.contains('paramount')) {
+      webUrl = 'https://www.paramountplus.com/search/?q=$query';
+    } else if (name.contains('peacock')) {
+      webUrl = 'https://www.peacocktv.com/watch/search?q=$query';
+    } else if (name.contains('aha')) {
+      webUrl = 'https://www.aha.video/search?q=$query';
+    } else if (name.contains('mx player')) {
+      webUrl = 'https://www.mxplayer.in/search?q=$query';
+    } else if (name.contains('mubi')) {
+      webUrl = 'https://mubi.com/search/films?query=$query';
+    } else {
+      webUrl = (fallbackLink != null && fallbackLink.isNotEmpty)
+          ? fallbackLink
+          : 'https://www.google.com/search?q=$query+watch+online';
     }
 
-    try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (_) {
-      if (mounted) WHAlert.showError(context, 'Could not open streaming link');
+    bool launched = false;
+    for (final candidate in candidateUris) {
+      try {
+        final uri = Uri.parse(candidate);
+        if (await canLaunchUrl(uri)) {
+          launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+          if (launched) break;
+        }
+      } catch (_) {
+        // Try next candidate or web fallback
+      }
+    }
+
+    if (!launched) {
+      try {
+        await launchUrl(Uri.parse(webUrl), mode: LaunchMode.externalApplication);
+      } catch (_) {
+        if (mounted) WHAlert.showError(context, 'Could not open streaming link');
+      }
     }
   }
 
