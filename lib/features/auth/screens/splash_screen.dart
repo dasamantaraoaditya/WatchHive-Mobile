@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/wh_skeleton.dart';
 import '../providers/auth_provider.dart';
@@ -31,7 +32,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     try {
       if (GoRouter.maybeOf(context) != null) {
         if (isAuthenticated) {
-          context.go('/feed');
+          final pending = consumePendingDeepLink();
+          if (pending != null && pending.isNotEmpty && pending != '/splash') {
+            context.go(pending);
+          } else {
+            context.go('/feed');
+          }
         } else {
           context.go('/login');
         }

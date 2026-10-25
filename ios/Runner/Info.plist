@@ -38,6 +38,17 @@
 				<string>com.googleusercontent.apps.357857516251-69f26kdjl6v5n60pvtpdjbiregaodv63</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.watchhive.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>watchershive</string>
+				<string>watchhive</string>
+			</array>
+		</dict>
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

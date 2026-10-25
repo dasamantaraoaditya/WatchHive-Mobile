@@ -943,7 +943,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                     : Icon(
                                         _inWatchlist ? Icons.bookmark_added_rounded : Icons.bookmark_add_outlined,
                                         size: 19,
-                                        color: _inWatchlist ? Colors.black : AppColors.primaryDark,
+                                        color: _inWatchlist ? Colors.black : const Color(0xFF2D2926),
                                       ),
                                 label: Text(
                                   _inWatchlist ? 'In Watchlist' : 'Add to Watchlist',
@@ -1064,14 +1064,14 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                                         height: 14,
                                                         child: CircularProgressIndicator(
                                                           strokeWidth: 2,
-                                                          color: AppColors.primaryDark,
+                                                          color: Color(0xFF2D2926),
                                                         ),
                                                       ),
                                                     )
                                                   : const Icon(
                                                       Icons.play_arrow_rounded,
                                                       size: 20,
-                                                      color: AppColors.primaryDark,
+                                                      color: Color(0xFF2D2926),
                                                     ),
                                             ),
                                             const SizedBox(width: 10),
@@ -1162,7 +1162,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                   HapticFeedback.lightImpact();
                                   _openSuggestModal();
                                 },
-                                icon: const Icon(Icons.send_rounded, size: 15, color: AppColors.primaryDark),
+                                icon: const Icon(Icons.send_rounded, size: 15, color: Color(0xFF2D2926)),
                                 label: const Text(
                                   'Suggest',
                                   style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 12),
@@ -1190,7 +1190,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                     mediaType: _effectiveIsTv ? 'tv' : 'movie',
                                   );
                                 },
-                                icon: const Icon(Icons.format_list_numbered_rounded, size: 16, color: AppColors.primaryDark),
+                                icon: const Icon(Icons.format_list_numbered_rounded, size: 16, color: Color(0xFF2D2926)),
                                 label: const Text(
                                   'Rank',
                                   style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 12),
@@ -2052,7 +2052,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         Container(height: 18, width: 1, color: AppColors.border),
                         const SizedBox(width: 10),
                       ] else if (entry.isWatching) ...[
-                        const Icon(Icons.visibility_rounded, size: 18, color: AppColors.primaryDark),
+                        const Icon(Icons.visibility_rounded, size: 18, color: Color(0xFF2D2926)),
                         const SizedBox(width: 6),
                         const Text(
                           'Currently Watching',
@@ -2128,9 +2128,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.repeat_rounded, size: 12, color: Colors.amber),
+                              Icon(Icons.repeat_rounded, size: 12, color: Color(0xFF2D2926)),
                               SizedBox(width: 4),
-                              Text('Rewatch', style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w800, color: Colors.amber)),
+                              Text('Rewatch', style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF2D2926))),
                             ],
                           ),
                         ),
@@ -2295,7 +2295,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                         Icon(
                           _myOwnEntry!.isWatching ? Icons.visibility_rounded : Icons.check_circle_rounded,
                           size: 16,
-                          color: _myOwnEntry!.isWatching ? AppColors.primaryDark : AppColors.primary,
+                          color: const Color(0xFF2D2926),
                         ),
                         const SizedBox(width: 8),
                         Text(

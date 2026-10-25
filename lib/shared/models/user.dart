@@ -17,6 +17,8 @@ class User {
   final bool showRankings;
   final bool notifyFollowingActivity;
   final List<dynamic> badges;
+  final int watchStreak;
+  final String? lastWatchDate;
   final int entriesCount;
   final int? watchingCount;
   final int? watchlistCount;
@@ -49,6 +51,8 @@ class User {
     this.xp = 0,
     this.level = 1,
     this.badges = const [],
+    this.watchStreak = 0,
+    this.lastWatchDate,
     this.entriesCount = 0,
     this.watchingCount,
     this.watchlistCount,
@@ -104,6 +108,8 @@ class User {
       xp: _parseInt(json['xp']),
       level: _parseInt(json['level']) > 0 ? _parseInt(json['level']) : 1,
       badges: json['badges'] as List<dynamic>? ?? [],
+      watchStreak: _parseInt(json['watchStreak'] ?? json['watch_streak']),
+      lastWatchDate: json['lastWatchDate']?.toString() ?? json['last_watch_date']?.toString(),
       entriesCount: _parseInt(
         countData?['entries'] ?? countData?['watches'] ?? countData?['entriesCount'] ?? json['entriesCount'] ?? json['entries'],
       ),
@@ -150,6 +156,8 @@ class User {
         'xp': xp,
         'level': level,
         'badges': badges,
+        'watchStreak': watchStreak,
+        if (lastWatchDate != null) 'lastWatchDate': lastWatchDate,
         'entriesCount': entriesCount,
         if (watchingCount != null) 'watchingCount': watchingCount,
         if (watchlistCount != null) 'watchlistCount': watchlistCount,
@@ -179,6 +187,8 @@ class User {
     bool? showRankings,
     bool? notifyFollowingActivity,
     List<dynamic>? badges,
+    int? watchStreak,
+    String? lastWatchDate,
     int? entriesCount,
     int? watchingCount,
     int? watchlistCount,
@@ -211,6 +221,8 @@ class User {
       showRankings: showRankings ?? this.showRankings,
       notifyFollowingActivity: notifyFollowingActivity ?? this.notifyFollowingActivity,
       badges: badges ?? this.badges,
+      watchStreak: watchStreak ?? this.watchStreak,
+      lastWatchDate: lastWatchDate ?? this.lastWatchDate,
       entriesCount: entriesCount ?? this.entriesCount,
       watchingCount: watchingCount ?? this.watchingCount,
       watchlistCount: watchlistCount ?? this.watchlistCount,
