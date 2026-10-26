@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/wh_skeleton.dart';
+import '../../../shared/widgets/wh_app_logo_loader.dart';
 import '../providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -63,60 +64,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo
-            Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Center(
-                child: Icon(Icons.movie_filter_rounded, size: 44, color: AppColors.primary),
-              ),
+            WHAppLogoLoader(
+              logoSize: 84.0,
+              showBrandName: true,
+              showSpinner: isResolvingSession,
+              message: isResolvingSession ? 'Signing you in...' : null,
+              submessage: 'Track Movies, Anime, K-Drama & Series',
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'WatchersHive',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 32,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Track Movies, Anime, K-Drama & Series',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 52),
-            if (isResolvingSession) ...[
-              const SizedBox(
-                width: 26,
-                height: 26,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Signing you in...',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ] else ...[
+            if (!isResolvingSession) ...[
+              const SizedBox(height: 28),
               WHSkeleton(
                 child: Container(
                   width: 120,

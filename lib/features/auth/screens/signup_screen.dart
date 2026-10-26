@@ -180,10 +180,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -348,6 +350,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ),
         ),
       ),
-    );
+      if (_isLoading)
+        WHAppLogoLoader.overlay(
+          message: 'Creating your WatchersHive account...',
+          submessage: 'Setting up your personal hive',
+        ),
+    ],
+  ),
+);
   }
 }

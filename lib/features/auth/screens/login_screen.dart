@@ -7,6 +7,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/app_update_service.dart';
+import '../../../shared/widgets/app_update_dialog.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/utils/error_handler.dart';
@@ -24,6 +26,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        final updateService = ref.read(appUpdateServiceProvider);
+        final info = await updateService.checkUpdate();
+        if (mounted && info != null && info.forceUpdate) {
+          AppUpdateDialog.show(context, info: info, updateService: updateService);
+        }
+      } catch (_) {}
+    });
+  }
 
   @override
   void dispose() {
@@ -200,46 +216,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isBackgroundResolving = authState.isLoading && !_isLoading;
 
     if (isBackgroundResolving) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 32,
-                height: 32,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: AppColors.primary,
-                ),
-              ),
-              SizedBox(height: 20),
-              Text(
-                'Signing you in...',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
+      return WHAppLogoLoader.fullScreen(
+        message: 'Signing you in...',
+        submessage: 'Connecting to WatchersHive',
       );
     }
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                 const SizedBox(height: 60),
                 const WHLogoHeader(
                   title: 'Welcome back',
@@ -414,6 +408,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
-    );
+      if (_isLoading)
+        WHAppLogoLoader.overlay(
+          message: 'Signing you into WatchersHive...',
+          submessage: 'Authenticating your account',
+        ),
+    ],
+  ),
+);
   }
 }
