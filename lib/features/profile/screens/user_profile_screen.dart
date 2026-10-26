@@ -1228,34 +1228,66 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 // Compare Taste Shortcut
                 IconButton.filledTonal(
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                    foregroundColor: AppColors.primaryDark,
+                    backgroundColor: _isFollowing
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : AppColors.surfaceHighest,
+                    foregroundColor: _isFollowing ? AppColors.primaryDark : AppColors.textMuted,
                     padding: const EdgeInsets.all(12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  tooltip: 'Compare Taste',
-                  onPressed: () => context.push('/compare/${user.id}', extra: user),
-                  icon: const Icon(Icons.compare_arrows_rounded, size: 20),
+                  tooltip: _isFollowing
+                      ? 'Compare Taste'
+                      : 'Follow @${user.username} to compare taste',
+                  onPressed: () {
+                    if (!_isFollowing) {
+                      WHAlert.showWarning(
+                        context,
+                        'You must follow @${user.username} to compare taste.',
+                      );
+                      return;
+                    }
+                    context.push('/compare/${user.id}', extra: user);
+                  },
+                  icon: Icon(
+                    Icons.compare_arrows_rounded,
+                    size: 20,
+                    color: _isFollowing ? AppColors.primaryDark : AppColors.textMuted,
+                  ),
                 ),
                 const SizedBox(width: 8),
 
                 // Suggest Movie Modal
                 IconButton.filledTonal(
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                    foregroundColor: AppColors.primaryDark,
+                    backgroundColor: _isFollowing
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : AppColors.surfaceHighest,
+                    foregroundColor: _isFollowing ? AppColors.primaryDark : AppColors.textMuted,
                     padding: const EdgeInsets.all(12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  tooltip: user.isFollower ? 'Suggest a Movie' : '@${user.username} must follow you to receive suggestions',
+                  tooltip: _isFollowing
+                      ? 'Suggest a Movie'
+                      : 'Follow @${user.username} to suggest movies',
                   onPressed: () {
+                    if (!_isFollowing) {
+                      WHAlert.showWarning(
+                        context,
+                        'You must follow @${user.username} to suggest movies.',
+                      );
+                      return;
+                    }
                     SuggestMovieModal.show(
                       context,
                       initialToUserId: user.id,
                       initialToUserName: user.username,
                     );
                   },
-                  icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+                  icon: Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 20,
+                    color: _isFollowing ? AppColors.primaryDark : AppColors.textMuted,
+                  ),
                 ),
               ],
             ),

@@ -48,6 +48,35 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
     });
     try {
       final repo = ref.read(userRepositoryProvider);
+      final currentUser = ref.read(authStateProvider).value?.user;
+      final currentUserId = currentUser?.id;
+
+      if (currentUserId != null) {
+        if (widget.userId == currentUserId) {
+          if (mounted) {
+            setState(() {
+              _isPrivacyRestricted = true;
+              _error = 'You cannot compare taste with your own profile.';
+              _isLoading = false;
+            });
+          }
+          return;
+        }
+
+        final following = await repo.getFollowing(currentUserId).catchError((_) => <User>[]);
+        final isFollowing = following.any((u) => u.id == widget.userId);
+        if (!isFollowing) {
+          if (mounted) {
+            setState(() {
+              _isPrivacyRestricted = true;
+              _error = 'You must follow this user to compare watch histories.';
+              _isLoading = false;
+            });
+          }
+          return;
+        }
+      }
+
       final rawData = await repo.compareWithUser(widget.userId);
       final result = CompareResult.fromJson(rawData);
 
