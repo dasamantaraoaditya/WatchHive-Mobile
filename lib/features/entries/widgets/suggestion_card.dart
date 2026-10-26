@@ -9,6 +9,7 @@ import '../screens/add_entry_sheet.dart';
 import '../screens/entries_screen.dart';
 import '../../search/repositories/search_repository.dart';
 import 'wh_entry_grid_card.dart';
+import 'suggestion_details_modal.dart';
 import '../../../core/utils/error_handler.dart';
 
 
@@ -232,8 +233,12 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
     final posterPath = detailsAsync.value?['poster_path'] as String?;
     final voteAvg = (detailsAsync.value?['vote_average'] as num?)?.toDouble();
 
+    final List<User> effectiveRecipients = widget.group.recipients.isNotEmpty
+        ? widget.group.recipients
+        : widget.group.suggestions.map((s) => s.recipient).whereType<User>().toList();
+
     final User? displayUser = widget.isSent
-        ? (widget.group.recipients.isNotEmpty ? widget.group.recipients.first : null)
+        ? (effectiveRecipients.isNotEmpty ? effectiveRecipients.first : null)
         : (widget.group.suggestors.isNotEmpty ? widget.group.suggestors.first : null);
 
     final String? truncatedUsername = displayUser != null
@@ -242,13 +247,17 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
             : displayUser.username)
         : null;
 
+    final int extraCount = widget.isSent
+        ? (effectiveRecipients.length > 1 ? effectiveRecipients.length - 1 : 0)
+        : (widget.group.suggestors.length > 1 ? widget.group.suggestors.length - 1 : 0);
+
     final String? userDisplay = displayUser != null
         ? (widget.isSent
-            ? (widget.group.recipients.length > 1
-                ? 'To: @$truncatedUsername (+${widget.group.recipients.length - 1})'
+            ? (extraCount > 0
+                ? 'To: @$truncatedUsername (+$extraCount)'
                 : 'To: @$truncatedUsername')
-            : (widget.group.suggestors.length > 1
-                ? '$truncatedUsername (+${widget.group.suggestors.length - 1})'
+            : (extraCount > 0
+                ? '$truncatedUsername (+$extraCount)'
                 : truncatedUsername))
         : null;
 
@@ -264,6 +273,20 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
         ? suggestionsWithComments.first.message!.trim()
         : null;
 
+    void openDetails() {
+      SuggestionDetailsModal.show(
+        context,
+        group: widget.group,
+        isSent: widget.isSent,
+        title: title,
+        posterPath: posterPath,
+        onMoveToWatching: () => _handleAddToWatching(title),
+        onMarkWatched: () => _handleMarkAsWatched(title, posterPath),
+        onDelete: () => _handleDelete(title),
+        onViewDetails: () => widget.onTapMedia?.call(tmdbId, mediaType, widget.isSent ? null : displayUser),
+      );
+    }
+
     return WHEntryGridCard(
       tmdbId: tmdbId,
       title: title,
@@ -276,6 +299,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       suggestedByAvatarUrl: displayUser?.profilePictureUrl,
       suggestionComment: firstComment,
       suggestionCommentCount: suggestionsWithComments.length,
+      onSuggestionDetails: openDetails,
       onTap: () => widget.onTapMedia?.call(tmdbId, mediaType, widget.isSent ? null : displayUser),
       onMoveToWatchingWithTitle: (resolvedTitle) => _handleAddToWatching(
         resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,

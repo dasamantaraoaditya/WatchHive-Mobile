@@ -69,6 +69,7 @@ class MovieQrDialog extends StatelessWidget {
       tmdbId,
       suggestedByUserId: uid,
       suggestedByUsername: uname,
+      source: 'qr',
     );
   }
 

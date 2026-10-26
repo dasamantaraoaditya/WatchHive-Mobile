@@ -42,6 +42,7 @@ class WHEntryGridCard extends ConsumerWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final void Function(String resolvedTitle)? onDeleteWithTitle;
+  final VoidCallback? onSuggestionDetails;
 
   const WHEntryGridCard({
     super.key,
@@ -70,6 +71,7 @@ class WHEntryGridCard extends ConsumerWidget {
     this.onEdit,
     this.onDelete,
     this.onDeleteWithTitle,
+    this.onSuggestionDetails,
   });
 
   /// Formats and truncates suggested-by usernames to 10 characters max followed by '...'.
@@ -309,40 +311,44 @@ class WHEntryGridCard extends ConsumerWidget {
                     Positioned(
                       top: 8,
                       right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (suggestedByAvatarUrl != null && suggestedByAvatarUrl!.isNotEmpty) ...[
-                              CircleAvatar(
-                                radius: 6,
-                                backgroundColor: Colors.amber,
-                                backgroundImage: NetworkImage(suggestedByAvatarUrl!),
-                              ),
-                              const SizedBox(width: 4),
-                            ] else
-                              const Text('💡 ', style: TextStyle(fontSize: 8)),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 105),
-                              child: Text(
-                                formatSuggestedBy(suggestedByUsername!),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.amber,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onSuggestionDetails,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (suggestedByAvatarUrl != null && suggestedByAvatarUrl!.isNotEmpty) ...[
+                                CircleAvatar(
+                                  radius: 6,
+                                  backgroundColor: Colors.amber,
+                                  backgroundImage: NetworkImage(suggestedByAvatarUrl!),
+                                ),
+                                const SizedBox(width: 4),
+                              ] else
+                                const Text('💡 ', style: TextStyle(fontSize: 8)),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 105),
+                                child: Text(
+                                  formatSuggestedBy(suggestedByUsername!),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.amber,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     )
@@ -421,7 +427,7 @@ class WHEntryGridCard extends ConsumerWidget {
                           const SizedBox(height: 3),
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTap: () {
+                            onTap: onSuggestionDetails ?? () {
                               final sender = (suggestedByUsername != null && suggestedByUsername!.isNotEmpty)
                                   ? (suggestedByUsername!.startsWith('To: ') || suggestedByUsername!.startsWith('@')
                                       ? suggestedByUsername!
@@ -630,7 +636,8 @@ class WHEntryGridCard extends ConsumerWidget {
                       ),
 
                       // Three-Dots Context Menu Button
-                      if (onMoveToWatching != null ||
+                      if (onSuggestionDetails != null ||
+                          onMoveToWatching != null ||
                           onMoveToWatchingWithTitle != null ||
                           onMarkWatched != null ||
                           onMarkWatchedWithTitle != null ||
@@ -647,6 +654,17 @@ class WHEntryGridCard extends ConsumerWidget {
                             side: const BorderSide(color: AppColors.border),
                           ),
                           itemBuilder: (_) => [
+                            if (onSuggestionDetails != null)
+                              const PopupMenuItem(
+                                value: 'details',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primary),
+                                    SizedBox(width: 10),
+                                    Text('Suggestion Details', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                                  ],
+                                ),
+                              ),
                             if (onMoveToWatching != null || onMoveToWatchingWithTitle != null)
                               const PopupMenuItem(
                                 value: 'watching',
@@ -700,6 +718,10 @@ class WHEntryGridCard extends ConsumerWidget {
                               ),
                           ],
                           onSelected: (value) {
+                            if (value == 'details') {
+                              onSuggestionDetails?.call();
+                              return;
+                            }
                             final resolved = displayTitle.isNotEmpty && displayTitle != 'Untitled'
                                 ? displayTitle
                                 : ((tmdbTitle != null && tmdbTitle.isNotEmpty && tmdbTitle != 'Untitled') ? tmdbTitle : title);

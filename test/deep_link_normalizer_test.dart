@@ -41,6 +41,16 @@ void main() {
       expect(normalizeIncomingRoute(uri), equals('/profile/xyz-789'));
     });
 
+    test('Normalizes custom scheme with full web path watchershive://watchershive.com/watch-hive/details/movie/550', () {
+      final uri = Uri.parse('watchershive://watchershive.com/watch-hive/details/movie/550');
+      expect(normalizeIncomingRoute(uri), equals('/details/movie/550'));
+    });
+
+    test('Normalizes custom scheme watchershive:///watch-hive/profile/123', () {
+      final uri = Uri.parse('watchershive:///watch-hive/profile/123');
+      expect(normalizeIncomingRoute(uri), equals('/profile/123'));
+    });
+
     test('Pending deep link is consumed and reset', () {
       // First ensure clean state
       consumePendingDeepLink();
