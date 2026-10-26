@@ -278,5 +278,50 @@ void main() {
       expect(find.text('Inception'), findsOneWidget);
       expect(find.text('1 new update available'), findsNothing);
     });
+
+    testWidgets('Shows loading bar and Updating feed... indicator when feed is refreshing', (tester) async {
+      final repo = _FakeFeedRepo([entryA]);
+      repo.delayCompleter = Completer<void>();
+      late WidgetRef capturedRef;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            feedRepositoryProvider.overrideWithValue(repo),
+          ],
+          child: MaterialApp(
+            home: Consumer(
+              builder: (context, ref, child) {
+                capturedRef = ref;
+                return const FeedScreen();
+              },
+            ),
+          ),
+        ),
+      );
+
+      // Finish initial load
+      repo.delayCompleter!.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('Interstellar'), findsOneWidget);
+
+      // Now start an in-flight refresh with delay
+      repo.delayCompleter = Completer<void>();
+      capturedRef.read(feedProvider.notifier).loadFeed(isRefresh: true);
+      await tester.pump();
+
+      // Verify loading progress bar and "Updating feed..." badge are visible
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      expect(find.text('Updating feed...'), findsOneWidget);
+
+      // Complete API response
+      repo.currentEntries = [entryB, entryA];
+      repo.delayCompleter!.complete();
+      await tester.pumpAndSettle();
+
+      // Loading indicator should disappear and fresh posts shown
+      expect(find.text('Updating feed...'), findsNothing);
+      expect(find.text('Inception'), findsOneWidget);
+    });
   });
 }

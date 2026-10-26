@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/app_route_observer.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/feed_provider.dart';
@@ -25,7 +26,8 @@ class FeedScreen extends ConsumerStatefulWidget {
   ConsumerState<FeedScreen> createState() => _FeedScreenState();
 }
 
-class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObserver {
+class _FeedScreenState extends ConsumerState<FeedScreen>
+    with WidgetsBindingObserver, RouteAware {
   final _scrollController = ScrollController();
   bool _hasCheckedTour = false;
   bool _hasSyncedPush = false;
@@ -42,6 +44,23 @@ class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObse
         ref.read(feedProvider.notifier).onArrivedAtFeed();
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final modalRoute = ModalRoute.of(context);
+    if (modalRoute != null) {
+      appRouteObserver.subscribe(this, modalRoute);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // Top route was popped off (e.g. returning from details, profile, scanner)
+    if (mounted) {
+      ref.read(feedProvider.notifier).onArrivedAtFeed();
+    }
   }
 
   @override
@@ -91,7 +110,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObse
   }
 
   void _onScroll() {
-    final isNearTop = !_scrollController.hasClients || _scrollController.offset <= 80;
+    final isNearTop = !_scrollController.hasClients || _scrollController.offset <= 250;
     ref.read(feedProvider.notifier).setNearTop(isNearTop);
 
     if (_scrollController.position.pixels >=
@@ -102,6 +121,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObse
 
   @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     super.dispose();
@@ -160,6 +180,13 @@ class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObse
                   floating: true,
                   title: const WHBrandLogo(logoSize: 30, fontSize: 21),
                   actions: [
+                    if (feedState.isRefreshing || (feedState.isLoading && feedState.entries.isNotEmpty))
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Center(
+                          child: WHBeeSpinner(size: 18),
+                        ),
+                      ),
                     IconButton(
                       icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.textPrimary),
                       tooltip: 'Scan Hive Code / Movie',
@@ -251,7 +278,60 @@ class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObse
               ],
             ),
           ),
-          if (feedState.newPostsCount > 0)
+          // Top Loading Bar & Floating Indicator when an API call is actively fetching updates
+          if (feedState.isRefreshing || (feedState.isLoading && feedState.entries.isNotEmpty)) ...[
+            Positioned(
+              top: topPadding + kToolbarHeight,
+              left: 0,
+              right: 0,
+              child: const LinearProgressIndicator(
+                minHeight: 2.5,
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+            Positioned(
+              top: topPadding + kToolbarHeight + 8,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.4),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      WHBeeSpinner(size: 16),
+                      SizedBox(width: 8),
+                      Text(
+                        'Updating feed...',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ] else if (feedState.newPostsCount > 0)
             Positioned(
               top: topPadding + kToolbarHeight + 8,
               left: 0,

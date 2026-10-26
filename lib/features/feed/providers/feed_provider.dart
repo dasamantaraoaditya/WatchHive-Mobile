@@ -189,14 +189,14 @@ class FeedNotifier extends StateNotifier<FeedState> {
   }
 
   /// Called whenever a user arrives on the feed tab (via tab switch, back navigation, or app resume).
-  void onArrivedAtFeed() {
+  void onArrivedAtFeed({bool force = false}) {
     final now = DateTime.now();
     final lastFetch = state.lastFetchedAt;
     final isStale = state.isStale;
 
-    // Refresh automatically if never fetched, marked stale, or fetched > 15 seconds ago
-    if (lastFetch == null || isStale || now.difference(lastFetch) > const Duration(seconds: 15)) {
-      loadFeed(isSilent: state.entries.isNotEmpty);
+    // Refresh automatically if never fetched, marked stale, or fetched > 5 seconds ago
+    if (force || lastFetch == null || isStale || now.difference(lastFetch) > const Duration(seconds: 5)) {
+      loadFeed(isRefresh: true);
     }
   }
 
