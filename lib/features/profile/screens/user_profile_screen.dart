@@ -875,7 +875,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 children: [
                   if (user.watchStreak > 0) ...[
                     GestureDetector(
-                      onTap: () => HoneyBadgesDialog.show(context, user),
+                      onTap: () => HoneyBadgesDialog.show(context, user, entries: _historyEntries),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
@@ -894,7 +894,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                                 fontFamily: 'Inter',
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
-                                color: AppColors.primaryDark,
+                                color: Color(0xFF2D2926),
                               ),
                             ),
                           ],
@@ -904,7 +904,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                     const SizedBox(width: 5),
                   ],
                   GestureDetector(
-                    onTap: () => HoneyBadgesDialog.show(context, user),
+                    onTap: () => HoneyBadgesDialog.show(context, user, entries: _historyEntries),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
@@ -917,14 +917,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                         children: [
                           const Icon(Icons.military_tech_rounded, size: 12, color: AppColors.primary),
                           const SizedBox(width: 2),
-                          Text(
-                            '${user.badges.length} Badges',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
+                          Builder(
+                            builder: (context) {
+                              final count = HoneyBadgesDialog.getEarnedBadgesCount(user, entries: _historyEntries);
+                              return Text(
+                                '$count ${count == 1 ? "Badge" : "Badges"}',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -1228,34 +1233,66 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 // Compare Taste Shortcut
                 IconButton.filledTonal(
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                    foregroundColor: AppColors.primaryDark,
+                    backgroundColor: _isFollowing
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : AppColors.surfaceHighest,
+                    foregroundColor: _isFollowing ? AppColors.primaryDark : AppColors.textMuted,
                     padding: const EdgeInsets.all(12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  tooltip: 'Compare Taste',
-                  onPressed: () => context.push('/compare/${user.id}', extra: user),
-                  icon: const Icon(Icons.compare_arrows_rounded, size: 20),
+                  tooltip: _isFollowing
+                      ? 'Compare Taste'
+                      : 'Follow @${user.username} to compare taste',
+                  onPressed: () {
+                    if (!_isFollowing) {
+                      WHAlert.showWarning(
+                        context,
+                        'You must follow @${user.username} to compare taste.',
+                      );
+                      return;
+                    }
+                    context.push('/compare/${user.id}', extra: user);
+                  },
+                  icon: Icon(
+                    Icons.compare_arrows_rounded,
+                    size: 20,
+                    color: _isFollowing ? AppColors.primaryDark : AppColors.textMuted,
+                  ),
                 ),
                 const SizedBox(width: 8),
 
                 // Suggest Movie Modal
                 IconButton.filledTonal(
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                    foregroundColor: AppColors.primaryDark,
+                    backgroundColor: _isFollowing
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : AppColors.surfaceHighest,
+                    foregroundColor: _isFollowing ? AppColors.primaryDark : AppColors.textMuted,
                     padding: const EdgeInsets.all(12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  tooltip: user.isFollower ? 'Suggest a Movie' : '@${user.username} must follow you to receive suggestions',
+                  tooltip: _isFollowing
+                      ? 'Suggest a Movie'
+                      : 'Follow @${user.username} to suggest movies',
                   onPressed: () {
+                    if (!_isFollowing) {
+                      WHAlert.showWarning(
+                        context,
+                        'You must follow @${user.username} to suggest movies.',
+                      );
+                      return;
+                    }
                     SuggestMovieModal.show(
                       context,
                       initialToUserId: user.id,
                       initialToUserName: user.username,
                     );
                   },
-                  icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+                  icon: Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 20,
+                    color: _isFollowing ? AppColors.primaryDark : AppColors.textMuted,
+                  ),
                 ),
               ],
             ),

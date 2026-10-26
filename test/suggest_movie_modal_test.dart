@@ -33,16 +33,9 @@ class _FakeUserRepository extends UserRepository {
     getFollowersCalled = true;
     return [
       User(
-        id: 'follower-1',
-        username: 'cinephile_jane',
-        displayName: 'Jane Cinephile',
-        profilePictureUrl: null,
-        createdAt: DateTime(2026, 1, 1),
-      ),
-      User(
-        id: 'follower-2',
-        username: 'movie_buff_sam',
-        displayName: 'Sam Buff',
+        id: 'follower-only',
+        username: 'follower_user',
+        displayName: 'Follower Only',
         profilePictureUrl: null,
         createdAt: DateTime(2026, 1, 1),
       ),
@@ -54,9 +47,16 @@ class _FakeUserRepository extends UserRepository {
     getFollowingCalled = true;
     return [
       User(
-        id: 'following-stranger',
-        username: 'stranger_user',
-        displayName: 'Stranger User',
+        id: 'following-1',
+        username: 'cinephile_jane',
+        displayName: 'Jane Cinephile',
+        profilePictureUrl: null,
+        createdAt: DateTime(2026, 1, 1),
+      ),
+      User(
+        id: 'following-2',
+        username: 'movie_buff_sam',
+        displayName: 'Sam Buff',
         profilePictureUrl: null,
         createdAt: DateTime(2026, 1, 1),
       ),
@@ -118,7 +118,7 @@ class _FakeSuggestionsRepository extends SuggestionsRepository {
 }
 
 void main() {
-  testWidgets('SuggestMovieModal displays ONLY followers and never loads strangers/suggested users', (tester) async {
+  testWidgets('SuggestMovieModal displays ONLY followed users and never loads strangers or non-followed users', (tester) async {
     final fakeUserRepo = _FakeUserRepository();
     final fakeSearchRepo = _FakeSearchRepository();
     final fakeSuggestionsRepo = _FakeSuggestionsRepository();
@@ -144,22 +144,22 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // 1. Verify followers were fetched, but NOT getSuggestedUsers or getFollowing
-    expect(fakeUserRepo.getFollowersCalled, isTrue);
-    expect(fakeUserRepo.getFollowingCalled, isFalse);
+    // 1. Verify following was fetched, but NOT getFollowers or getSuggestedUsers
+    expect(fakeUserRepo.getFollowingCalled, isTrue);
+    expect(fakeUserRepo.getFollowersCalled, isFalse);
     expect(fakeSearchRepo.getSuggestedUsersCalled, isFalse);
 
-    // 2. Verify followers are visible
+    // 2. Verify followed users are visible
     expect(find.text('Jane Cinephile'), findsOneWidget);
     expect(find.text('@cinephile_jane'), findsOneWidget);
     expect(find.text('Sam Buff'), findsOneWidget);
     expect(find.text('@movie_buff_sam'), findsOneWidget);
 
-    // 3. Verify strangers are NEVER shown
+    // 3. Verify non-followed users and strangers are NEVER shown
+    expect(find.text('Follower Only'), findsNothing);
     expect(find.text('Random Stranger'), findsNothing);
-    expect(find.text('Stranger User'), findsNothing);
 
-    // 4. Test in-memory follower search filtering
+    // 4. Test in-memory followed user search filtering
     final searchInput = find.byType(TextField).first;
     await tester.enterText(searchInput, 'jane');
     await tester.pumpAndSettle();
@@ -169,7 +169,7 @@ void main() {
     expect(find.text('Jane Cinephile'), findsOneWidget);
     expect(find.text('Sam Buff'), findsNothing);
 
-    // 5. Select follower and verify send
+    // 5. Select followed user and verify send
     await tester.tap(find.text('Jane Cinephile'));
     await tester.pumpAndSettle();
 
@@ -178,6 +178,6 @@ void main() {
     await tester.tap(sendButton);
     await tester.pumpAndSettle();
 
-    expect(fakeSuggestionsRepo.sentToUserIds, ['follower-1']);
+    expect(fakeSuggestionsRepo.sentToUserIds, ['following-1']);
   });
 }

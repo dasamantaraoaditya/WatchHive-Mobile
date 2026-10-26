@@ -147,4 +147,109 @@ void main() {
     // Verify "Suggested" is still present and selected
     expect(find.text('Suggested'), findsOneWidget);
   });
+
+  testWidgets('Tapping sent suggestion opens SuggestionDetailsModal with read-only metadata and recipients', (tester) async {
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final mockApi = MockSuggestionsApiClient();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          suggestionsRepositoryProvider.overrideWithValue(SuggestionsRepository(mockApi)),
+          tmdbMediaDetailsProvider.overrideWith((ref, arg) async => {
+            'id': arg.tmdbId,
+            'title': 'Inception',
+            'poster_path': '/mock.jpg',
+            'vote_average': 8.8,
+          }),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SuggestionsTab(),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Switch to Suggested tab
+    await tester.tap(find.text('Suggested'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Verify card is rendered with recipient
+    expect(find.text('To: @bob'), findsOneWidget);
+
+    // Tap on the suggestion card
+    await tester.tap(find.text('To: @bob'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    // Verify Suggestion Details modal opened
+    expect(find.text('Sent Suggestion Details'), findsOneWidget);
+    expect(find.text('SUGGESTED TO'), findsOneWidget);
+    expect(find.text('Read-only'), findsOneWidget);
+    expect(find.text('Bob M'), findsOneWidget);
+    expect(find.text('@bob'), findsOneWidget);
+
+    // Verify Suggestion Time
+    expect(find.text('SUGGESTION TIME'), findsOneWidget);
+
+    // Verify Attached Note
+    expect(find.text('ATTACHED NOTE'), findsOneWidget);
+    expect(find.text('“Mind blowing film”'), findsOneWidget);
+
+    // Verify Action button
+    expect(find.text('View Title'), findsOneWidget);
+  });
+
+  testWidgets('Received suggestion details shows Suggested By and message', (tester) async {
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final mockApi = MockSuggestionsApiClient();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          suggestionsRepositoryProvider.overrideWithValue(SuggestionsRepository(mockApi)),
+          tmdbMediaDetailsProvider.overrideWith((ref, arg) async => {
+            'id': arg.tmdbId,
+            'title': 'Interstellar',
+            'poster_path': '/mock.jpg',
+            'vote_average': 8.6,
+          }),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SuggestionsTab(),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Tap on the received suggestion card badge or card
+    expect(find.text('@alice'), findsOneWidget);
+    await tester.tap(find.text('@alice'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    // Verify Suggestion Details modal opened for received suggestion
+    expect(find.text('Received Suggestion Details'), findsOneWidget);
+    expect(find.text('SUGGESTED BY'), findsOneWidget);
+    expect(find.text('Alice W'), findsOneWidget);
+    expect(find.text('@alice'), findsNWidgets(2)); // Card badge + modal
+    expect(find.text('“You have to watch this!”'), findsOneWidget);
+    expect(find.text('Log Watching'), findsOneWidget);
+    expect(find.text('Mark Watched'), findsOneWidget);
+  });
 }

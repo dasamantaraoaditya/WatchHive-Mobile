@@ -10,6 +10,8 @@ import '../../profile/repositories/user_repository.dart';
 import '../../search/repositories/search_repository.dart';
 import '../repositories/suggestions_repository.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../profile/services/honey_badge_service.dart';
 
 class SuggestMovieModal extends ConsumerStatefulWidget {
   final int? tmdbId;
@@ -147,10 +149,10 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
       final userRepo = ref.read(userRepositoryProvider);
       final me = await userRepo.getCurrentUser();
       
-      final followers = await userRepo.getFollowers(me.id).catchError((_) => <User>[]);
+      final following = await userRepo.getFollowing(me.id).catchError((_) => <User>[]);
 
       final friendMap = <String, User>{};
-      for (final u in followers) {
+      for (final u in following) {
         if (u.id != me.id) {
           friendMap[u.id] = u;
         }
@@ -218,7 +220,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
         !_friends.any((u) => u.id == widget.initialToUserId)) {
       WHAlert.showWarning(
         context,
-        '@${widget.initialToUserName ?? "This user"} is not following you yet. Only followers can receive suggestions.',
+        'You must follow @${widget.initialToUserName ?? "this user"} to send movie suggestions.',
       );
       return;
     }
@@ -233,6 +235,11 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
         mediaType: mediaType,
         message: _messageController.text.trim().isNotEmpty ? _messageController.text.trim() : null,
       );
+
+      final currentUserId = ref.read(authStateProvider).value?.user?.id;
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        HoneyBadgeService.awardBadgeLocally(currentUserId, 'hive_suggester');
+      }
 
       if (mounted) {
         Navigator.pop(context);
@@ -263,7 +270,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final screenHeight = MediaQuery.of(context).size.height;
     final isKeyboardOpen = bottomInset > 0;
-    final bool isSingleRecipientNotFollower = widget.initialToUserId != null &&
+    final bool isSingleRecipientNotFollowed = widget.initialToUserId != null &&
         !_isLoadingFriends &&
         !_friends.any((u) => u.id == widget.initialToUserId);
 
@@ -526,7 +533,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                             onChanged: _onFriendSearchChanged,
                             style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
                             decoration: InputDecoration(
-                              hintText: 'Search followers...',
+                              hintText: 'Search followed users...',
                               prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 18),
                               filled: true,
                               fillColor: AppColors.surface,
@@ -562,7 +569,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                             ],
                           ),
                         ),
-                        if (isSingleRecipientNotFollower) ...[
+                        if (isSingleRecipientNotFollowed) ...[
                           const SizedBox(height: 10),
                           Container(
                             width: double.infinity,
@@ -579,7 +586,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    '@${widget.initialToUserName ?? "This user"} is not following you yet. Only followers can receive movie suggestions.',
+                                    'You are not following @${widget.initialToUserName ?? "this user"}. You must follow them to send movie suggestions.',
                                     style: const TextStyle(
                                       fontFamily: 'Inter',
                                       fontSize: 12,
@@ -674,32 +681,32 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                         height: 50,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isSingleRecipientNotFollower ? AppColors.surfaceHighest : AppColors.primary,
-                            foregroundColor: isSingleRecipientNotFollower ? AppColors.textMuted : Colors.black,
-                            elevation: isSingleRecipientNotFollower ? 0 : 2,
+                            backgroundColor: isSingleRecipientNotFollowed ? AppColors.surfaceHighest : AppColors.primary,
+                            foregroundColor: isSingleRecipientNotFollowed ? AppColors.textMuted : Colors.black,
+                            elevation: isSingleRecipientNotFollowed ? 0 : 2,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
-                          onPressed: (_isSending || isSingleRecipientNotFollower) ? null : _handleSend,
+                          onPressed: (_isSending || isSingleRecipientNotFollowed) ? null : _handleSend,
                           child: _isSending
                               ? const WHBeeSpinner(size: 20)
                               : Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
-                                      isSingleRecipientNotFollower ? Icons.block_rounded : Icons.send_rounded,
+                                      isSingleRecipientNotFollowed ? Icons.block_rounded : Icons.send_rounded,
                                       size: 16,
-                                      color: isSingleRecipientNotFollower ? AppColors.textMuted : Colors.black,
+                                      color: isSingleRecipientNotFollowed ? AppColors.textMuted : Colors.black,
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      isSingleRecipientNotFollower
-                                          ? 'Cannot Suggest (Not a Follower)'
+                                      isSingleRecipientNotFollowed
+                                          ? 'Cannot Suggest (Not Following)'
                                           : 'Send Suggestion (${_selectedUserIds.length})',
                                       style: TextStyle(
                                         fontFamily: 'Inter',
                                         fontWeight: FontWeight.w800,
                                         fontSize: 14,
-                                        color: isSingleRecipientNotFollower ? AppColors.textMuted : Colors.black,
+                                        color: isSingleRecipientNotFollowed ? AppColors.textMuted : Colors.black,
                                       ),
                                     ),
                                   ],
@@ -739,7 +746,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
             const Icon(Icons.people_outline_rounded, size: 36, color: AppColors.textMuted),
             const SizedBox(height: 8),
             Text(
-              _friendSearchQuery.isNotEmpty ? 'No followers found matching "$_friendSearchQuery"' : 'No followers yet',
+              _friendSearchQuery.isNotEmpty ? 'No followed users found matching "$_friendSearchQuery"' : 'Not following any users yet',
               style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
           ],

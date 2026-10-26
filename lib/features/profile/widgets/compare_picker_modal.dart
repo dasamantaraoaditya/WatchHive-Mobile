@@ -5,7 +5,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../search/repositories/search_repository.dart';
 import '../repositories/user_repository.dart';
 
 class ComparePickerModal extends ConsumerStatefulWidget {
@@ -62,31 +61,25 @@ class _ComparePickerModalState extends ConsumerState<ComparePickerModal> {
     }
   }
 
-  Future<void> _onSearchChanged(String query) async {
-    if (query.trim().isEmpty) {
-      setState(() {
-        _searchResults = [];
-        _isSearching = false;
-      });
-      return;
-    }
-
-    setState(() => _isSearching = true);
-    try {
-      final results = await ref.read(searchRepositoryProvider).searchUsers(query);
-      final currentUserId = ref.read(authStateProvider).value?.user?.id;
-      if (mounted) {
-        setState(() {
-          _searchResults = results.where((u) => u.id != currentUserId).toList();
-          _isSearching = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isSearching = false);
-    }
+  void _onSearchChanged(String query) {
+    final trimmed = query.trim().toLowerCase();
+    setState(() {
+      _searchResults = trimmed.isEmpty
+          ? []
+          : _followingUsers.where((u) {
+              final name = (u.displayName ?? '').toLowerCase();
+              final username = u.username.toLowerCase();
+              return name.contains(trimmed) || username.contains(trimmed);
+            }).toList();
+      _isSearching = false;
+    });
   }
 
   void _selectUser(User user) {
+    if (!_followingUsers.any((u) => u.id == user.id)) {
+      WHAlert.showWarning(context, 'You must follow @${user.username} to compare taste.');
+      return;
+    }
     Navigator.pop(context);
     context.push('/compare/${user.id}', extra: user);
   }
@@ -157,7 +150,7 @@ class _ComparePickerModalState extends ConsumerState<ComparePickerModal> {
               onChanged: _onSearchChanged,
               style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
               decoration: InputDecoration(
-                hintText: 'Search friends or any user by @username...',
+                hintText: 'Search followed users by name or @username...',
                 prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
