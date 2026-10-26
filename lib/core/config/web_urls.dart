@@ -13,6 +13,7 @@ class WebUrls {
     int tmdbId, {
     String? suggestedByUserId,
     String? suggestedByUsername,
+    String? source,
   }) {
     final cleanMediaType = mediaType.toLowerCase().trim();
     final params = <String>[];
@@ -22,6 +23,9 @@ class WebUrls {
     if (suggestedByUsername != null && suggestedByUsername.trim().isNotEmpty) {
       params.add('suggestedByUsername=${Uri.encodeComponent(suggestedByUsername.trim())}');
     }
+    if (source != null && source.trim().isNotEmpty) {
+      params.add('source=${Uri.encodeComponent(source.trim())}');
+    }
     final query = params.isNotEmpty ? '?${params.join('&')}' : '';
     return '$baseUrl/watch-hive/details/$cleanMediaType/$tmdbId$query';
   }
@@ -29,10 +33,15 @@ class WebUrls {
   /// Deep link URL for a user profile.
   /// Supports optional referral query parameter.
   /// Example: https://watchhive-web.vercel.app/watch-hive/profile/user-id-123
-  static String userProfile(String userId, {String? refUsername}) {
-    final query = (refUsername != null && refUsername.trim().isNotEmpty)
-        ? '?ref=${Uri.encodeComponent(refUsername.trim())}'
-        : '';
+  static String userProfile(String userId, {String? refUsername, String? source}) {
+    final params = <String>[];
+    if (refUsername != null && refUsername.trim().isNotEmpty) {
+      params.add('ref=${Uri.encodeComponent(refUsername.trim())}');
+    }
+    if (source != null && source.trim().isNotEmpty) {
+      params.add('source=${Uri.encodeComponent(source.trim())}');
+    }
+    final query = params.isNotEmpty ? '?${params.join('&')}' : '';
     return '$baseUrl/watch-hive/profile/$userId$query';
   }
 

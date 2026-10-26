@@ -51,11 +51,11 @@ String? consumePendingDeepLink() {
 String? normalizeIncomingRoute(Uri uri) {
   final scheme = uri.scheme.toLowerCase();
   final host = uri.host.toLowerCase();
-  final path = uri.path;
+  var path = uri.path;
+  final query = uri.hasQuery ? '?${uri.query}' : '';
 
   // 1. Custom URL Scheme: watchershive:// or watchhive://
   if (scheme == 'watchershive' || scheme == 'watchhive') {
-    final query = uri.hasQuery ? '?${uri.query}' : '';
     // e.g. watchershive://details/movie/550
     if (host == 'details') {
       return '/details$path$query';
@@ -71,26 +71,25 @@ String? normalizeIncomingRoute(Uri uri) {
     if (host == 'feed' || host == 'entries' || host == 'search' || host == 'notifications') {
       return '/$host$path$query';
     }
-    if (path.isNotEmpty && path != '/') {
-      return '$path$query';
-    }
   }
 
-  // 2. Web Paths with /watch-hive or /watchers-hive or /watcher-hive prefix
+  // 2. Strip /watch-hive or /watchers-hive or /watcher-hive prefix
   if (path.startsWith('/watch-hive') || path.startsWith('/watchers-hive') || path.startsWith('/watcher-hive')) {
-    final stripped = path.replaceFirst(RegExp(r'^/watch(?:ers?)?-hive'), '');
-    final cleanPath = stripped.isEmpty ? '/feed' : stripped;
-    final resolvedPath = cleanPath.startsWith('/user/')
-        ? cleanPath.replaceFirst('/user/', '/profile/')
-        : cleanPath;
-    final query = uri.hasQuery ? '?${uri.query}' : '';
-    return '$resolvedPath$query';
+    path = path.replaceFirst(RegExp(r'^/watch(?:ers?)?-hive'), '');
   }
 
-  // 3. /user/:id -> /profile/:id
+  // 3. Map /user/:id -> /profile/:id
   if (path.startsWith('/user/')) {
-    final query = uri.hasQuery ? '?${uri.query}' : '';
-    return path.replaceFirst('/user/', '/profile/') + query;
+    path = path.replaceFirst('/user/', '/profile/');
+  }
+
+  // 4. Return normalized path if valid or recognized
+  if (path.isNotEmpty && path != '/') {
+    return '$path$query';
+  }
+
+  if (scheme == 'watchershive' || scheme == 'watchhive' || host.contains('watchershive') || host.contains('watchhive')) {
+    return '/feed$query';
   }
 
   return null;

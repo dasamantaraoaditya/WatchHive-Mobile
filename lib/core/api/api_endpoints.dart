@@ -21,6 +21,8 @@ class ApiEndpoints {
     return '$base$cleanPath';
   }
 
+  static String resolveTmdbPosterUrl(String? path) => tmdbPoster(path);
+
   static String tmdbBackdrop(String? path) {
     if (path == null || path.isEmpty) return '';
     if (path.startsWith('http://') || path.startsWith('https://')) return path;

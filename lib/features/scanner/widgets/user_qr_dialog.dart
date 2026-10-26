@@ -59,7 +59,7 @@ class UserQrDialog extends StatelessWidget {
     );
   }
 
-  String get _profileUrl => WebUrls.userProfile(userId, refUsername: username);
+  String get _profileUrl => WebUrls.userProfile(userId, refUsername: username, source: 'qr');
 
   void _copyLink(BuildContext context) {
     Clipboard.setData(ClipboardData(text: _profileUrl));
