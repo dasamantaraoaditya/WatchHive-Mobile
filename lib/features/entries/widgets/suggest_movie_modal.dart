@@ -10,6 +10,8 @@ import '../../profile/repositories/user_repository.dart';
 import '../../search/repositories/search_repository.dart';
 import '../repositories/suggestions_repository.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../profile/services/honey_badge_service.dart';
 
 class SuggestMovieModal extends ConsumerStatefulWidget {
   final int? tmdbId;
@@ -233,6 +235,11 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
         mediaType: mediaType,
         message: _messageController.text.trim().isNotEmpty ? _messageController.text.trim() : null,
       );
+
+      final currentUserId = ref.read(authStateProvider).value?.user?.id;
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        HoneyBadgeService.awardBadgeLocally(currentUserId, 'hive_suggester');
+      }
 
       if (mounted) {
         Navigator.pop(context);

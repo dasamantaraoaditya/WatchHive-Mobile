@@ -11,6 +11,8 @@ import '../../search/repositories/search_repository.dart';
 import 'wh_entry_grid_card.dart';
 import 'suggestion_details_modal.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../profile/services/honey_badge_service.dart';
 
 
 class SuggestionCard extends ConsumerStatefulWidget {
@@ -83,6 +85,11 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       });
 
       ref.read(entriesProvider(true).notifier).addEntry(entry);
+
+      final currentUserId = ref.read(authStateProvider).value?.user?.id;
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        HoneyBadgeService.awardBadgeLocally(currentUserId, 'suggestion_starter');
+      }
 
       await Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)));
       if (mounted) {

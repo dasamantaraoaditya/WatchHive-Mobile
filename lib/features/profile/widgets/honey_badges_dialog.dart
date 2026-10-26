@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/offline_storage_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/models/entry.dart';
 import '../../../shared/models/user.dart';
+import '../services/honey_badge_service.dart';
 
 class HoneyBadgeItem {
   final String id;
@@ -18,10 +22,15 @@ class HoneyBadgeItem {
   });
 }
 
-class HoneyBadgesDialog extends StatelessWidget {
+class HoneyBadgesDialog extends ConsumerStatefulWidget {
   final User user;
+  final List<Entry>? entries;
 
-  const HoneyBadgesDialog({super.key, required this.user});
+  const HoneyBadgesDialog({
+    super.key,
+    required this.user,
+    this.entries,
+  });
 
   static const List<HoneyBadgeItem> standardBadges = [
     HoneyBadgeItem(
@@ -32,18 +41,32 @@ class HoneyBadgesDialog extends StatelessWidget {
       icon: Icons.play_circle_fill_rounded,
     ),
     HoneyBadgeItem(
+      id: 'rewatcher',
+      name: 'Rewatch Master',
+      description: 'Log a movie or show rewatch',
+      emoji: '🔁',
+      icon: Icons.repeat_rounded,
+    ),
+    HoneyBadgeItem(
+      id: 'hive_suggester',
+      name: 'Hive Recommender',
+      description: 'Share a movie suggestion with a friend',
+      emoji: '💡',
+      icon: Icons.send_rounded,
+    ),
+    HoneyBadgeItem(
+      id: 'suggestion_starter',
+      name: 'Suggestion Starter',
+      description: 'Log or complete a friend suggestion',
+      emoji: '🤝',
+      icon: Icons.recommend_rounded,
+    ),
+    HoneyBadgeItem(
       id: 'century_watcher',
       name: 'Century Watcher',
       description: 'Log your 100th watch entry',
       emoji: '💯',
       icon: Icons.military_tech_rounded,
-    ),
-    HoneyBadgeItem(
-      id: 'suggestion_starter',
-      name: 'Suggestion Starter',
-      description: 'Complete 1 suggestion from a friend',
-      emoji: '🤝',
-      icon: Icons.recommend_rounded,
     ),
     HoneyBadgeItem(
       id: 'suggestion_veteran',
@@ -75,36 +98,70 @@ class HoneyBadgesDialog extends StatelessWidget {
     ),
   ];
 
-  static void show(BuildContext context, User user) {
+  /// Static helper to compute total earned badges count synchronously for profile pills
+  static int getEarnedBadgesCount(User user, {List<Entry>? entries}) {
+    final earnedMap = HoneyBadgeService.computeEarnedBadgesMap(user, entries: entries);
+    return standardBadges.where((b) => earnedMap.containsKey(b.id)).length;
+  }
+
+  static void show(BuildContext context, User user, {List<Entry>? entries}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => HoneyBadgesDialog(user: user),
+      builder: (ctx) => HoneyBadgesDialog(user: user, entries: entries),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
-    // Map earned badges by ID
-    final earnedMap = <String, dynamic>{};
-    for (final b in user.badges) {
-      if (b is Map) {
-        final id = b['id']?.toString() ?? '';
-        earnedMap[id] = b;
-        if (id == 'first_log') {
-          earnedMap['pioneer'] = b;
-        }
-      } else if (b is String) {
-        earnedMap[b] = {'id': b};
-        if (b == 'first_log') {
-          earnedMap['pioneer'] = {'id': b};
-        }
-      }
+  ConsumerState<HoneyBadgesDialog> createState() => _HoneyBadgesDialogState();
+}
+
+class _HoneyBadgesDialogState extends ConsumerState<HoneyBadgesDialog> {
+  List<Entry>? _resolvedEntries;
+  Set<String> _extraBadgeIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _resolvedEntries = widget.entries;
+    _inspectLocalData();
+  }
+
+  Future<void> _inspectLocalData() async {
+    final localBadges = await HoneyBadgeService.loadLocalBadges(widget.user.id);
+    if (mounted) {
+      setState(() {
+        _extraBadgeIds = localBadges;
+      });
     }
 
-    final totalStandard = standardBadges.length;
-    final earnedCount = standardBadges.where((b) => earnedMap.containsKey(b.id)).length;
+    if (_resolvedEntries == null || _resolvedEntries!.isEmpty) {
+      try {
+        final storage = ref.read(offlineStorageServiceProvider);
+        final cached = await storage.getCachedEntries(userId: widget.user.id);
+        if (cached.isNotEmpty && mounted) {
+          setState(() {
+            _resolvedEntries = cached;
+          });
+        }
+      } catch (_) {}
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Dynamically evaluate all earned badges
+    final earnedMap = HoneyBadgeService.computeEarnedBadgesMap(
+      widget.user,
+      entries: _resolvedEntries,
+      additionalBadgeIds: _extraBadgeIds,
+    );
+
+    final totalStandard = HoneyBadgesDialog.standardBadges.length;
+    final earnedCount = HoneyBadgesDialog.standardBadges
+        .where((b) => earnedMap.containsKey(b.id))
+        .length;
 
     return Container(
       constraints: BoxConstraints(
@@ -141,8 +198,8 @@ class HoneyBadgesDialog extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      user.displayName != null && user.displayName!.isNotEmpty
-                          ? "${user.displayName}'s Badges"
+                      widget.user.displayName != null && widget.user.displayName!.isNotEmpty
+                          ? "${widget.user.displayName}'s Badges"
                           : 'Honey Level Badges',
                       style: const TextStyle(
                         fontFamily: 'Inter',
@@ -159,7 +216,7 @@ class HoneyBadgesDialog extends StatelessWidget {
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
-                        color: AppColors.primaryDark,
+                        color: Color(0xFF2D2926),
                       ),
                     ),
                   ],
@@ -174,7 +231,7 @@ class HoneyBadgesDialog extends StatelessWidget {
           ),
 
           // Streak Banner if user has active streak
-          if (user.watchStreak > 0)
+          if (widget.user.watchStreak > 0)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -197,12 +254,12 @@ class HoneyBadgesDialog extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${user.watchStreak} ${user.watchStreak == 1 ? 'Day' : 'Days'} Watch Streak Active!',
+                          '${widget.user.watchStreak} ${widget.user.watchStreak == 1 ? 'Day' : 'Days'} Watch Streak Active!',
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.primaryDark,
+                            color: Color(0xFF2D2926),
                           ),
                         ),
                         const Text(
@@ -227,10 +284,10 @@ class HoneyBadgesDialog extends StatelessWidget {
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              itemCount: standardBadges.length,
+              itemCount: HoneyBadgesDialog.standardBadges.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (ctx, index) {
-                final badge = standardBadges[index];
+                final badge = HoneyBadgesDialog.standardBadges[index];
                 final isEarned = earnedMap.containsKey(badge.id);
                 final earnedData = earnedMap[badge.id];
 
@@ -333,7 +390,7 @@ class HoneyBadgesDialog extends StatelessWidget {
                                   fontFamily: 'Inter',
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.primaryDark,
+                                  color: Color(0xFF2D2926),
                                 ),
                               ),
                             ],

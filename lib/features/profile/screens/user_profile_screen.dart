@@ -875,7 +875,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 children: [
                   if (user.watchStreak > 0) ...[
                     GestureDetector(
-                      onTap: () => HoneyBadgesDialog.show(context, user),
+                      onTap: () => HoneyBadgesDialog.show(context, user, entries: _historyEntries),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
@@ -894,7 +894,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                                 fontFamily: 'Inter',
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
-                                color: AppColors.primaryDark,
+                                color: Color(0xFF2D2926),
                               ),
                             ),
                           ],
@@ -904,7 +904,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                     const SizedBox(width: 5),
                   ],
                   GestureDetector(
-                    onTap: () => HoneyBadgesDialog.show(context, user),
+                    onTap: () => HoneyBadgesDialog.show(context, user, entries: _historyEntries),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
@@ -917,14 +917,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                         children: [
                           const Icon(Icons.military_tech_rounded, size: 12, color: AppColors.primary),
                           const SizedBox(width: 2),
-                          Text(
-                            '${user.badges.length} Badges',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
+                          Builder(
+                            builder: (context) {
+                              final count = HoneyBadgesDialog.getEarnedBadgesCount(user, entries: _historyEntries);
+                              return Text(
+                                '$count ${count == 1 ? "Badge" : "Badges"}',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),

@@ -724,14 +724,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         children: [
                           const Icon(Icons.military_tech_rounded, size: 12, color: AppColors.primary),
                           const SizedBox(width: 2),
-                          Text(
-                            '${user.badges.length} Badges',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
+                          Builder(
+                            builder: (context) {
+                              final count = HoneyBadgesDialog.getEarnedBadgesCount(user);
+                              return Text(
+                                '$count ${count == 1 ? "Badge" : "Badges"}',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),

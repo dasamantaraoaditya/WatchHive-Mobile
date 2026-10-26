@@ -22,6 +22,8 @@ import '../widgets/platform_logo_badge.dart';
 import '../../../core/services/connectivity_service.dart';
 import '../../../core/services/offline_sync_manager.dart';
 import '../../../core/services/offline_storage_service.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../profile/services/honey_badge_service.dart';
 
 class _LocationPreset {
   final String label;
@@ -822,6 +824,17 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         }
       }
       ref.read(offlineSyncManagerProvider.notifier).refreshPendingCount();
+
+      final currentUserId = ref.read(authStateProvider).value?.user?.id;
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        HoneyBadgeService.awardBadgeLocally(currentUserId, 'pioneer');
+        if (_isRewatch) {
+          HoneyBadgeService.awardBadgeLocally(currentUserId, 'rewatcher');
+        }
+        if (_suggestedByUserId != null && _suggestedByUserId!.trim().isNotEmpty) {
+          HoneyBadgeService.awardBadgeLocally(currentUserId, 'suggestion_starter');
+        }
+      }
 
       if (mounted) {
         widget.onSuccess?.call();
