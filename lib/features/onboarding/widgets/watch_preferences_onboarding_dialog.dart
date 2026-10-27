@@ -87,6 +87,16 @@ class _WatchPreferencesOnboardingDialogState
     }
   }
 
+  Future<void> _skipPreferences() async {
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null && user.id.isNotEmpty) {
+      await ref.read(onboardingServiceProvider).markPreferencesCompleted(user.id);
+    }
+    if (mounted) {
+      Navigator.of(context).pop(false);
+    }
+  }
+
   Future<void> _submitPreferences() async {
     setState(() => _isSubmitting = true);
 
@@ -450,7 +460,7 @@ class _WatchPreferencesOnboardingDialogState
           const SizedBox(width: 10),
         ] else if (!widget.isEditing) ...[
           TextButton(
-            onPressed: _submitPreferences,
+            onPressed: _skipPreferences,
             child: const Text(
               'Skip for now',
               style: TextStyle(color: AppColors.textMuted, fontSize: 13),

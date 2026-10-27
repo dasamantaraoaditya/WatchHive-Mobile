@@ -12,6 +12,8 @@ import '../../../shared/widgets/app_update_dialog.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../onboarding/services/onboarding_service.dart';
+import '../../onboarding/widgets/watch_preferences_onboarding_dialog.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -62,7 +64,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             password: _passwordController.text,
           );
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
-        context.go('/feed');
+        await _handlePostAuthFlow();
       }
     } catch (e) {
       if (mounted) {
@@ -118,7 +120,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       await ref.read(authStateProvider.notifier).googleSignIn(idToken);
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
-        context.go('/feed');
+        await _handlePostAuthFlow();
       }
     } catch (e) {
       debugPrint('Google Sign-In Error: $e');
@@ -160,7 +162,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
 
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
-        context.go('/feed');
+        await _handlePostAuthFlow();
       }
     } on SignInWithAppleAuthorizationException catch (e) {
       debugPrint('[AppleSignIn] AuthorizationException: ${e.code} - ${e.message}');
@@ -188,6 +190,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handlePostAuthFlow() async {
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null) {
+      final onboardingService = ref.read(onboardingServiceProvider);
+      final shouldPrompt = await onboardingService.shouldPromptUser(user);
+      if (shouldPrompt && mounted) {
+        onboardingService.markPrompted();
+        await WatchPreferencesOnboardingDialog.show(context);
+        await onboardingService.markPreferencesCompleted(user.id);
+      }
+    }
+    if (mounted) {
+      context.go('/feed');
     }
   }
 
