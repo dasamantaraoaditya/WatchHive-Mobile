@@ -7,6 +7,7 @@ import '../../../core/notifications/push_notification_service.dart';
 import '../../../shared/models/user.dart';
 import '../../notifications/repositories/push_repository.dart';
 import '../../profile/repositories/user_repository.dart';
+import '../../onboarding/services/onboarding_service.dart';
 import '../repositories/auth_repository.dart';
 
 // Auth state model
@@ -69,17 +70,24 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     // 1. Fast Path: If we have a cached user profile, restore session IMMEDIATELY (<15ms)
     final cachedUser = await authManager.getCachedUser();
     if (cachedUser != null) {
+      final resolvedUser = await ref
+          .read(onboardingServiceProvider)
+          .resolveUserWithPreferences(cachedUser);
       // Optimistic instant auth! User enters app immediately.
       // Refresh profile & follow stats in the background, and verify session validity.
       unawaited(_refreshUserInBackground());
-      return AuthState(user: cachedUser, isAuthenticated: true);
+      return AuthState(user: resolvedUser, isAuthenticated: true);
     }
 
     // 2. Fallback Path: Tokens exist but no cached user (e.g. app upgrade or storage reset)
     try {
       final user = await ref.read(authRepositoryProvider).getMe();
+      final resolvedUser = await ref
+          .read(onboardingServiceProvider)
+          .resolveUserWithPreferences(user);
+      await authManager.saveUser(resolvedUser);
       unawaited(syncDeviceToken());
-      return AuthState(user: user, isAuthenticated: true);
+      return AuthState(user: resolvedUser, isAuthenticated: true);
     } catch (e) {
       // Only logout if explicitly unauthorized (401/403) and refresh failed
       if (e is DioException &&
@@ -98,10 +106,13 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     final authManager = ref.read(authManagerProvider);
     try {
       final user = await ref.read(authRepositoryProvider).getMe();
-      await authManager.saveUser(user);
+      final resolvedUser = await ref
+          .read(onboardingServiceProvider)
+          .resolveUserWithPreferences(user);
+      await authManager.saveUser(resolvedUser);
       state = AsyncData(
-        state.value?.copyWith(user: user, isAuthenticated: true) ??
-            AuthState(user: user, isAuthenticated: true),
+        state.value?.copyWith(user: resolvedUser, isAuthenticated: true) ??
+            AuthState(user: resolvedUser, isAuthenticated: true),
       );
       unawaited(syncDeviceToken());
     } catch (e) {
