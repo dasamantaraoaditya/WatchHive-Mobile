@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/suggestion.dart';
+import '../../../shared/models/smart_suggest.dart';
 
 final suggestionsRepositoryProvider = Provider<SuggestionsRepository>((ref) {
   return SuggestionsRepository(ref.read(apiClientProvider));
@@ -47,5 +48,19 @@ class SuggestionsRepository {
 
   Future<void> deleteSuggestion(String id) async {
     await _api.delete('/suggestions/$id');
+  }
+
+  Future<SmartSuggestResponse> getSmartSuggestions({
+    String mode = 'social',
+    int limit = 10,
+  }) async {
+    final response = await _api.get(
+      '/suggestions/smart-suggest',
+      queryParameters: {
+        'mode': mode,
+        'limit': limit,
+      },
+    );
+    return SmartSuggestResponse.fromJson(response.data as Map<String, dynamic>);
   }
 }

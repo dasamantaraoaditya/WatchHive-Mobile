@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../shared/models/suggestion.dart';
 import '../../../shared/models/user.dart';
+import '../../../shared/models/smart_suggest.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
+import '../../feed/widgets/smart_suggest_deck_sheet.dart';
 import '../repositories/suggestions_repository.dart';
 import 'suggest_movie_modal.dart';
 import 'suggestion_card.dart';
+import 'smart_suggest_grid_card.dart';
 
 class SuggestionsTab extends ConsumerStatefulWidget {
   final Function(int tmdbId, String mediaType, User? suggestor)? onTapMedia;
@@ -20,7 +24,10 @@ class SuggestionsTab extends ConsumerStatefulWidget {
 }
 
 class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
-  int _selectedSubTab = 0; // 0: Received Suggestions, 1: Suggested Items
+  int _selectedSubTab = 0; // 0: SmartSuggest, 1: Received Suggestions, 2: Suggested Items
+  String _smartMode = 'social';
+  List<SmartSuggestItem> _smartItems = [];
+  bool _isSmartLoading = true;
   List<GroupedSuggestion> _receivedGroups = [];
   List<GroupedSuggestion> _sentGroups = [];
   bool _isLoading = true;
@@ -39,6 +46,24 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
   void initState() {
     super.initState();
     _fetchSuggestions();
+  }
+
+  Future<void> _fetchSmartSuggestions() async {
+    setState(() => _isSmartLoading = true);
+    try {
+      final repo = ref.read(suggestionsRepositoryProvider);
+      final res = await repo.getSmartSuggestions(mode: _smartMode, limit: 16);
+      if (mounted) {
+        setState(() {
+          _smartItems = res.items;
+          _isSmartLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isSmartLoading = false);
+      }
+    }
   }
 
   Future<void> _fetchSuggestions() async {
@@ -77,7 +102,8 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
     required int index,
     required IconData icon,
     required String label,
-    required int count,
+    required String badgeText,
+    bool isAi = false,
   }) {
     final isSelected = _selectedSubTab == index;
     return GestureDetector(
@@ -86,12 +112,15 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
           setState(() {
             _selectedSubTab = index;
           });
+          if (index == 1 && _smartItems.isEmpty) {
+            _fetchSmartSuggestions();
+          }
         }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 9),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.surfaceElevated : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -101,43 +130,91 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
           ),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              size: 15,
+              size: 14,
               color: isSelected ? AppColors.primary : AppColors.textMuted,
             ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
+              ),
+            ),
             const SizedBox(width: 5),
-            Flexible(
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: isAi
+                    ? AppColors.primary
+                    : (isSelected
+                        ? AppColors.primary.withValues(alpha: 0.15)
+                        : AppColors.surfaceElevated),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
+                badgeText,
                 style: TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  color: isAi
+                      ? AppColors.textPrimary
+                      : (isSelected ? AppColors.primaryDark : AppColors.textMuted),
                 ),
               ),
             ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primary.withValues(alpha: 0.15)
-                    : AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: isSelected ? AppColors.primaryDark : AppColors.textMuted,
-                ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSmartModeChip(String modeKey, String label, IconData icon) {
+    final isSelected = _smartMode == modeKey;
+    return GestureDetector(
+      onTap: () {
+        if (_smartMode != modeKey) {
+          HapticFeedback.selectionClick();
+          setState(() {
+            _smartMode = modeKey;
+          });
+          _fetchSmartSuggestions();
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 13,
+              color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
               ),
             ),
           ],
@@ -148,6 +225,183 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
 
   @override
   Widget build(BuildContext context) {
+    if (_selectedSubTab == 1) {
+      final filteredSmartItems = _smartItems.where((it) {
+        if (_searchQuery.isEmpty) return true;
+        final q = _searchQuery.toLowerCase();
+        final title = it.title.toLowerCase();
+        final overview = (it.overview ?? '').toLowerCase();
+        final genres = it.genreNames.map((g) => g.toLowerCase()).join(' ');
+        return title.contains(q) || overview.contains(q) || genres.contains(q);
+      }).toList();
+
+      return RefreshIndicator(
+        onRefresh: () async {
+          await _fetchSmartSuggestions();
+        },
+        color: AppColors.primary,
+        child: Column(
+          children: [
+            // Sub-tabs Toggle: SmartSuggest vs Suggestions vs Suggested & Suggest Action
+            _buildTopTabsRow(),
+
+            // Mode Selector & Launch Deck Banner
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildSmartModeChip('social', 'Hive Mind', Icons.group),
+                          const SizedBox(width: 6),
+                          _buildSmartModeChip('critic', 'Certified Gold', Icons.verified),
+                          const SizedBox(width: 6),
+                          _buildSmartModeChip('explore', 'Palate Cleanser', Icons.cached),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      SmartSuggestDeckSheet.show(context, initialMode: _smartMode);
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.style, size: 14, color: AppColors.primaryDark),
+                          SizedBox(width: 4),
+                          Text(
+                            'Deck',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.primaryDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Filter & Search Bar
+            WHFilterBar(
+              search: _searchQuery,
+              onSearchChanged: (val) => setState(() => _searchQuery = val.trim()),
+              placeholder: 'Search smart recommendations…',
+              sortBy: _sortBy,
+              sortOptions: _suggestionsSortOptions,
+              onSortChanged: (val) => setState(() => _sortBy = val),
+              count: filteredSmartItems.length,
+              countLabel: 'Smart Recommendations',
+              isLoading: _isSmartLoading,
+            ),
+
+            Expanded(
+              child: _isSmartLoading
+                  ? const WHSkeletonGrid(
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    )
+                  : filteredSmartItems.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
+                                  ),
+                                  child: const Icon(
+                                    Icons.psychology,
+                                    size: 48,
+                                    color: Colors.amber,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Building Your Taste Graph',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    color: AppColors.textPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'SmartSuggest learns from your logged entries and friend network. Log a few more watches to see personalized recommendations!',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    color: AppColors.textMuted,
+                                    fontSize: 13,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : CustomScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          slivers: [
+                            SliverPadding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                              sliver: SliverGrid(
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  mainAxisSpacing: 14,
+                                  crossAxisSpacing: 14,
+                                  childAspectRatio: 0.63,
+                                ),
+                                delegate: SliverChildBuilderDelegate(
+                                  (ctx, i) => SmartSuggestGridCard(
+                                    item: filteredSmartItems[i],
+                                    onLogged: _fetchSmartSuggestions,
+                                  ),
+                                  childCount: filteredSmartItems.length,
+                                ),
+                              ),
+                            ),
+                            const SliverToBoxAdapter(
+                              child: Padding(
+                                padding: EdgeInsets.only(bottom: 80),
+                                child: WHBeeLoadingFooter(
+                                  isLoadingMore: false,
+                                  hasMore: false,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Otherwise, received (_selectedSubTab == 0) or sent (_selectedSubTab == 2)
     final currentList = _selectedSubTab == 0 ? _receivedGroups : _sentGroups;
     final filteredGroups = currentList.where((g) {
       if (_searchQuery.isEmpty) return true;
@@ -188,64 +442,8 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
       color: AppColors.primary,
       child: Column(
         children: [
-          // Sub-tabs Toggle: Received Suggestions vs Suggested Items & Suggest to Friends Action
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildSubTabButton(
-                    index: 0,
-                    icon: Icons.inbox_rounded,
-                    label: 'Suggestions',
-                    count: _receivedGroups.length,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildSubTabButton(
-                    index: 1,
-                    icon: Icons.send_rounded,
-                    label: 'Suggested',
-                    count: _sentGroups.length,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () async {
-                    await SuggestMovieModal.show(context);
-                    _fetchSuggestions();
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    height: 38,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.auto_awesome, size: 14, color: AppColors.primaryDark),
-                        SizedBox(width: 4),
-                        Text(
-                          'Suggest',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Sub-tabs Toggle: Received Suggestions vs SmartSuggest vs Suggested Items & Suggest to Friends Action
+          _buildTopTabsRow(),
 
           // Filter & Search Bar
           WHFilterBar(
@@ -385,7 +583,7 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                                   delegate: SliverChildBuilderDelegate(
                                     (ctx, i) => SuggestionCard(
                                       group: filteredGroups[i],
-                                      isSent: _selectedSubTab == 1,
+                                      isSent: _selectedSubTab == 2,
                                       onRefresh: _fetchSuggestions,
                                       onTapMedia: widget.onTapMedia,
                                     ),
@@ -404,6 +602,79 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                               ),
                             ],
                           ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopTabsRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildSubTabButton(
+                    index: 0,
+                    icon: Icons.inbox_rounded,
+                    label: 'Suggestions',
+                    badgeText: '${_receivedGroups.length}',
+                  ),
+                  const SizedBox(width: 6),
+                  _buildSubTabButton(
+                    index: 1,
+                    icon: Icons.psychology,
+                    label: 'SmartSuggest',
+                    badgeText: 'AI',
+                    isAi: true,
+                  ),
+                  const SizedBox(width: 6),
+                  _buildSubTabButton(
+                    index: 2,
+                    icon: Icons.send_rounded,
+                    label: 'Suggested',
+                    badgeText: '${_sentGroups.length}',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          InkWell(
+            onTap: () async {
+              await SuggestMovieModal.show(context);
+              _fetchSuggestions();
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.auto_awesome, size: 13, color: AppColors.primaryDark),
+                  SizedBox(width: 3),
+                  Text(
+                    'Suggest',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),

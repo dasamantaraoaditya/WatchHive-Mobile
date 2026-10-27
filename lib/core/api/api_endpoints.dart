@@ -86,6 +86,7 @@ class ApiEndpoints {
 
   // Users
   static const String me = '/users/me';
+  static const String userPreferences = '/users/me/preferences';
   static const String deleteAccount = '/users/me';
   static String user(String id) => '/users/$id';
   static const String searchUsers = '/users/search';
@@ -159,6 +160,7 @@ class ApiEndpoints {
   static const String unregisterDeviceToken = '/push/device-token';
   static const String testPush = '/push/test';
 
-  // Health
+  // Health & App Updates
   static const String health = '/health';
+  static const String appVersion = '/app/version';
 }

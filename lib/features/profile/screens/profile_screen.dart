@@ -20,9 +20,12 @@ import '../widgets/honey_badges_dialog.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/notifications/push_notification_service.dart';
 import '../../notifications/repositories/push_repository.dart';
-import '../../onboarding/widgets/quick_guide_tour_dialog.dart';
+import '../../onboarding/providers/onboarding_guide_provider.dart';
+import '../../onboarding/widgets/watch_preferences_onboarding_dialog.dart';
 import '../widgets/blocked_users_sheet.dart';
 import '../../scanner/widgets/user_qr_dialog.dart';
+import '../../../core/services/app_update_service.dart';
+import '../../../shared/widgets/app_update_dialog.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -248,6 +251,55 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     Share.share(text, subject: 'Join me on WatchersHive');
   }
 
+  Future<void> _checkForAppUpdate() async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    scaffoldMessenger.hideCurrentSnackBar();
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+            ),
+            SizedBox(width: 12),
+            Text('Checking for app updates...', style: TextStyle(color: Colors.white, fontFamily: 'Inter')),
+          ],
+        ),
+        backgroundColor: AppColors.textPrimary,
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    final updateService = ref.read(appUpdateServiceProvider);
+    final info = await updateService.checkUpdate();
+
+    if (!mounted) return;
+    scaffoldMessenger.hideCurrentSnackBar();
+
+    if (info != null && info.updateAvailable) {
+      AppUpdateDialog.show(context, info: info, updateService: updateService);
+    } else {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'You are on the latest version (${info?.currentVersion.isNotEmpty == true ? 'v${info!.currentVersion}' : 'WatchersHive'})',
+                style: const TextStyle(color: Colors.white, fontFamily: 'Inter'),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.textPrimary,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   Future<void> _confirmSignOut() async {
     final confirm = await WHAlert.confirm(
       context,
@@ -298,8 +350,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
-                  tooltip: 'Quick Guide Tour',
-                  onPressed: () => QuickGuideTourDialog.show(
+                  tooltip: 'App Tour & Guide',
+                  onPressed: () => ref.read(onboardingGuideProvider.notifier).startTour(
                     context,
                     userId: user.id,
                     isReplay: true,
@@ -1433,6 +1485,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   title: 'Help & Support',
                   subtitle: 'Report an issue, request features, or email support',
                   onTap: () => context.push('/support'),
+                ),
+                const Divider(height: 1, color: AppColors.border),
+                _buildActionTile(
+                  icon: Icons.system_update_rounded,
+                  title: 'Check for Updates',
+                  subtitle: 'Ensure you have the latest features and bug fixes',
+                  onTap: _checkForAppUpdate,
+                ),
+                const Divider(height: 1, color: AppColors.border),
+                _buildActionTile(
+                  icon: Icons.tune_rounded,
+                  title: 'Watch Preferences',
+                  subtitle: 'Languages, favorite genres & streaming platforms',
+                  onTap: () => WatchPreferencesOnboardingDialog.show(context, isEditing: true),
                 ),
               ],
             ),
