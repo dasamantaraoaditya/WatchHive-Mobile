@@ -9,7 +9,9 @@ import '../providers/feed_provider.dart';
 import '../widgets/comments_sheet.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../onboarding/services/tour_service.dart';
-import '../../onboarding/widgets/quick_guide_tour_dialog.dart';
+import '../../onboarding/services/onboarding_service.dart';
+import '../../onboarding/providers/onboarding_guide_provider.dart';
+import '../../onboarding/widgets/watch_preferences_onboarding_dialog.dart';
 import '../../notifications/providers/notifications_provider.dart';
 import '../../../core/notifications/push_notification_service.dart';
 import '../../entries/screens/add_entry_sheet.dart';
@@ -101,11 +103,22 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
     await Future.delayed(const Duration(milliseconds: 550));
     if (!mounted) return;
 
+    final user = ref.read(authStateProvider).value?.user;
+    final onboardingService = ref.read(onboardingServiceProvider);
+
+    // 1. Show the 3-question watch preferences onboarding if user hasn't completed it yet
+    if (onboardingService.shouldShowPreferences(user)) {
+      onboardingService.markPrompted();
+      await WatchPreferencesOnboardingDialog.show(context);
+      if (!mounted) return;
+    }
+
+    // 2. Afterwards, check if quick guide tour is needed
     final tourService = ref.read(tourServiceProvider);
     final shouldShow = await tourService.shouldShowTour(userId);
     debugPrint('QuickGuideTour: checking if tour should show for $userId: $shouldShow');
     if (shouldShow && mounted) {
-      QuickGuideTourDialog.show(context, userId: userId);
+      ref.read(onboardingGuideProvider.notifier).startTour(context, userId: userId);
     }
   }
 
@@ -626,7 +639,7 @@ class _EmptyFeed extends ConsumerWidget {
             // Tertiary Guide Tour Revisit Button
             TextButton.icon(
               onPressed: () {
-                QuickGuideTourDialog.show(
+                ref.read(onboardingGuideProvider.notifier).startTour(
                   context,
                   userId: user?.id ?? 'guest',
                   isReplay: true,

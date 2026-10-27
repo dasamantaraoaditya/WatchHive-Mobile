@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/router/navigation_history_manager.dart';
+import '../../core/services/app_update_service.dart';
 import '../../features/feed/providers/feed_provider.dart';
-
+import '../../features/onboarding/widgets/interactive_onboarding_overlay.dart';
+import 'app_update_dialog.dart';
 import 'wh_quick_add_fab.dart';
 
 class AppShell extends ConsumerStatefulWidget {
@@ -18,6 +20,25 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   int _currentIndex = 0;
   String? _lastRecordedRoute;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAutoUpdate();
+    });
+  }
+
+  Future<void> _checkAutoUpdate() async {
+    final updateService = ref.read(appUpdateServiceProvider);
+    if (updateService.hasPromptedThisSession) return;
+
+    final info = await updateService.checkUpdate();
+    if (!mounted || info == null || !info.updateAvailable) return;
+
+    updateService.markPrompted();
+    AppUpdateDialog.show(context, info: info, updateService: updateService);
+  }
 
   static const List<_NavItem> _navItems = [
     _NavItem(label: 'Home', icon: Icons.home_outlined, activeIcon: Icons.home_rounded, route: '/feed'),
@@ -80,6 +101,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           children: [
             widget.child,
             if (location != '/search') const WHQuickAddFAB(),
+            const InteractiveOnboardingOverlay(),
           ],
         ),
       bottomNavigationBar: Container(

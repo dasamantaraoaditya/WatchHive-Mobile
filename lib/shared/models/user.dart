@@ -19,6 +19,8 @@ class User {
   final List<dynamic> badges;
   final int watchStreak;
   final String? lastWatchDate;
+  final Map<String, dynamic>? preferences;
+  final bool hasCompletedOnboarding;
   final int entriesCount;
   final int? watchingCount;
   final int? watchlistCount;
@@ -53,6 +55,8 @@ class User {
     this.badges = const [],
     this.watchStreak = 0,
     this.lastWatchDate,
+    this.preferences,
+    this.hasCompletedOnboarding = false,
     this.entriesCount = 0,
     this.watchingCount,
     this.watchlistCount,
@@ -110,6 +114,8 @@ class User {
       badges: json['badges'] as List<dynamic>? ?? [],
       watchStreak: _parseInt(json['watchStreak'] ?? json['watch_streak']),
       lastWatchDate: json['lastWatchDate']?.toString() ?? json['last_watch_date']?.toString(),
+      preferences: json['preferences'] is Map ? Map<String, dynamic>.from(json['preferences'] as Map) : null,
+      hasCompletedOnboarding: json['hasCompletedOnboarding'] as bool? ?? json['has_completed_onboarding'] as bool? ?? false,
       entriesCount: _parseInt(
         countData?['entries'] ?? countData?['watches'] ?? countData?['entriesCount'] ?? json['entriesCount'] ?? json['entries'],
       ),
@@ -158,6 +164,8 @@ class User {
         'badges': badges,
         'watchStreak': watchStreak,
         if (lastWatchDate != null) 'lastWatchDate': lastWatchDate,
+        if (preferences != null) 'preferences': preferences,
+        'hasCompletedOnboarding': hasCompletedOnboarding,
         'entriesCount': entriesCount,
         if (watchingCount != null) 'watchingCount': watchingCount,
         if (watchlistCount != null) 'watchlistCount': watchlistCount,
@@ -189,6 +197,8 @@ class User {
     List<dynamic>? badges,
     int? watchStreak,
     String? lastWatchDate,
+    Map<String, dynamic>? preferences,
+    bool? hasCompletedOnboarding,
     int? entriesCount,
     int? watchingCount,
     int? watchlistCount,
@@ -223,6 +233,8 @@ class User {
       badges: badges ?? this.badges,
       watchStreak: watchStreak ?? this.watchStreak,
       lastWatchDate: lastWatchDate ?? this.lastWatchDate,
+      preferences: preferences ?? this.preferences,
+      hasCompletedOnboarding: hasCompletedOnboarding ?? this.hasCompletedOnboarding,
       entriesCount: entriesCount ?? this.entriesCount,
       watchingCount: watchingCount ?? this.watchingCount,
       watchlistCount: watchlistCount ?? this.watchlistCount,
