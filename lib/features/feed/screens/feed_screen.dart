@@ -16,6 +16,7 @@ import '../../notifications/providers/notifications_provider.dart';
 import '../../../core/notifications/push_notification_service.dart';
 import '../../entries/screens/add_entry_sheet.dart';
 import '../widgets/wh_feed_card.dart';
+import '../widgets/smart_suggest_hero_card.dart';
 
 export '../providers/feed_provider.dart';
 
@@ -229,6 +230,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                       onPressed: () => context.push('/notifications'),
                     ),
                   ],
+                ),
+                const SliverToBoxAdapter(
+                  child: SmartSuggestHeroCard(),
                 ),
                 if (feedState.isLoading && feedState.entries.isEmpty)
                   const SliverToBoxAdapter(child: WHSkeletonFeed(itemCount: 3))
