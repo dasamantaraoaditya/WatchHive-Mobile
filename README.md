@@ -10,7 +10,9 @@ WatchHive Mobile provides a native smartphone experience for cinema enthusiasts:
 - **Instant Watch Logging**: Log movies, anime, and series on the go with tactile haptic feedback, custom ratings, and reviews.
 - **Ranking Stacks & Curations**: View, organize, and drag-and-drop movie stacks that represent your personal cinematic report card.
 - **Movie Suggestions & Impact**: Recommend movies to friends, see whose recommendations you watched, and check your suggester impact.
+- **SmartSuggest AI Recommendations**: Hybrid algorithmic recommendation engine balancing friend recommendations, public ratings, user preferences, and diversity nudges.
 - **MindLens 2.0 Behavioral Intelligence**: Native telemetry visualization of Shannon Information Entropy ($H(G)$) for taste breadth, Russell's Circumplex Affective State, and Bayesian Recommender Trust. Documented in [MINDLENS_SPECIFICATION.md](docs/MINDLENS_SPECIFICATION.md).
+- **Master Features & Logic Wiki**: Complete architectural documentation of all 14 core features, mathematical models, and edge cases in [FEATURES_AND_LOGIC_WIKI.md](docs/FEATURES_AND_LOGIC_WIKI.md).
 - **Offline-First Resilience**: Log watches and browse your catalog without an active internet connection; changes automatically queue and sync via local SQLite.
 - **Real-Time Push Notifications**: Firebase Cloud Messaging (FCM) alerts when friends suggest movies, comment on your reviews, or follow your activity.
 
@@ -150,3 +152,26 @@ The mobile application is optimized for smooth 60fps/120fps display rendering, l
    * Toggling a like or saving an entry updates the local Riverpod state immediately while the network request executes asynchronously in the background.
 5. **App Bundle & Memory Optimization**:
    * ProGuard rules and R8 code shrinking strip unused bytecode, keeping release Android App Bundles lightweight for quick downloads from Google Play.
+
+---
+
+## 📖 6. Master Features & Business Logic Documentation
+
+For an exhaustive, chapter-by-chapter walkthrough of all product capabilities, scoring algorithms, and database logic, see the **[Master Features & Logic Wiki](docs/FEATURES_AND_LOGIC_WIKI.md)**:
+
+1. **Platform Philosophy & Core Pillars**: Frictionless logging, anti-algorithm social graph, cinematic aesthetic.
+2. **User Authentication & Profile Onboarding**: JWT auth, OAuth, onboarding watch preferences, force update dialogs.
+3. **Watch Tracking & Entry Logging**: Single-flight TMDB fetching, 1-10 rating parity, rewatch detection, spoiler masking.
+4. **Currently Watching Shelf**: Live sessions, progress markers, atomic transition to watched.
+5. **Curated Watchlists**: Recommender attribution (`suggestedByUserId`), filtering & search.
+6. **Stacks & Ranked Lists**: Custom reorderable lists, visibility controls, shareable cards.
+7. **The Hive Feed & Social Graph**: Real-time activity feed, cursor pagination, likes, nested comments, Who to Follow.
+8. **Direct Suggestions & Impact Loop**: Friend recommendations, acceptance tracking, Suggester Impact score.
+9. **SmartSuggest Recommendation Engine**: Multi-factor scoring formula ($S = w_f F + w_c C + w_t T + B_{\text{div}} - P_{\text{fatigue}}$), 3 modes (Social, Critic, Explore).
+10. **MindLens 2.0 Behavioral Telemetry**: Shannon Information Entropy ($H(G)$), Russell Circumplex affect plane, Bayesian recommender trust ($RTS$).
+11. **Deep Linking & Universal App Links**: Android App Links (`assetlinks.json`), Apple Universal Links (`apple-app-site-association`), QR scanning.
+12. **Honey Badges & Cinephile XP**: 5-tier level progression, watch streaks, 8 achievement badges.
+13. **Offline-First Architecture & Sync Protocol**: SQLite cache, mutation queues, exponential backoff.
+14. **Mobile-Responsive UX & Touch Ergonomics**: Safe area insets, bottom sheets, keyboard avoidance.
+
+> 💡 **Developer Note:** All documentation files reside within `docs/` and are strictly excluded from client JS/CSS bundles and native mobile binaries, adding **0 bytes** to production release artifacts.
