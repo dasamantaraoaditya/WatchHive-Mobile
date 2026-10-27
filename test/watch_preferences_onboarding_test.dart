@@ -80,5 +80,19 @@ void main() {
 
       expect(service.shouldShowPreferences(user), isFalse);
     });
+
+    test('resolveUserWithPreferences preserves existing preferences or merges local cached preferences', () async {
+      final userWithPrefs = User(
+        id: 'user-456',
+        username: 'movielover',
+        createdAt: DateTime.now(),
+        hasCompletedOnboarding: true,
+        preferences: {'languages': ['en'], 'genres': ['Action']},
+      );
+
+      final resolved = await service.resolveUserWithPreferences(userWithPrefs);
+      expect(resolved.preferences?['languages'], equals(['en']));
+      expect(resolved.hasCompletedOnboarding, isTrue);
+    });
   });
 }

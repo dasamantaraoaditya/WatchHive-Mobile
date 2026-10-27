@@ -106,6 +106,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
 
     final user = ref.read(authStateProvider).value?.user;
     final onboardingService = ref.read(onboardingServiceProvider);
+    if (user != null && user.id.isNotEmpty) {
+      await onboardingService.loadLocalPreferences(user.id);
+      if (!mounted) return;
+    }
 
     // 1. Show the 3-question watch preferences onboarding if user hasn't completed it yet
     if (onboardingService.shouldShowPreferences(user)) {
