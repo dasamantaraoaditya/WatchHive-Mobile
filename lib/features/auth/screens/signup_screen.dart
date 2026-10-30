@@ -59,6 +59,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
   }
 
+  String _formatGoogleError(dynamic e) {
+    final str = e.toString().toLowerCase();
+    if (str.contains('7:') || str.contains('network_error') || str.contains('socketexception')) {
+      return 'Network error during Google Sign-In. Please check your internet connection.';
+    } else if (str.contains('10:') || str.contains('developer_error') || str.contains('12500')) {
+      return 'Google Sign-In is temporarily unavailable on this device. Please sign up with your email and password.';
+    } else if (str.contains('concurrent')) {
+      return 'Google Sign-In is already in progress. Please wait a moment.';
+    } else if (str.contains('sign_in_canceled') || str.contains('canceled')) {
+      return 'Google Sign-In was canceled.';
+    }
+    return _parseError(e);
+  }
+
   String _parseError(dynamic error) {
     return AppErrorHandler.toUserFriendlyMessage(
       error,
@@ -93,14 +107,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ? webClientId
           : '357857516251-f4gpp8f1j70lu1dcnh405ac0t6lch9tf.apps.googleusercontent.com';
 
+      final isApplePlatform = !kIsWeb && (Platform.isIOS || Platform.isMacOS);
       final iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID']?.trim();
-      final effectiveIosClientId = (iosClientId != null &&
+      final effectiveIosClientId = (isApplePlatform &&
+              iosClientId != null &&
               iosClientId.isNotEmpty &&
               !iosClientId.contains('your_google_ios_client_id'))
           ? iosClientId
           : null;
 
-      debugPrint('[GoogleSignUp] Starting Google Sign-Up with serverClientId=$effectiveClientId, iosClientId=$effectiveIosClientId');
+      debugPrint('[GoogleSignUp] Starting Google Sign-Up with serverClientId=$effectiveClientId, clientId=$effectiveIosClientId');
 
       final googleSignIn = GoogleSignIn(
         clientId: effectiveIosClientId,
@@ -138,7 +154,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     } catch (e) {
       debugPrint('[GoogleSignUp] Error during sign-up flow: $e');
       if (mounted) {
-        WHAlert.showError(context, _parseError(e));
+        WHAlert.showError(context, _formatGoogleError(e));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -220,143 +236,157 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         children: [
           SafeArea(
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 48),
-                const WHLogoHeader(
-                  title: 'Create account',
-                  subtitle: 'Start tracking your watch history',
-                ),
-                const SizedBox(height: 16),
-
-                // Top Redirection to Sign In
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Already have an account? ',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                    ),
-                    GestureDetector(
-                      onTap: () => context.pop(),
-                      child: const Text(
-                        'Sign in',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
+              child: AutofillGroup(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 48),
+                      const WHLogoHeader(
+                        title: 'Create account',
+                        subtitle: 'Start tracking your watch history',
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
+                      const SizedBox(height: 32),
 
-                // Social Sign-In (Google & Apple on TOP)
-                WHGoogleSignInButton(
-                  onPressed: _googleSignIn,
-                  isLoading: _isLoading,
-                ),
+                      // Social Sign-In (Google & Apple on TOP)
+                      WHGoogleSignInButton(
+                        onPressed: _googleSignIn,
+                        isLoading: _isLoading,
+                        label: 'Sign up with Google',
+                      ),
 
-                // Apple Sign-In (Apple App Store Guideline 4.8)
-                if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) ...[
-                  const SizedBox(height: 12),
-                  SignInWithAppleButton(
-                    onPressed: _appleSignIn,
-                    style: SignInWithAppleButtonStyle.black,
-                    borderRadius: BorderRadius.circular(16),
-                    height: 48,
-                  ),
-                ],
-                const SizedBox(height: 24),
+                      // Apple Sign-In (Apple App Store Guideline 4.8)
+                      if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) ...[
+                        const SizedBox(height: 12),
+                        SignInWithAppleButton(
+                          onPressed: _appleSignIn,
+                          style: SignInWithAppleButtonStyle.black,
+                          borderRadius: BorderRadius.circular(16),
+                          height: 48,
+                        ),
+                      ],
+                      const SizedBox(height: 24),
 
-                // Divider: or register with email
-                Row(children: [
-                  const Expanded(child: Divider(color: AppColors.border)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'or register with email',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textMuted,
-                            fontWeight: FontWeight.w500,
+                      // Divider: or register with email
+                      Row(children: [
+                        const Expanded(child: Divider(color: AppColors.border)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'or register with email',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textMuted,
+                                  fontWeight: FontWeight.w500,
+                                ),
                           ),
-                    ),
-                  ),
-                  const Expanded(child: Divider(color: AppColors.border)),
-                ]),
-                const SizedBox(height: 24),
+                        ),
+                        const Expanded(child: Divider(color: AppColors.border)),
+                      ]),
+                      const SizedBox(height: 24),
 
-                // Username
-                WHTextField(
-                  controller: _usernameController,
-                  label: 'Username',
-                  hint: 'yourname',
-                  textInputAction: TextInputAction.next,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Username is required';
-                    if (v.length < 3) return 'At least 3 characters';
-                    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(v)) {
-                      return 'Only letters, numbers and underscores';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+                      // Username
+                      WHTextField(
+                        controller: _usernameController,
+                        label: 'Username',
+                        hint: 'yourname',
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.newUsername],
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        textCapitalization: TextCapitalization.none,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Username is required';
+                          if (v.length < 3) return 'At least 3 characters';
+                          if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(v)) {
+                            return 'Only letters, numbers and underscores';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
 
-                // Email
-                WHTextField(
-                  controller: _emailController,
-                  label: 'Email',
-                  hint: 'you@example.com',
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Email is required';
-                    if (!v.contains('@')) return 'Enter a valid email';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+                      // Email
+                      WHTextField(
+                        controller: _emailController,
+                        label: 'Email',
+                        hint: 'you@example.com',
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email],
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        textCapitalization: TextCapitalization.none,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Email is required';
+                          if (!v.contains('@')) return 'Enter a valid email';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
 
-                // Password
-                WHTextField(
-                  controller: _passwordController,
-                  label: 'Password',
-                  hint: 'Min. 8 characters',
-                  obscureText: _obscurePassword,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _register(),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      color: AppColors.textMuted,
-                      size: 20,
-                    ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required';
-                    if (v.length < 8) return 'At least 8 characters';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 28),
+                      // Password
+                      WHTextField(
+                        controller: _passwordController,
+                        label: 'Password',
+                        hint: 'Min. 8 characters',
+                        obscureText: _obscurePassword,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.newPassword],
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        onSubmitted: (_) => _register(),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            color: AppColors.textMuted,
+                            size: 20,
+                          ),
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Password is required';
+                          if (v.length < 8) return 'At least 8 characters';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 24),
 
-                WHButton(
-                  label: 'Create Account',
-                  isLoading: _isLoading,
-                  onPressed: _register,
-                ),
-                const SizedBox(height: 24),
+                      WHButton(
+                        label: 'Create Account',
+                        isLoading: _isLoading,
+                        onPressed: _register,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Bottom Redirection to Sign In
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Already have an account? ',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                          ),
+                          GestureDetector(
+                            onTap: () => context.pop(),
+                            child: const Text(
+                              'Sign in',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
 
                 Center(
                   child: Text.rich(
@@ -395,7 +425,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ),
         ),
       ),
-      if (_isLoading)
+    ),
+    if (_isLoading)
         WHAppLogoLoader.overlay(
           message: 'Creating your WatchersHive account...',
           submessage: 'Setting up your personal hive',
