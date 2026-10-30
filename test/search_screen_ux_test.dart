@@ -100,7 +100,7 @@ void main() {
     });
 
     testWidgets(
-        'search box auto-focuses on open and sits at the bottom of the screen',
+        'search box auto-focuses on open and sits at the top of the screen',
         (tester) async {
       await tester.pumpWidget(
         ProviderScope(
@@ -127,10 +127,10 @@ void main() {
       final textFieldWidget = tester.widget<TextField>(textFieldFinder);
       expect(textFieldWidget.focusNode?.hasFocus, isTrue);
 
-      // Verify position: the search box is located in the bottom half of the screen
+      // Verify position: the search box is located in the top portion of the screen (under AppBar)
       final textFieldRect = tester.getRect(textFieldFinder);
-      expect(textFieldRect.bottom,
-          greaterThan(500)); // Standard test screen is 600 in height
+      expect(textFieldRect.top,
+          lessThan(200)); // Located near the top below AppBar
     });
 
     testWidgets('debounces search by 2 seconds and retains focus across typing',

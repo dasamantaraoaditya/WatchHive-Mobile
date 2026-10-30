@@ -249,7 +249,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
               ? IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new_rounded,
                       color: AppColors.textPrimary, size: 20),
-                  tooltip: 'Back',
+                  tooltip: 'Clear search',
                   onPressed: () {
                     _focusNode.unfocus();
                     if (_query.isNotEmpty) {
@@ -259,7 +259,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                     }
                   },
                 )
-              : null,
+              : (Navigator.of(context).canPop()
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                          color: AppColors.textPrimary, size: 20),
+                      tooltip: 'Back',
+                      onPressed: () {
+                        if (Navigator.of(context).canPop()) {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                    )
+                  : null),
           title: Row(
             children: [
               Container(
@@ -320,59 +331,73 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
           },
           child: Column(
             children: [
+              _buildTopSearchBox(),
+              if (showResults)
+                Container(
+                  decoration: const BoxDecoration(
+                    color: AppColors.background,
+                    border: Border(
+                      bottom: BorderSide(
+                          color: AppColors.border, width: 0.8),
+                    ),
+                  ),
+                  child: TabBar(
+                    controller: _tabController,
+                    indicatorColor: AppColors.primary,
+                    indicatorWeight: 3,
+                    labelColor: AppColors.primary,
+                    unselectedLabelColor: AppColors.textMuted,
+                    labelStyle: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                    tabs: [
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.movie_outlined, size: 16),
+                            const SizedBox(width: 6),
+                            Text('Movies & Shows (${_mediaResults.length})'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.people_alt_outlined, size: 16),
+                            const SizedBox(width: 6),
+                            Text('Friends & People (${_userResults.length})'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               Expanded(
                 child: showResults
-                    ? Column(
+                    ? TabBarView(
+                        controller: _tabController,
                         children: [
-                          Container(
-                            decoration: const BoxDecoration(
-                              color: AppColors.background,
-                              border: Border(
-                                bottom: BorderSide(
-                                    color: AppColors.border, width: 0.8),
-                              ),
-                            ),
-                            child: TabBar(
-                              controller: _tabController,
-                              indicatorColor: AppColors.primary,
-                              indicatorWeight: 3,
-                              labelColor: AppColors.primary,
-                              unselectedLabelColor: AppColors.textMuted,
-                              labelStyle: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                              ),
-                              tabs: [
-                                Tab(text: 'Media (${_mediaResults.length})'),
-                                Tab(text: 'People (${_userResults.length})'),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            child: TabBarView(
-                              controller: _tabController,
-                              children: [
-                                _isSearching
-                                    ? const WHSkeletonMediaSearchList(count: 6)
-                                    : _MediaResultsList(
-                                        results: _mediaResults,
-                                        correctedQuery: _smartCorrectedQuery,
-                                        onSelectMedia: (m) => ref
-                                            .read(searchRepositoryProvider)
-                                            .addRecentSearch(m.title),
-                                      ),
-                                _isSearching
-                                    ? const WHSkeletonUserList(count: 6)
-                                    : _UserResultsList(
-                                        users: _userResults,
-                                        onSelectUser: (u) => ref
-                                            .read(searchRepositoryProvider)
-                                            .addRecentSearch(u.username),
-                                      ),
-                              ],
-                            ),
-                          ),
+                          _isSearching
+                              ? const WHSkeletonMediaSearchList(count: 6)
+                              : _MediaResultsList(
+                                  results: _mediaResults,
+                                  correctedQuery: _smartCorrectedQuery,
+                                  onSelectMedia: (m) => ref
+                                      .read(searchRepositoryProvider)
+                                      .addRecentSearch(m.title),
+                                ),
+                          _isSearching
+                              ? const WHSkeletonUserList(count: 6)
+                              : _UserResultsList(
+                                  users: _userResults,
+                                  onSelectUser: (u) => ref
+                                      .read(searchRepositoryProvider)
+                                      .addRecentSearch(u.username),
+                                ),
                         ],
                       )
                     : _DiscoveryView(
@@ -400,7 +425,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                         },
                       ),
               ),
-              _buildBottomSearchBox(),
             ],
           ),
         ),
@@ -408,143 +432,133 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
     );
   }
 
-  Widget _buildBottomSearchBox() {
+  Widget _buildTopSearchBox() {
     final hasFocus = _focusNode.hasFocus;
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: const Border(
-          top: BorderSide(color: AppColors.border, width: 0.8),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(
+          bottom: BorderSide(color: AppColors.border, width: 0.8),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
-          ),
-        ],
       ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: hasFocus ? AppColors.primary : AppColors.border,
-                    width: hasFocus ? 1.4 : 1.0,
-                  ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: hasFocus ? AppColors.primary : AppColors.border,
+                  width: hasFocus ? 1.4 : 1.0,
                 ),
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _focusNode,
-                  autofocus: false,
-                  onChanged: _onQueryChanged,
-                  onSubmitted: _onSubmittedSearch,
-                  textInputAction: TextInputAction.search,
-                  style: const TextStyle(
+              ),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _focusNode,
+                autofocus: false,
+                onChanged: _onQueryChanged,
+                onSubmitted: _onSubmittedSearch,
+                textInputAction: TextInputAction.search,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search movies, shows, friends & people...',
+                  hintStyle: const TextStyle(
                     fontFamily: 'Inter',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: AppColors.textMuted,
+                    fontSize: 14,
                   ),
-                  decoration: InputDecoration(
-                    hintText: 'Search movies, TV shows, cinephiles...',
-                    hintStyle: const TextStyle(
-                      fontFamily: 'Inter',
-                      color: AppColors.textMuted,
-                      fontSize: 14,
-                    ),
-                    border: InputBorder.none,
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      color: hasFocus ? AppColors.primary : AppColors.textMuted,
-                      size: 22,
-                    ),
-                    suffixIcon: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_query.isEmpty && !hasFocus)
-                          IconButton(
-                            icon: const Icon(Icons.qr_code_scanner_rounded,
-                                color: AppColors.primary, size: 21),
-                            tooltip: 'Scan QR Code',
-                            onPressed: () {
-                              _focusNode.unfocus();
-                              context.push('/scanner');
-                            },
-                          ),
-                        if (_isSearching)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8),
-                            child: SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primary,
-                              ),
+                  border: InputBorder.none,
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: hasFocus ? AppColors.primary : AppColors.textMuted,
+                    size: 22,
+                  ),
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_query.isEmpty && !hasFocus)
+                        IconButton(
+                          icon: const Icon(Icons.qr_code_scanner_rounded,
+                              color: AppColors.primary, size: 21),
+                          tooltip: 'Scan QR Code',
+                          onPressed: () {
+                            _focusNode.unfocus();
+                            context.push('/scanner');
+                          },
+                        ),
+                      if (_isSearching)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
                             ),
                           ),
-                        if (_query.isNotEmpty)
-                          IconButton(
-                            icon: const Icon(Icons.clear_rounded,
-                                color: AppColors.textMuted, size: 20),
-                            tooltip: 'Clear',
-                            onPressed: () {
-                              _debounceTimer?.cancel();
-                              _searchController.clear();
-                              _onQueryChanged('');
-                            },
-                          ),
-                        if (hasFocus)
-                          IconButton(
-                            icon: const Icon(Icons.keyboard_hide_rounded,
-                                color: AppColors.primary, size: 22),
-                            tooltip: 'Hide keyboard',
-                            onPressed: () => _focusNode.unfocus(),
-                          ),
-                      ],
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
+                        ),
+                      if (_query.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.clear_rounded,
+                              color: AppColors.textMuted, size: 20),
+                          tooltip: 'Clear',
+                          onPressed: () {
+                            _debounceTimer?.cancel();
+                            _searchController.clear();
+                            _onQueryChanged('');
+                          },
+                        ),
+                      if (hasFocus)
+                        IconButton(
+                          icon: const Icon(Icons.keyboard_hide_rounded,
+                              color: AppColors.primary, size: 22),
+                          tooltip: 'Hide keyboard',
+                          onPressed: () => _focusNode.unfocus(),
+                        ),
+                    ],
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                ),
+              ),
+            ),
+          ),
+          if (hasFocus || _query.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                _focusNode.unfocus();
+                if (_query.isNotEmpty) {
+                  _debounceTimer?.cancel();
+                  _searchController.clear();
+                  _onQueryChanged('');
+                }
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
             ),
-            if (hasFocus || _query.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () {
-                  _focusNode.unfocus();
-                  if (_query.isNotEmpty) {
-                    _debounceTimer?.cancel();
-                    _searchController.clear();
-                    _onQueryChanged('');
-                  }
-                },
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }
@@ -661,14 +675,14 @@ class _UserResultsList extends StatelessWidget {
             Icon(Icons.person_search_rounded,
                 size: 48, color: AppColors.textMuted),
             SizedBox(height: 12),
-            Text('No users found',
+            Text('No friends or people found',
                 style: TextStyle(
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                     color: AppColors.textPrimary)),
             SizedBox(height: 4),
-            Text('Try searching with another username or name',
+            Text('Try searching by friend\'s name or @username',
                 style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
           ],
         ),
@@ -891,7 +905,7 @@ class _DiscoveryView extends StatelessWidget {
           ),
         ],
 
-        // 2. Suggested Cinephiles Section
+        // 2. Suggested Friends & People Section
         if (suggestedUsers.isNotEmpty || isSuggestedUsersLoading) ...[
           const SliverPadding(
             padding: EdgeInsets.fromLTRB(16, 20, 16, 10),
@@ -901,7 +915,7 @@ class _DiscoveryView extends StatelessWidget {
                   Icon(Icons.stars_rounded, color: AppColors.primary, size: 20),
                   SizedBox(width: 8),
                   Text(
-                    'People to Follow',
+                    'Friends & People to Follow',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 17,

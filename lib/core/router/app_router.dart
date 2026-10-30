@@ -7,6 +7,7 @@ import '../../features/auth/screens/splash_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
+import '../../features/auth/screens/reset_password_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_shell.dart';
 import '../../features/feed/screens/feed_screen.dart';
@@ -69,7 +70,12 @@ String? normalizeIncomingRoute(Uri uri) {
     if (host == 'profile' || host == 'user') {
       return '/profile$path$query';
     }
-    if (host == 'feed' || host == 'entries' || host == 'search' || host == 'notifications') {
+    if (host == 'feed' ||
+        host == 'entries' ||
+        host == 'search' ||
+        host == 'notifications' ||
+        host == 'forgot-password' ||
+        host == 'reset-password') {
       return '/$host$path$query';
     }
   }
@@ -120,7 +126,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isSplash = state.matchedLocation == '/splash';
       final isAuthPage = state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/signup') ||
-          state.matchedLocation.startsWith('/forgot-password');
+          state.matchedLocation.startsWith('/forgot-password') ||
+          state.matchedLocation.startsWith('/reset-password');
       final isPublicPage = isAuthPage ||
           state.matchedLocation.startsWith('/privacy-policy') ||
           state.matchedLocation.startsWith('/support');
@@ -191,7 +198,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/forgot-password',
-        builder: (context, state) => const ForgotPasswordScreen(),
+        builder: (context, state) {
+          final email = state.uri.queryParameters['email'];
+          return ForgotPasswordScreen(initialEmail: email);
+        },
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) {
+          final token = state.uri.queryParameters['token'];
+          final email = state.uri.queryParameters['email'];
+          return ResetPasswordScreen(initialToken: token, initialEmail: email);
+        },
       ),
       // Shell route with bottom nav matching Web App (Home, MindLens, Entries, Search, Profile)
       ShellRoute(

@@ -86,8 +86,8 @@ void main() {
       expect(find.text('Connect, share suggestions & compare taste'), findsOneWidget);
 
       // Verify Action Cards
-      expect(find.text('Search Cinephiles'), findsOneWidget);
-      expect(find.text('Find by name or @username'), findsOneWidget);
+      expect(find.text('Search Friends & People'), findsOneWidget);
+      expect(find.text('Find friends by name or @username'), findsOneWidget);
 
       expect(find.text('Invite Friends'), findsOneWidget);
       expect(find.text('Share your personal invite link'), findsOneWidget);
@@ -99,7 +99,7 @@ void main() {
       expect(find.text('Open camera to follow friend'), findsOneWidget);
 
       // Verify Section Header
-      expect(find.text('Suggested Cinephiles'), findsOneWidget);
+      expect(find.text('Suggested Friends'), findsOneWidget);
     });
   });
 }
