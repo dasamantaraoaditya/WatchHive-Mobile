@@ -15,6 +15,10 @@ class WHTextField extends StatelessWidget {
   final int? maxLines;
   final int? maxLength;
   final bool enabled;
+  final Iterable<String>? autofillHints;
+  final bool autocorrect;
+  final bool enableSuggestions;
+  final TextCapitalization textCapitalization;
 
   const WHTextField({
     super.key,
@@ -31,6 +35,10 @@ class WHTextField extends StatelessWidget {
     this.maxLines = 1,
     this.maxLength,
     this.enabled = true,
+    this.autofillHints,
+    this.autocorrect = true,
+    this.enableSuggestions = true,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
@@ -58,6 +66,10 @@ class WHTextField extends StatelessWidget {
           maxLines: maxLines,
           maxLength: maxLength,
           enabled: enabled,
+          autofillHints: autofillHints,
+          autocorrect: autocorrect,
+          enableSuggestions: enableSuggestions,
+          textCapitalization: textCapitalization,
           style: const TextStyle(
             fontFamily: 'Inter',
             fontSize: 15,
