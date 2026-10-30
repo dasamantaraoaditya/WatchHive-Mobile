@@ -114,8 +114,8 @@ void main() {
       expect(mockAuthRepository.forgotPasswordCalled, isTrue);
       expect(mockAuthRepository.lastForgotEmail, equals('user@watchershive.com'));
       expect(find.text('Check your inbox!'), findsOneWidget);
-      expect(find.text('YOUR RESET CODE'), findsOneWidget);
-      expect(find.text('Reset Password with this Code →'), findsOneWidget);
+      expect(find.text('YOUR RESET CODE'), findsNothing);
+      expect(find.text('Enter Verification Code'), findsOneWidget);
     });
   });
 
