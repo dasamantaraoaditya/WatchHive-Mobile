@@ -56,7 +56,11 @@ key.properties
 .env.local
 pc-api-key.json
 android/app/google-services.json
+!android/app/google-services.json.example
+ios/Runner/GoogleService-Info.plist
+!ios/Runner/GoogleService-Info.plist.example
 lib/firebase_options.dart
+!lib/firebase_options.dart.example
 watchhive-release.apk
 *.png
 !assets/images/*.png

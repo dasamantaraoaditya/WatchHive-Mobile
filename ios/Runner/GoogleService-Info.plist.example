@@ -3,23 +3,23 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>357857516251-69f26kdjl6v5n60pvtpdjbiregaodv63.apps.googleusercontent.com</string>
+	<string>000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.357857516251-69f26kdjl6v5n60pvtpdjbiregaodv63</string>
+	<string>com.googleusercontent.apps.000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</string>
 	<key>SERVER_CLIENT_ID</key>
-	<string>357857516251-f4gpp8f1j70lu1dcnh405ac0t6lch9tf.apps.googleusercontent.com</string>
+	<string>000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
-	<string>AIzaSyCenpCHQZoJiP8gp6gLKMkTOwzSoSC7vok</string>
+	<string>AIzaSy_YOUR_IOS_API_KEY_HERE</string>
 	<key>GCM_SENDER_ID</key>
-	<string>672257580593</string>
+	<string>000000000000</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.watchhive.watchhiveMobile</string>
 	<key>PROJECT_ID</key>
-	<string>studio-9462568570-5a4a5</string>
+	<string>your-firebase-project-id</string>
 	<key>STORAGE_BUCKET</key>
-	<string>studio-9462568570-5a4a5.firebasestorage.app</string>
+	<string>your-firebase-project-id.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -31,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:672257580593:ios:3051da1914898c5a25ff10</string>
+	<string>1:000000000000:ios:0000000000000000000000</string>
 </dict>
 </plist>
