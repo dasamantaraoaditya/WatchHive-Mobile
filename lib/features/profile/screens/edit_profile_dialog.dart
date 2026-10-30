@@ -498,7 +498,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
           maxLength: 50,
           style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
           decoration: InputDecoration(
-            hintText: 'Your name or cinephile alias',
+            hintText: 'Your name or nickname',
             filled: true,
             fillColor: AppColors.surface,
             counterText: '',

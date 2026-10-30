@@ -559,7 +559,7 @@ class _EmptyFeed extends ConsumerWidget {
 
             // Warm Explanatory Subtitle
             const Text(
-              'Your feed is quiet right now. Log your first movie or show to begin tracking your taste, or discover fellow cinephiles to build your swarm!',
+              'Your feed is quiet right now. Log your first movie or show to begin tracking your taste, or discover friends to build your swarm!',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Inter',

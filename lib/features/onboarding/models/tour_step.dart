@@ -63,7 +63,7 @@ class TourStep {
       highlights: [
         'Tailored movie and series recommendations',
         'Deep theme breakdown & ending explanations',
-        'Interactive AI chat powered for cinephiles',
+        'Interactive AI chat powered for movie & TV fans',
       ],
       icon: Icons.psychology_rounded,
       accentColor: Color(0xFF6366F1),

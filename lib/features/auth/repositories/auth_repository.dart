@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
@@ -97,8 +98,55 @@ class AuthRepository {
     await _authManager.logout();
   }
 
-  Future<void> forgotPassword(String email) async {
-    await _api.post(ApiEndpoints.forgotPassword, data: {'email': email});
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final response = await _api.post(
+      ApiEndpoints.forgotPassword,
+      data: {'email': email.trim().toLowerCase()},
+    );
+    if (response.data is Map<String, dynamic>) {
+      return response.data as Map<String, dynamic>;
+    }
+    return {'message': 'If that email is registered, a reset link has been sent.'};
+  }
+
+  Future<String> resetPassword({
+    required String token,
+    required String email,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _api.post(
+        ApiEndpoints.resetPassword,
+        data: {
+          'token': token.trim(),
+          'email': email.trim().toLowerCase(),
+          'newPassword': newPassword,
+        },
+      );
+      if (response.data is Map<String, dynamic> && response.data['message'] != null) {
+        return response.data['message'] as String;
+      }
+      return 'Password has been reset successfully. You can now sign in.';
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map<String, dynamic>) {
+        if (data['details'] is List && (data['details'] as List).isNotEmpty) {
+          final detailsList = data['details'] as List;
+          final messages = detailsList
+              .whereType<Map<String, dynamic>>()
+              .map((d) => d['message']?.toString())
+              .where((m) => m != null && m.isNotEmpty)
+              .toList();
+          if (messages.isNotEmpty) {
+            throw Exception(messages.join('. '));
+          }
+        }
+        if (data['error'] is String && (data['error'] as String).isNotEmpty) {
+          throw Exception(data['error']);
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<User> getMe() async {

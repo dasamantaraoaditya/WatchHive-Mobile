@@ -93,6 +93,9 @@ void main() {
       expect(find.text('Your Entertainment Sanctuary'), findsOneWidget);
       expect(find.text('Currently Watching'), findsOneWidget);
       expect(find.text('Watched Diary & History'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.close_rounded));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('renders search guide correctly', (tester) async {
@@ -113,8 +116,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('EXPLORE & SEARCH'), findsOneWidget);
-      expect(find.text('Discover Films, TV & Cinephiles'), findsOneWidget);
+      expect(find.text('Discover Movies, Shows & Friends'), findsOneWidget);
       expect(find.text('Universal Media Search'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.close_rounded));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('renders profile guide with replay tour button when userId is provided', (tester) async {

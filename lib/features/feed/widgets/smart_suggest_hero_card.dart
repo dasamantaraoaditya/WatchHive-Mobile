@@ -47,8 +47,9 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
   }
 
   Future<void> _fetchPicksForMode(String mode) async {
-    final auth = ref.read(authStateProvider).value;
-    if (auth == null || !auth.isAuthenticated) {
+    final auth = ref.read(authStateProvider).value ??
+        await ref.read(authStateProvider.future).catchError((_) => const AuthState());
+    if (!auth.isAuthenticated) {
       if (mounted) {
         setState(() {
           _isLoadingByMode[mode] = false;
@@ -179,6 +180,11 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
   Widget build(BuildContext context) {
     if (_isDismissed) return const SizedBox.shrink();
 
+    final auth = ref.watch(authStateProvider).value;
+    if (auth == null || !auth.isAuthenticated) {
+      return const SizedBox.shrink();
+    }
+
     final hasAnyItems = _itemsByMode.values.any((items) => items.isNotEmpty);
     final isAnyLoading = _isLoadingByMode.values.any((loading) => loading == true);
 
@@ -277,7 +283,7 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
 
           // Swipeable Body
           SizedBox(
-            height: 134,
+            height: 144,
             child: PageView.builder(
               controller: _pageController,
               itemCount: _modes.length,
@@ -308,12 +314,15 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
                           child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
                         ),
                         SizedBox(width: 10),
-                        Text(
-                          'Analyzing your hive taste...',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textSecondary,
+                        Flexible(
+                          child: Text(
+                            'Analyzing your hive taste...',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ),
                       ],

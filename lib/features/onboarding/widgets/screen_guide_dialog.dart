@@ -126,9 +126,9 @@ class ScreenGuideData {
         return const ScreenGuideData(
           badgeText: 'EXPLORE & SEARCH',
           icon: Icons.search_rounded,
-          title: 'Discover Films, TV & Cinephiles',
+          title: 'Discover Movies, Shows & Friends',
           description:
-              'Search our comprehensive movie and series library or find friends and fellow cinema enthusiasts across WatchersHive.',
+              'Search our comprehensive movie and series library or find friends and fellow movie fans across WatchersHive.',
           highlights: [
             ScreenGuideItem(
               icon: Icons.movie_creation_outlined,
@@ -138,9 +138,9 @@ class ScreenGuideData {
             ),
             ScreenGuideItem(
               icon: Icons.group_outlined,
-              title: 'Find Friends & Users',
+              title: 'Find Friends & People',
               description:
-                  'Switch to the Users tab or enter usernames to find and follow friends on the platform.',
+                  'Switch to the Friends & People tab or search usernames to find and follow friends on the platform.',
             ),
             ScreenGuideItem(
               icon: Icons.tune_rounded,
@@ -372,7 +372,7 @@ class ScreenGuideData {
         return const ScreenGuideData(
           badgeText: 'PUBLIC PROFILE',
           icon: Icons.account_circle_rounded,
-          title: 'Fellow Cinephile Hub',
+          title: 'Friend Profile Hub',
           description:
               'Explore another user’s watch journey, recent reviews, favorite ranking stacks, and compare viewing tastes.',
           highlights: [
@@ -380,7 +380,7 @@ class ScreenGuideData {
               icon: Icons.compare_arrows_rounded,
               title: 'Taste Compatibility',
               description:
-                  'Tap "Compare History" to see your shared watch percentage and cinephile compatibility score.',
+                  'Tap "Compare History" to see your shared watch percentage and movie taste compatibility score.',
             ),
             ScreenGuideItem(
               icon: Icons.person_add_rounded,
@@ -410,7 +410,7 @@ class ScreenGuideData {
           icon: Icons.compare_arrows_rounded,
           title: 'Viewing Taste Compatibility',
           description:
-              'Compare your cinematic journey with another cinephile using our Swarm Viewing Intelligence.',
+              'Compare your cinematic journey with a friend using our Swarm Viewing Intelligence.',
           highlights: [
             ScreenGuideItem(
               icon: Icons.percent_rounded,

@@ -118,7 +118,7 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
     final titleText = _isWatchlist ? 'Add to Watchlist' : 'Suggest to Friends';
     final subtitleText = _isWatchlist
         ? 'Select a movie or show to save for later'
-        : 'Search a title to recommend to cinephiles';
+        : 'Search a title to recommend to friends';
     final headerIcon = _isWatchlist ? Icons.bookmark_add_rounded : Icons.send_rounded;
     final headerColor = _isWatchlist ? AppColors.primary : const Color(0xFFA855F7);
 

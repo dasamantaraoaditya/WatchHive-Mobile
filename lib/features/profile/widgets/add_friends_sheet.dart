@@ -194,12 +194,12 @@ class _AddFriendsSheetState extends ConsumerState<AddFriendsSheet> {
                 // 1. Quick Actions Grid
                 Row(
                   children: [
-                    // Search Cinephiles
+                    // Search Friends & People
                     Expanded(
                       child: _buildActionCard(
                         icon: Icons.search_rounded,
-                        title: 'Search Cinephiles',
-                        subtitle: 'Find by name or @username',
+                        title: 'Search Friends & People',
+                        subtitle: 'Find friends by name or @username',
                         onTap: () {
                           Navigator.pop(context);
                           context.push('/search?tab=people');
@@ -261,7 +261,7 @@ class _AddFriendsSheetState extends ConsumerState<AddFriendsSheet> {
 
                 const SizedBox(height: 24),
 
-                // 2. Suggested Cinephiles Section Header
+                // 2. Suggested Friends Section Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -270,7 +270,7 @@ class _AddFriendsSheetState extends ConsumerState<AddFriendsSheet> {
                         Icon(Icons.stars_rounded, color: AppColors.primary, size: 18),
                         SizedBox(width: 6),
                         Text(
-                          'Suggested Cinephiles',
+                          'Suggested Friends',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 13,
@@ -343,7 +343,7 @@ class _AddFriendsSheetState extends ConsumerState<AddFriendsSheet> {
                               context.push('/search?tab=people');
                             },
                             child: const Text(
-                              'Search members on Explore →',
+                              'Search friends on Explore →',
                               style: TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 12,
