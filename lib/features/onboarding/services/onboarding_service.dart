@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/auth/auth_manager.dart';
+import '../../../core/services/offline_storage_service.dart';
 import '../../../shared/models/user.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../feed/providers/feed_provider.dart';
@@ -12,24 +14,30 @@ import '../models/user_preferences.dart';
 
 final onboardingServiceProvider = Provider<OnboardingService>((ref) {
   final apiClient = ref.read(apiClientProvider);
-  return OnboardingService(apiClient);
+  final offlineStorage = ref.read(offlineStorageServiceProvider);
+  return OnboardingService(apiClient, null, offlineStorage);
 });
 
 class OnboardingService {
   final ApiClient _apiClient;
   final FlutterSecureStorage _storage;
+  final OfflineStorageService _offlineStorage;
   bool _hasPromptedThisLaunch = false;
 
   static final Map<String, bool> _onboardingCompletedCache = {};
   static final Map<String, Map<String, dynamic>> _preferencesCache = {};
 
-  OnboardingService(this._apiClient, [FlutterSecureStorage? storage])
-      : _storage = storage ??
+  OnboardingService(
+    this._apiClient, [
+    FlutterSecureStorage? storage,
+    OfflineStorageService? offlineStorage,
+  ])  : _storage = storage ??
             const FlutterSecureStorage(
               aOptions: AndroidOptions(encryptedSharedPreferences: true),
               iOptions:
                   IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-            );
+            ),
+        _offlineStorage = offlineStorage ?? OfflineStorageService();
 
   bool get hasPromptedThisLaunch => _hasPromptedThisLaunch;
 
@@ -40,13 +48,31 @@ class OnboardingService {
   static String _prefKey(String userId) => 'wh_user_preferences_${userId.trim()}';
   static String _completedKey(String userId) => 'wh_user_onboarding_completed_${userId.trim()}';
 
-  /// Prewarm and load local preferences from secure storage into memory
+  /// Synchronously retrieve in-memory cached preferences if available
+  Map<String, dynamic>? getCachedPreferences(String userId) {
+    if (userId.trim().isEmpty) return null;
+    return _preferencesCache[userId.trim()];
+  }
+
+  /// Prewarm and load local preferences from SQLite DB & secure storage into memory
   Future<Map<String, dynamic>?> loadLocalPreferences(String userId) async {
     if (userId.trim().isEmpty) return null;
     final cleanId = userId.trim();
     if (_preferencesCache.containsKey(cleanId)) {
       return _preferencesCache[cleanId];
     }
+
+    // 1. Try local SQLite database first
+    try {
+      final dbPrefs = await _offlineStorage.getUserPreferences(cleanId);
+      if (dbPrefs != null && dbPrefs.isNotEmpty) {
+        _preferencesCache[cleanId] = dbPrefs;
+        _onboardingCompletedCache[cleanId] = true;
+        return dbPrefs;
+      }
+    } catch (_) {}
+
+    // 2. Fall back to secure storage
     try {
       final completed = await _storage.read(key: _completedKey(cleanId));
       if (completed == 'true') {
@@ -57,6 +83,8 @@ class OnboardingService {
         final map = jsonDecode(raw) as Map<String, dynamic>;
         _preferencesCache[cleanId] = map;
         _onboardingCompletedCache[cleanId] = true;
+        // Backfill SQLite so it is available offline in DB
+        unawaited(_offlineStorage.saveUserPreferences(cleanId, map));
         return map;
       }
     } catch (_) {}
@@ -80,6 +108,11 @@ class OnboardingService {
     final cleanId = userId.trim();
     if (_onboardingCompletedCache[cleanId] == true) return true;
     try {
+      final dbPrefs = await _offlineStorage.getUserPreferences(cleanId);
+      if (dbPrefs != null && dbPrefs.isNotEmpty) {
+        _onboardingCompletedCache[cleanId] = true;
+        return true;
+      }
       final raw = await _storage.read(key: _completedKey(cleanId));
       if (raw == 'true') {
         _onboardingCompletedCache[cleanId] = true;
@@ -189,15 +222,16 @@ class OnboardingService {
     final userId = currentUser?.id.trim() ?? '';
     final prefsMap = preferences.toJson();
 
-    // 1. Save locally in memory and persistent secure storage IMMEDIATELY
+    // 1. Save locally in SQLite DB, memory cache, and persistent secure storage IMMEDIATELY
     if (userId.isNotEmpty) {
       _preferencesCache[userId] = prefsMap;
       _onboardingCompletedCache[userId] = true;
       try {
+        await _offlineStorage.saveUserPreferences(userId, prefsMap);
         await _storage.write(key: _prefKey(userId), value: jsonEncode(prefsMap));
         await _storage.write(key: _completedKey(userId), value: 'true');
       } catch (e) {
-        debugPrint('[OnboardingService] Local secure storage write warning: $e');
+        debugPrint('[OnboardingService] Local storage write warning: $e');
       }
     }
 
@@ -227,6 +261,8 @@ class OnboardingService {
     final candidateAttempts = [
       () => _apiClient.put(ApiEndpoints.me, data: payload),
       () => _apiClient.patch(ApiEndpoints.me, data: payload),
+      if (userId.isNotEmpty) () => _apiClient.put(ApiEndpoints.updateProfile(userId), data: payload),
+      if (userId.isNotEmpty) () => _apiClient.patch(ApiEndpoints.updateProfile(userId), data: payload),
       () => _apiClient.put(ApiEndpoints.userPreferences, data: payload),
     ];
 

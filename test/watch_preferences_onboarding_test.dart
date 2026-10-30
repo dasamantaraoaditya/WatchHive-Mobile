@@ -4,6 +4,7 @@ import 'package:watchhive_mobile/features/onboarding/services/onboarding_service
 import 'package:watchhive_mobile/shared/models/user.dart';
 import 'package:watchhive_mobile/core/api/api_client.dart';
 import 'package:watchhive_mobile/core/auth/auth_manager.dart';
+import 'package:watchhive_mobile/core/services/offline_storage_service.dart';
 
 void main() {
   group('UserPreferences Model Tests', () {
@@ -93,6 +94,24 @@ void main() {
       final resolved = await service.resolveUserWithPreferences(userWithPrefs);
       expect(resolved.preferences?['languages'], equals(['en']));
       expect(resolved.hasCompletedOnboarding, isTrue);
+    });
+
+    test('stores preferences in OfflineStorageService DB cache and retrieves them cleanly', () async {
+      final offlineStorage = OfflineStorageService();
+      final prefs = {
+        'languages': ['te', 'hi'],
+        'genres': ['Action', 'Thriller'],
+        'genreIds': [28, 53],
+        'streamingPlatforms': ['Netflix'],
+      };
+
+      await offlineStorage.saveUserPreferences('user-sql-999', prefs);
+      final retrieved = await offlineStorage.getUserPreferences('user-sql-999');
+
+      expect(retrieved, isNotNull);
+      expect(retrieved!['languages'], equals(['te', 'hi']));
+      expect(retrieved['genres'], equals(['Action', 'Thriller']));
+      expect(retrieved['streamingPlatforms'], equals(['Netflix']));
     });
   });
 }

@@ -7,15 +7,20 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/user.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../onboarding/services/onboarding_service.dart';
 
 final userRepositoryProvider = Provider<UserRepository>((ref) {
-  return UserRepository(ref.read(apiClientProvider));
+  return UserRepository(
+    ref.read(apiClientProvider),
+    ref.read(onboardingServiceProvider),
+  );
 });
 
 class UserRepository {
   final ApiClient _api;
+  final OnboardingService? _onboardingService;
 
-  UserRepository(this._api);
+  UserRepository(this._api, [this._onboardingService]);
 
   /// Fetch authenticated current user profile with live follower/following counts
   Future<User> getCurrentUser() async {
@@ -35,6 +40,11 @@ class UserRepository {
         );
       } catch (_) {}
     }
+
+    if (user.preferences == null && _onboardingService != null) {
+      user = await _onboardingService.resolveUserWithPreferences(user);
+    }
+
     return user;
   }
 
@@ -103,7 +113,11 @@ class UserRepository {
 
     final map = resData is Map<String, dynamic> ? resData : <String, dynamic>{};
     final userJson = map.containsKey('user') ? map['user'] as Map<String, dynamic> : map;
-    return User.fromJson(userJson);
+    var user = User.fromJson(userJson);
+    if (user.preferences == null && _onboardingService != null) {
+      user = await _onboardingService.resolveUserWithPreferences(user);
+    }
+    return user;
   }
 
   static final Map<String, String?> _tmdbPosterCache = {};

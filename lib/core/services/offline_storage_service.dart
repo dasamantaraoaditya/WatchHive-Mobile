@@ -74,6 +74,7 @@ class OfflineStorageService {
   final List<Map<String, dynamic>> _memWatchlist = [];
   final Map<String, SyncQueueItem> _memQueue = {};
   final Map<String, Map<String, dynamic>> _memMediaDetails = {};
+  final Map<String, Map<String, dynamic>> _memUserPreferences = {};
 
   Future<Database?> _getDatabase() async {
     if (_db != null && _db!.isOpen) return _db;
@@ -83,7 +84,7 @@ class OfflineStorageService {
 
       _db = await openDatabase(
         path,
-        version: 2,
+        version: 3,
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
             await db.execute('''
@@ -93,6 +94,15 @@ class OfflineStorageService {
                 jsonData TEXT,
                 cachedAt INTEGER,
                 PRIMARY KEY (tmdbId, mediaType)
+              )
+            ''');
+          }
+          if (oldVersion < 3) {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS cached_user_preferences (
+                userId TEXT PRIMARY KEY,
+                jsonData TEXT,
+                updatedAt INTEGER
               )
             ''');
           }
@@ -137,6 +147,14 @@ class OfflineStorageService {
               jsonData TEXT,
               cachedAt INTEGER,
               PRIMARY KEY (tmdbId, mediaType)
+            )
+          ''');
+
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS cached_user_preferences (
+              userId TEXT PRIMARY KEY,
+              jsonData TEXT,
+              updatedAt INTEGER
             )
           ''');
 
@@ -406,6 +424,62 @@ class OfflineStorageService {
       debugPrint('[OfflineStorageService] Error fetching cached watchlist: $e');
       return List<Map<String, dynamic>>.from(_memWatchlist);
     }
+  }
+
+  // ─── USER PREFERENCES CACHE ──────────────────────────────────────────────────
+
+  Future<void> saveUserPreferences(String userId, Map<String, dynamic> preferences) async {
+    final cleanId = userId.trim();
+    if (cleanId.isEmpty) return;
+    _memUserPreferences[cleanId] = Map<String, dynamic>.from(preferences);
+
+    try {
+      final db = await _getDatabase();
+      if (db != null) {
+        await db.insert(
+          'cached_user_preferences',
+          {
+            'userId': cleanId,
+            'jsonData': jsonEncode(preferences),
+            'updatedAt': DateTime.now().millisecondsSinceEpoch,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error caching user preferences: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>?> getUserPreferences(String userId) async {
+    final cleanId = userId.trim();
+    if (cleanId.isEmpty) return null;
+    if (_memUserPreferences.containsKey(cleanId)) {
+      return _memUserPreferences[cleanId];
+    }
+
+    try {
+      final db = await _getDatabase();
+      if (db != null) {
+        final rows = await db.query(
+          'cached_user_preferences',
+          where: 'userId = ?',
+          whereArgs: [cleanId],
+          limit: 1,
+        );
+        if (rows.isNotEmpty) {
+          final jsonStr = rows.first['jsonData'] as String?;
+          if (jsonStr != null && jsonStr.isNotEmpty) {
+            final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+            _memUserPreferences[cleanId] = data;
+            return data;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error reading user preferences: $e');
+    }
+    return null;
   }
 
   // ─── OFFLINE SYNC QUEUE ─────────────────────────────────────────────────────
