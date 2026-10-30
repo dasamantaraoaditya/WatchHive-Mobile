@@ -14,7 +14,6 @@ import '../models/ranking_stack.dart';
 import '../providers/rankings_provider.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
-import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 class RankingsScreen extends ConsumerStatefulWidget {
   final String? initialStackId;
