@@ -14,6 +14,7 @@ import '../models/ranking_stack.dart';
 import '../providers/rankings_provider.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 class RankingsScreen extends ConsumerStatefulWidget {
   final String? initialStackId;
@@ -312,14 +313,14 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.only(right: 4),
             child: ElevatedButton.icon(
               onPressed: _openCreateStackModal,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.black,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               icon: const Icon(Icons.add_rounded, size: 16),
@@ -329,6 +330,12 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
               ),
             ),
           ),
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+            tooltip: 'About Rankings & Stacks',
+            onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.rankings),
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: myRankingsState.isLoading

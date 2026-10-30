@@ -93,6 +93,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ? iosClientId
           : null;
 
+      debugPrint('[GoogleSignIn] Starting Google Sign-In with serverClientId=$effectiveClientId, iosClientId=$effectiveIosClientId');
+
       final googleSignIn = GoogleSignIn(
         clientId: effectiveIosClientId,
         serverClientId: effectiveClientId,
@@ -103,12 +105,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await googleSignIn.signOut().catchError((_) => null);
 
       final account = await googleSignIn.signIn();
-      if (account == null) return; // User cancelled picker
+      if (account == null) {
+        debugPrint('[GoogleSignIn] User canceled account selection picker');
+        return;
+      }
 
+      debugPrint('[GoogleSignIn] Account selected: ${account.email}. Fetching auth tokens...');
       final auth = await account.authentication;
       final idToken = auth.idToken;
 
       if (idToken == null || idToken.isEmpty) {
+        debugPrint('[GoogleSignIn] Error: idToken was null or empty from Google authentication');
         if (mounted) {
           WHAlert.showError(
             context,
@@ -118,12 +125,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return;
       }
 
+      debugPrint('[GoogleSignIn] Successfully retrieved idToken. Authenticating with WatchersHive backend...');
       await ref.read(authStateProvider.notifier).googleSignIn(idToken);
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
+        debugPrint('[GoogleSignIn] Successfully authenticated with backend.');
         await _handlePostAuthFlow();
       }
     } catch (e) {
-      debugPrint('Google Sign-In Error: $e');
+      debugPrint('[GoogleSignIn] Error during sign-in flow: $e');
       if (mounted) {
         WHAlert.showError(context, _formatGoogleError(e));
       }
@@ -252,12 +261,74 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                const SizedBox(height: 60),
+                const SizedBox(height: 48),
                 const WHLogoHeader(
                   title: 'Welcome back',
                   subtitle: 'Sign in to continue tracking',
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 16),
+
+                // Top Redirection to Sign Up
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Don't have an account? ",
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                    GestureDetector(
+                      onTap: () => context.push('/signup'),
+                      child: const Text(
+                        'Sign up',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+
+                // Social Sign-In (Google & Apple on TOP)
+                WHGoogleSignInButton(
+                  onPressed: _googleSignIn,
+                  isLoading: _isLoading,
+                ),
+
+                // Apple Sign-In (Apple App Store Guideline 4.8)
+                if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) ...[
+                  const SizedBox(height: 12),
+                  SignInWithAppleButton(
+                    onPressed: _appleSignIn,
+                    style: SignInWithAppleButtonStyle.black,
+                    borderRadius: BorderRadius.circular(16),
+                    height: 48,
+                  ),
+                ],
+                const SizedBox(height: 24),
+
+                // Divider: or continue with email
+                Row(children: [
+                  const Expanded(child: Divider(color: AppColors.border)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'or continue with email',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ),
+                  const Expanded(child: Divider(color: AppColors.border)),
+                ]),
+                const SizedBox(height: 24),
 
                 // Email
                 WHTextField(
@@ -305,7 +376,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: const Text('Forgot password?'),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // Login Button
                 WHButton(
@@ -313,43 +384,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   isLoading: _isLoading,
                   onPressed: _login,
                 ),
-                const SizedBox(height: 20),
-
-                // Divider
-                Row(children: [
-                  const Expanded(child: Divider(color: AppColors.border)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'or',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  const Expanded(child: Divider(color: AppColors.border)),
-                ]),
-                const SizedBox(height: 20),
-
-                // Google Sign-In
-                OutlinedButton.icon(
-                  onPressed: _googleSignIn,
-                  icon: const Text('G', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                  label: const Text('Continue with Google'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-
-                // Apple Sign-In (Apple App Store Guideline 4.8)
-                if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) ...[
-                  const SizedBox(height: 12),
-                  SignInWithAppleButton(
-                    onPressed: _appleSignIn,
-                    style: SignInWithAppleButtonStyle.black,
-                    borderRadius: BorderRadius.circular(16),
-                    height: 48,
-                  ),
-                ],
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
 
                 // Terms & Privacy acceptance (Apple Guideline 1.2 & 5.1.1)
                 Padding(
@@ -386,24 +421,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Sign Up Link
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Don't have an account? ",
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                    TextButton(
-                      onPressed: () => context.push('/signup'),
-                      child: const Text('Sign up'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-
                 // Support & Help link
                 Center(
                   child: TextButton.icon(
@@ -420,7 +437,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
               ],
             ),
           ),

@@ -13,6 +13,7 @@ import '../../feed/widgets/comments_sheet.dart';
 import '../../feed/widgets/wh_feed_card.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 class EntryDetailScreen extends ConsumerStatefulWidget {
   final String entryId;
@@ -179,6 +180,13 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
             color: AppColors.textPrimary,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+            tooltip: 'About Watch Post',
+            onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.feed),
+          ),
+        ],
       ),
       body: _buildBody(currentUser?.id),
     );

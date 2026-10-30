@@ -10,6 +10,7 @@ import '../../../shared/models/models.dart' as wh;
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/notifications_provider.dart';
 import '../repositories/notifications_repository.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 // Re-export repository provider for backward compatibility
 export '../repositories/notifications_repository.dart'
@@ -306,6 +307,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 style: TextStyle(fontFamily: 'Inter', color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13),
               ),
             ),
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+            tooltip: 'About Notifications',
+            onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.notifications),
+          ),
         ],
       ),
       body: notifState.isLoading && notifState.notifications.isEmpty && notifState.pendingRequests.isEmpty

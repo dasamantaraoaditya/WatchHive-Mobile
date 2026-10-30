@@ -235,9 +235,18 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }
 
   void updateUser(User updatedUser) {
-    unawaited(ref.read(authManagerProvider).saveUser(updatedUser));
+    // Preserve existing preferences so server fetches with missing preference schemas never wipe them out
+    final existingUser = state.value?.user;
+    var finalUser = updatedUser;
+    if (finalUser.preferences == null && existingUser?.preferences != null) {
+      finalUser = finalUser.copyWith(
+        preferences: existingUser!.preferences,
+        hasCompletedOnboarding: existingUser.hasCompletedOnboarding,
+      );
+    }
+    unawaited(ref.read(authManagerProvider).saveUser(finalUser));
     state = AsyncData(
-      state.value!.copyWith(user: updatedUser, isAuthenticated: true),
+      state.value!.copyWith(user: finalUser, isAuthenticated: true),
     );
   }
 }

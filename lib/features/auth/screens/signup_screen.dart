@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/shared_widgets.dart';
@@ -85,23 +86,40 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Future<void> _googleSignIn() async {
     setState(() => _isLoading = true);
     try {
+      final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
+      final effectiveClientId = (webClientId != null &&
+              webClientId.isNotEmpty &&
+              !webClientId.contains('your_google_web_client_id'))
+          ? webClientId
+          : '357857516251-f4gpp8f1j70lu1dcnh405ac0t6lch9tf.apps.googleusercontent.com';
+
+      final iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID']?.trim();
+      final effectiveIosClientId = (iosClientId != null &&
+              iosClientId.isNotEmpty &&
+              !iosClientId.contains('your_google_ios_client_id'))
+          ? iosClientId
+          : null;
+
+      debugPrint('[GoogleSignUp] Starting Google Sign-Up with serverClientId=$effectiveClientId, iosClientId=$effectiveIosClientId');
+
       final googleSignIn = GoogleSignIn(
-        clientId: kIsWeb
-            ? null
-            : Platform.isIOS
-                ? '357857516251-69f26kdjl6v5n60pvtpdjbiregaodv63.apps.googleusercontent.com'
-                : null,
-        serverClientId: '357857516251-f4gpp8f1j70lu1dcnh405ac0t6lch9tf.apps.googleusercontent.com',
-        scopes: ['email', 'profile'],
+        clientId: effectiveIosClientId,
+        serverClientId: effectiveClientId,
+        scopes: const ['email', 'profile'],
       );
 
       await googleSignIn.signOut().catchError((_) => null);
       final account = await googleSignIn.signIn();
-      if (account == null) return;
+      if (account == null) {
+        debugPrint('[GoogleSignUp] User canceled account selection picker');
+        return;
+      }
 
+      debugPrint('[GoogleSignUp] Account selected: ${account.email}. Fetching auth tokens...');
       final auth = await account.authentication;
       final idToken = auth.idToken;
       if (idToken == null || idToken.isEmpty) {
+        debugPrint('[GoogleSignUp] Error: idToken was null or empty');
         if (mounted) {
           WHAlert.showError(
             context,
@@ -111,12 +129,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         return;
       }
 
+      debugPrint('[GoogleSignUp] Successfully retrieved idToken. Authenticating with backend...');
       await ref.read(authStateProvider.notifier).googleSignIn(idToken);
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
+        debugPrint('[GoogleSignUp] Successfully authenticated with backend.');
         await _handlePostAuthFlow();
       }
     } catch (e) {
-      debugPrint('Google Sign-In Error: $e');
+      debugPrint('[GoogleSignUp] Error during sign-up flow: $e');
       if (mounted) {
         WHAlert.showError(context, _parseError(e));
       }
@@ -206,12 +226,74 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: 48),
                 const WHLogoHeader(
                   title: 'Create account',
                   subtitle: 'Start tracking your watch history',
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 16),
+
+                // Top Redirection to Sign In
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Already have an account? ',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                    GestureDetector(
+                      onTap: () => context.pop(),
+                      child: const Text(
+                        'Sign in',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+
+                // Social Sign-In (Google & Apple on TOP)
+                WHGoogleSignInButton(
+                  onPressed: _googleSignIn,
+                  isLoading: _isLoading,
+                ),
+
+                // Apple Sign-In (Apple App Store Guideline 4.8)
+                if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) ...[
+                  const SizedBox(height: 12),
+                  SignInWithAppleButton(
+                    onPressed: _appleSignIn,
+                    style: SignInWithAppleButtonStyle.black,
+                    borderRadius: BorderRadius.circular(16),
+                    height: 48,
+                  ),
+                ],
+                const SizedBox(height: 24),
+
+                // Divider: or register with email
+                Row(children: [
+                  const Expanded(child: Divider(color: AppColors.border)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'or register with email',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ),
+                  const Expanded(child: Divider(color: AppColors.border)),
+                ]),
+                const SizedBox(height: 24),
 
                 // Username
                 WHTextField(
@@ -267,50 +349,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
                 WHButton(
                   label: 'Create Account',
                   isLoading: _isLoading,
                   onPressed: _register,
                 ),
-                const SizedBox(height: 20),
-
-                // Divider
-                Row(children: [
-                  const Expanded(child: Divider(color: AppColors.border)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'or register with',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  const Expanded(child: Divider(color: AppColors.border)),
-                ]),
-                const SizedBox(height: 16),
-
-                // Google Sign-In
-                OutlinedButton.icon(
-                  onPressed: _googleSignIn,
-                  icon: const Text('G', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                  label: const Text('Continue with Google'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-
-                // Apple Sign-In (Apple App Store Guideline 4.8)
-                if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) ...[
-                  const SizedBox(height: 12),
-                  SignInWithAppleButton(
-                    onPressed: _appleSignIn,
-                    style: SignInWithAppleButtonStyle.black,
-                    borderRadius: BorderRadius.circular(16),
-                    height: 48,
-                  ),
-                ],
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
                 Center(
                   child: Text.rich(
@@ -343,24 +389,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ),
-                const SizedBox(height: 20),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Already have an account? ',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                    TextButton(
-                      onPressed: () => context.pop(),
-                      child: const Text('Sign in'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
               ],
             ),
           ),

@@ -224,7 +224,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/search',
-            builder: (context, state) => const SearchScreen(),
+            builder: (context, state) {
+              final tabParam = state.uri.queryParameters['tab'];
+              final initialTab = (tabParam == 'people' || tabParam == 'users' || tabParam == 'friends') ? 1 : 0;
+              return SearchScreen(initialTab: initialTab);
+            },
           ),
           GoRoute(
             path: '/profile',

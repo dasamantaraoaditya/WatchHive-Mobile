@@ -46,12 +46,21 @@ class _WatchPreferencesOnboardingDialogState
   void initState() {
     super.initState();
     _loadExistingPreferences();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchPersistedPreferences();
+    });
   }
 
   void _loadExistingPreferences() {
     final user = ref.read(authStateProvider).value?.user;
-    if (user != null && user.preferences != null) {
-      final existing = UserPreferences.fromJson(user.preferences!);
+    final onboardingService = ref.read(onboardingServiceProvider);
+    final cached = (user?.id.isNotEmpty == true)
+        ? onboardingService.getCachedPreferences(user!.id)
+        : null;
+
+    final effectivePrefs = user?.preferences ?? cached;
+    if (effectivePrefs != null && effectivePrefs.isNotEmpty) {
+      final existing = UserPreferences.fromJson(effectivePrefs);
       _selectedLanguages.addAll(existing.languages);
       _selectedGenres.addAll(existing.genres);
       _selectedPlatforms.addAll(existing.streamingPlatforms);
@@ -60,6 +69,25 @@ class _WatchPreferencesOnboardingDialogState
     // Default to at least English if starting completely fresh
     if (_selectedLanguages.isEmpty && !widget.isEditing) {
       _selectedLanguages.add('en');
+    }
+  }
+
+  Future<void> _fetchPersistedPreferences() async {
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null && user.id.isNotEmpty) {
+      final onboardingService = ref.read(onboardingServiceProvider);
+      final stored = await onboardingService.loadLocalPreferences(user.id);
+      if (stored != null && stored.isNotEmpty && mounted) {
+        final existing = UserPreferences.fromJson(stored);
+        setState(() {
+          _selectedLanguages.clear();
+          _selectedLanguages.addAll(existing.languages);
+          _selectedGenres.clear();
+          _selectedGenres.addAll(existing.genres);
+          _selectedPlatforms.clear();
+          _selectedPlatforms.addAll(existing.streamingPlatforms);
+        });
+      }
     }
   }
 
@@ -416,7 +444,7 @@ class _WatchPreferencesOnboardingDialogState
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.border,
-            width: isSelected ? 1.8 : 1.0,
+            width: 1.5,
           ),
         ),
         child: Row(
@@ -427,14 +455,20 @@ class _WatchPreferencesOnboardingDialogState
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                fontWeight: FontWeight.w600,
                 color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
               ),
             ),
-            if (isSelected) ...[
-              const SizedBox(width: 6),
-              const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.primaryDark),
-            ],
+            const SizedBox(width: 8),
+            Icon(
+              isSelected
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              size: 15,
+              color: isSelected
+                  ? AppColors.primaryDark
+                  : AppColors.textMuted.withValues(alpha: 0.35),
+            ),
           ],
         ),
       ),
