@@ -11,7 +11,8 @@
         android:label="WatchersHive"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:enableOnBackInvokedCallback="false">
+        android:enableOnBackInvokedCallback="false"
+        android:usesCleartextTraffic="false">
 
         <!-- Disable Impeller to fix OpenGLES GPU vertex streaking on Android emulators -->
         <meta-data

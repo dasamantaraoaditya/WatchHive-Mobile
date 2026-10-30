@@ -70,6 +70,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     // 1. Fast Path: If we have a cached user profile, restore session IMMEDIATELY (<15ms)
     final cachedUser = await authManager.getCachedUser();
     if (cachedUser != null) {
+      ref.read(onboardingServiceProvider).markPrompted();
       final resolvedUser = await ref
           .read(onboardingServiceProvider)
           .resolveUserWithPreferences(cachedUser);
@@ -81,6 +82,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
     // 2. Fallback Path: Tokens exist but no cached user (e.g. app upgrade or storage reset)
     try {
+      ref.read(onboardingServiceProvider).markPrompted();
       final user = await ref.read(authRepositoryProvider).getMe();
       final resolvedUser = await ref
           .read(onboardingServiceProvider)

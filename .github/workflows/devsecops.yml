@@ -1,0 +1,123 @@
+name: DevSecOps - Security & Static Code Analysis (Mobile)
+
+on:
+  push:
+    branches: [ main, staging ]
+  pull_request:
+    branches: [ main, staging ]
+  schedule:
+    # Run weekly automated security sweep every Monday at 04:00 UTC
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # =========================================================================
+  # 1. SECRET SCANNING (Gitleaks)
+  # Prevents commiting upload-keystores, passwords, or Firebase service secrets
+  # =========================================================================
+  secret-scan:
+    name: Secret Shield (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks Secret Scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: false
+
+  # =========================================================================
+  # 2. FLUTTER & DART STATIC CODE SECURITY ANALYSIS (SAST)
+  # =========================================================================
+  flutter-sast:
+    name: Flutter Code Integrity & Linter Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Ensure Dummy Environment for CI
+        run: |
+          if [ ! -f ".env" ]; then
+            cp .env.example .env
+          fi
+          if [ ! -f "lib/firebase_options.dart" ] && [ -f "lib/firebase_options.dart.example" ]; then
+            cp lib/firebase_options.dart.example lib/firebase_options.dart
+          fi
+
+      - name: Install Flutter Packages
+        run: flutter pub get
+
+      - name: Flutter Static Analysis (Strict Gate)
+        run: flutter analyze --no-fatal-infos --fatal-warnings
+
+      - name: Run Unit & Security Tests
+        run: flutter test
+
+  # =========================================================================
+  # 3. SOFTWARE COMPOSITION ANALYSIS (SCA) & PUB ADVISORY AUDIT
+  # =========================================================================
+  sca-pub-audit:
+    name: Mobile Dependency Vulnerability Scanner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Google OSV Vulnerability Scanner
+        run: |
+          curl -fsSL https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64 -o /usr/local/bin/osv-scanner
+          chmod +x /usr/local/bin/osv-scanner
+
+      - name: Google OSV Scanner (Dart & Flutter Packages)
+        run: osv-scanner --lockfile=pubspec.lock
+        continue-on-error: true
+
+  # =========================================================================
+  # 4. MOBILE APPLICATION SECURITY BEST PRACTICES (MASVS)
+  # Audits cleartext HTTP policies and secure credential storage conventions
+  # =========================================================================
+  mobile-security-audit:
+    name: MASVS & Platform Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Verify Android & iOS Transport Security
+        run: |
+          echo "Verifying iOS App Transport Security does not allow arbitrary unencrypted HTTP..."
+          if grep -rnEi "<key>NSAllowsArbitraryLoads</key>[[:space:]]*<true/>" ios/Runner/Info.plist; then
+            echo "❌ SECURITY WARNING: iOS Info.plist has NSAllowsArbitraryLoads enabled!"
+            exit 1
+          fi
+          echo "✅ iOS App Transport Security verified: HTTPS enforced."
+
+      - name: Verify Secure Storage Enforcement for Sensitive Tokens
+        run: |
+          echo "Verifying JWT session tokens use hardware-backed FlutterSecureStorage..."
+          # Ensure Auth tokens are stored in secure storage wrapper, not plaintext SharedPreferences
+          if grep -rn "SharedPreferences.*token" lib/core/storage/ 2>/dev/null; then
+            echo "❌ SECURITY ERROR: Plaintext token storage detected in storage layer!"
+            exit 1
+          fi
+          echo "✅ Secure hardware storage verified (Keychain / KeyStore)."

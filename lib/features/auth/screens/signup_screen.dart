@@ -9,6 +9,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../onboarding/services/onboarding_service.dart';
+import '../../onboarding/widgets/watch_preferences_onboarding_dialog.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -45,8 +47,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             password: _passwordController.text,
           );
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
-        context.go('/feed');
-        WHAlert.showSuccess(context, 'Welcome to WatchersHive!');
+        await _handlePostAuthFlow();
       }
     } catch (e) {
       if (mounted) {
@@ -62,6 +63,23 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       error,
       defaultMessage: 'Sign up failed. Please try again.',
     );
+  }
+
+  Future<void> _handlePostAuthFlow() async {
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null) {
+      final onboardingService = ref.read(onboardingServiceProvider);
+      final shouldPrompt = await onboardingService.shouldPromptUser(user);
+      if (shouldPrompt && mounted) {
+        onboardingService.markPrompted();
+        await WatchPreferencesOnboardingDialog.show(context);
+        await onboardingService.markPreferencesCompleted(user.id);
+      }
+    }
+    if (mounted) {
+      context.go('/feed');
+      WHAlert.showSuccess(context, 'Welcome to WatchersHive!');
+    }
   }
 
   Future<void> _googleSignIn() async {
@@ -95,8 +113,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
       await ref.read(authStateProvider.notifier).googleSignIn(idToken);
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
-        context.go('/feed');
-        WHAlert.showSuccess(context, 'Welcome to WatchersHive!');
+        await _handlePostAuthFlow();
       }
     } catch (e) {
       debugPrint('Google Sign-In Error: $e');
@@ -138,8 +155,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           );
 
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
-        context.go('/feed');
-        WHAlert.showSuccess(context, 'Welcome to WatchersHive!');
+        await _handlePostAuthFlow();
       }
     } on SignInWithAppleAuthorizationException catch (e) {
       debugPrint('[AppleSignIn] AuthorizationException: ${e.code} - ${e.message}');

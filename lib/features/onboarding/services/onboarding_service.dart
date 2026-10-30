@@ -48,6 +48,10 @@ class OnboardingService {
       return _preferencesCache[cleanId];
     }
     try {
+      final completed = await _storage.read(key: _completedKey(cleanId));
+      if (completed == 'true') {
+        _onboardingCompletedCache[cleanId] = true;
+      }
       final raw = await _storage.read(key: _prefKey(cleanId));
       if (raw != null && raw.isNotEmpty) {
         final map = jsonDecode(raw) as Map<String, dynamic>;
@@ -59,9 +63,20 @@ class OnboardingService {
     return null;
   }
 
+  /// Marks preferences onboarding permanently completed in persistent storage.
+  Future<void> markPreferencesCompleted(String userId) async {
+    if (userId.trim().isEmpty) return;
+    final cleanId = userId.trim();
+    _onboardingCompletedCache[cleanId] = true;
+    _hasPromptedThisLaunch = true;
+    try {
+      await _storage.write(key: _completedKey(cleanId), value: 'true');
+    } catch (_) {}
+  }
+
   /// Determines if the user has completed preferences onboarding.
   Future<bool> isPreferencesCompleted(String userId) async {
-    if (userId.trim().isEmpty) return false;
+    if (userId.trim().isEmpty) return true;
     final cleanId = userId.trim();
     if (_onboardingCompletedCache[cleanId] == true) return true;
     try {
@@ -70,8 +85,38 @@ class OnboardingService {
         _onboardingCompletedCache[cleanId] = true;
         return true;
       }
+      final prefRaw = await _storage.read(key: _prefKey(cleanId));
+      if (prefRaw != null && prefRaw.isNotEmpty) {
+        _onboardingCompletedCache[cleanId] = true;
+        return true;
+      }
     } catch (_) {}
     return false;
+  }
+
+  /// Asynchronously checks if the first-time watch preferences dialog should be shown.
+  /// Strictly checks persistent storage so it is NEVER shown on app restarts.
+  Future<bool> shouldPromptUser(User? user) async {
+    if (user == null || user.id.isEmpty) return false;
+    if (_hasPromptedThisLaunch) return false;
+
+    final userId = user.id.trim();
+    if (_onboardingCompletedCache[userId] == true) return false;
+    if (user.hasCompletedOnboarding) return false;
+
+    if (user.preferences != null && user.preferences!.isNotEmpty) {
+      final langs = user.preferences?['languages'] as List?;
+      final genres = user.preferences?['genres'] as List?;
+      if ((langs != null && langs.isNotEmpty) || (genres != null && genres.isNotEmpty)) {
+        _onboardingCompletedCache[userId] = true;
+        return false;
+      }
+    }
+
+    final isDone = await isPreferencesCompleted(userId);
+    if (isDone) return false;
+
+    return true;
   }
 
   /// Determines if the first-time watch preferences dialog should be shown.
