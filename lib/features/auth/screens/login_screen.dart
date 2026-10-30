@@ -231,10 +231,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   String _parseError(dynamic error) {
-    return AppErrorHandler.toUserFriendlyMessage(
+    final message = AppErrorHandler.toUserFriendlyMessage(
       error,
       defaultMessage: 'Unable to sign in. Please verify your credentials and try again.',
     );
+    if (message.toLowerCase().contains('validation failed')) {
+      return 'Please enter a valid email or username and password.';
+    }
+    return message;
   }
 
   @override
@@ -330,16 +334,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ]),
                 const SizedBox(height: 24),
 
-                // Email
+                // Email or Username
                 WHTextField(
                   controller: _emailController,
-                  label: 'Email',
-                  hint: 'you@example.com',
+                  label: 'Email or Username',
+                  hint: 'you@example.com or username',
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Email is required';
-                    if (!v.contains('@')) return 'Enter a valid email';
+                    if (v == null || v.trim().isEmpty) return 'Please enter your email or username';
+                    if (v.contains('@') && !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim())) {
+                      return 'Please enter a valid email address';
+                    }
                     return null;
                   },
                 ),
@@ -372,7 +378,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () => context.push('/forgot-password'),
+                    onPressed: () {
+                      final currentEmail = _emailController.text.trim();
+                      final query = currentEmail.isNotEmpty ? '?email=${Uri.encodeComponent(currentEmail)}' : '';
+                      context.push('/forgot-password$query');
+                    },
                     child: const Text('Forgot password?'),
                   ),
                 ),
