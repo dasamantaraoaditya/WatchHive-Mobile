@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -9,6 +10,7 @@ import '../repositories/auth_repository.dart';
 import '../../../shared/widgets/wh_text_field.dart';
 import '../../../shared/widgets/wh_button.dart';
 import '../../../shared/widgets/wh_logo_header.dart';
+import '../../../shared/widgets/wh_alert.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   final String? initialEmail;
@@ -24,7 +26,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   bool _isLoading = false;
   bool _sent = false;
   String? _errorMessage;
-  String? _devToken;
+  String? _resetCode;
 
   int _resendCooldownSeconds = 0;
   Timer? _cooldownTimer;
@@ -133,10 +135,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     try {
       final result = await ref.read(authRepositoryProvider).forgotPassword(email);
       if (!mounted) return;
+      final code = (result['resetCode'] ?? result['devToken'] ?? result['resetToken'])?.toString();
       setState(() {
         _sent = true;
         _isLoading = false;
-        _devToken = result['devToken'] as String?;
+        _resetCode = code;
       });
       _startCooldownTimer();
     } catch (e) {
@@ -362,42 +365,84 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Primary Next Step: Enter code directly in-app
-                WHButton(
-                  label: 'Enter Reset Code / Token',
-                  onPressed: () => _navigateToResetPassword(_devToken),
-                ),
-                const SizedBox(height: 16),
-
-                // Development mode auto-fill token helper
-                if (_devToken != null) ...[
+                // Generated Reset Code Card (if code is available)
+                if (_resetCode != null) ...[
                   Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 20),
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.primary, width: 1.5),
                     ),
-                    child: Row(
+                    child: Column(
                       children: [
-                        const Icon(Icons.developer_mode_rounded, color: AppColors.primaryDark, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Dev token captured: $_devToken',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.lock_reset_rounded, size: 18, color: AppColors.primaryDark),
+                            SizedBox(width: 6),
+                            Text(
+                              'YOUR RESET CODE',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.2,
+                                color: AppColors.primaryDark,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
                           ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _resetCode!,
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: _resetCode!.length > 10 ? 16 : 26,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: _resetCode!.length > 10 ? 1 : 4,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                icon: const Icon(Icons.copy_rounded, size: 18, color: AppColors.primaryDark),
+                                tooltip: 'Copy Code',
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: _resetCode!));
+                                  WHAlert.showSuccess(context, 'Reset code copied to clipboard!');
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        WHButton(
+                          label: 'Reset Password with this Code →',
+                          onPressed: () => _navigateToResetPassword(_resetCode),
                         ),
                       ],
                     ),
                   ),
+                ] else ...[
+                  // Primary Next Step: Enter code directly in-app
+                  WHButton(
+                    label: 'Enter Reset Code / Token',
+                    onPressed: () => _navigateToResetPassword(),
+                  ),
+                  const SizedBox(height: 16),
                 ],
 
                 // Resend Button
