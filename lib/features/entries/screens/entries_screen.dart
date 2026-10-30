@@ -15,6 +15,7 @@ import '../widgets/wh_entry_grid_card.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../profile/widgets/user_rankings_tab.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 // ─── Providers ───────────────────────────────────────────────────────────────
 
@@ -300,6 +301,11 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
             icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),
             tooltip: 'MindLens AI',
             onPressed: () => context.push('/mindlens'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+            tooltip: 'About Entries & Watchlist',
+            onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.entries),
           ),
         ],
         bottom: TabBar(

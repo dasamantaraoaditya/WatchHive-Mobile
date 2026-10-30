@@ -26,6 +26,7 @@ import '../widgets/platform_logo_badge.dart';
 import '../widgets/add_to_watchlist_sheet.dart';
 import '../../profile/repositories/user_repository.dart';
 import '../../scanner/widgets/movie_qr_dialog.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -750,7 +751,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
               ),
             actions: [
               Padding(
-                padding: const EdgeInsets.only(right: 12),
+                padding: const EdgeInsets.only(right: 8),
                 child: Center(
                   child: CircleAvatar(
                     radius: 20,
@@ -760,6 +761,21 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                       icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.primary, size: 20),
                       tooltip: 'Hive Code (QR)',
                       onPressed: _showMovieQrCode,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Center(
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.black.withValues(alpha: 0.55),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.help_outline_rounded, color: Colors.white, size: 20),
+                      tooltip: 'About Title Details',
+                      onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.movieDetails),
                     ),
                   ),
                 ),

@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../services/qr_payload_parser.dart';
 import '../widgets/user_qr_dialog.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 /// Full-screen in-app QR Code Scanner for WatchersHive.
 /// Seamlessly scans and routes to User Profiles (to follow or send requests)
@@ -360,6 +361,17 @@ class _HiveScannerScreenState extends ConsumerState<HiveScannerScreen>
                       icon: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white, size: 20),
                       tooltip: 'Switch Camera',
                       onPressed: () => _controller.switchCamera(),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Help Guide
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.black.withValues(alpha: 0.55),
+                    child: IconButton(
+                      icon: const Icon(Icons.help_outline_rounded, color: Colors.white, size: 20),
+                      tooltip: 'About QR Scanner',
+                      onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.scanner),
                     ),
                   ),
                 ],

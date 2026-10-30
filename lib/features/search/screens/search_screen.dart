@@ -9,6 +9,7 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/search_repository.dart';
 import '../../profile/repositories/user_repository.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 enum TrendingFilter {
   allTrending('All Trending', 'all', 'trending'),
@@ -24,7 +25,8 @@ enum TrendingFilter {
 }
 
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
+  final int initialTab;
+  const SearchScreen({super.key, this.initialTab = 0});
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -54,11 +56,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, 1),
+    );
     _loadInitialDiscovery();
     _focusNode.addListener(() {
       if (mounted) setState(() {});
     });
+    if (widget.initialTab == 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _focusNode.requestFocus();
+        }
+      });
+    }
   }
 
   Future<void> _loadInitialDiscovery() async {
@@ -286,7 +299,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                 context.push('/scanner');
               },
             ),
-            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.help_outline_rounded,
+                  color: AppColors.textSecondary),
+              tooltip: 'About Explore & Search',
+              onPressed: () {
+                _focusNode.unfocus();
+                ScreenGuideDialog.show(context, ScreenGuideType.search);
+              },
+            ),
+            const SizedBox(width: 4),
           ],
         ),
         body: GestureDetector(

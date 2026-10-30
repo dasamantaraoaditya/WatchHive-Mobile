@@ -9,6 +9,7 @@ import '../../profile/widgets/profile_stats_view.dart';
 import '../repositories/mindlens_repository.dart';
 import '../widgets/watch_frequency_chart.dart';
 import '../../../shared/widgets/wh_skeleton.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 class MindLensScreen extends ConsumerStatefulWidget {
   const MindLensScreen({super.key});
@@ -127,6 +128,13 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+            tooltip: 'About MindLens AI',
+            onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.mindlens),
+          ),
+        ],
       ),
       body: _isLoading
           ? const WHSkeletonMindLens()

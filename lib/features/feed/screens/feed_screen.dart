@@ -15,6 +15,7 @@ import '../../../core/notifications/push_notification_service.dart';
 import '../../entries/screens/add_entry_sheet.dart';
 import '../widgets/wh_feed_card.dart';
 import '../widgets/smart_suggest_hero_card.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 export '../providers/feed_provider.dart';
 
@@ -216,6 +217,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                       ),
                       tooltip: 'Notifications',
                       onPressed: () => context.push('/notifications'),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+                      tooltip: 'About Community Feed',
+                      onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.feed),
                     ),
                   ],
                 ),

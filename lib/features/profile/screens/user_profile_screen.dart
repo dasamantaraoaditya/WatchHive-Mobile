@@ -24,6 +24,7 @@ import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../../scanner/widgets/user_qr_dialog.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 const _emptyEntriesResult = (
   entries: <Entry>[],
@@ -743,6 +744,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                       ),
                     ],
                   ),
+                IconButton(
+                  icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+                  tooltip: 'About User Profile',
+                  onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.userProfile),
+                ),
               ],
             ),
             if (_isMe)

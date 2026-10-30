@@ -11,6 +11,7 @@ import '../models/compare_result.dart';
 import '../repositories/user_repository.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 class CompareHistoryScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -210,7 +211,7 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
         actions: [
           if (_result != null)
             Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.only(right: 4),
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -232,6 +233,12 @@ class _CompareHistoryScreenState extends ConsumerState<CompareHistoryScreen> {
                 ),
               ),
             ),
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+            tooltip: 'About Taste Comparison',
+            onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.compareHistory),
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: _isLoading

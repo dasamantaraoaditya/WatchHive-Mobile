@@ -17,13 +17,14 @@ import '../widgets/offline_sync_card.dart';
 import 'edit_profile_dialog.dart';
 import '../widgets/avatar_viewer_dialog.dart';
 import '../widgets/honey_badges_dialog.dart';
+import '../widgets/add_friends_sheet.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/notifications/push_notification_service.dart';
 import '../../notifications/repositories/push_repository.dart';
-import '../../onboarding/providers/onboarding_guide_provider.dart';
 import '../../onboarding/widgets/watch_preferences_onboarding_dialog.dart';
 import '../widgets/blocked_users_sheet.dart';
 import '../../scanner/widgets/user_qr_dialog.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 import '../../../core/services/app_update_service.dart';
 import '../../../shared/widgets/app_update_dialog.dart';
 
@@ -350,11 +351,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
-                  tooltip: 'App Tour & Guide',
-                  onPressed: () => ref.read(onboardingGuideProvider.notifier).startTour(
+                  tooltip: 'About Profile & Stats',
+                  onPressed: () => ScreenGuideDialog.show(
                     context,
+                    ScreenGuideType.profile,
                     userId: user.id,
-                    isReplay: true,
                   ),
                 ),
               ],
@@ -1072,7 +1073,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Action Buttons: Edit Profile & Public View
+          // Action Buttons: Edit Profile, Public View, and Add Friends
           Row(
             children: [
               Expanded(
@@ -1093,6 +1094,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   icon: const Icon(Icons.edit_outlined, size: 16),
                   label: const Text(
                     'Edit Profile',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 13,
@@ -1101,7 +1104,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
@@ -1115,10 +1118,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
                   label: const Text(
                     'Public View',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Add Friends Button right next to Public View
+              Tooltip(
+                message: 'Add Friends',
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => AddFriendsSheet.show(context, user: user),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      height: 44,
+                      width: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.4),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.person_add_rounded,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                      ),
                     ),
                   ),
                 ),
