@@ -26,7 +26,7 @@ class _FakeUserRepository extends UserRepository {
   }
 
   @override
-  Future<List<User>> getFollowers(String userId) async {
+  Future<List<User>> getFollowers(String userId, {int limit = 100, String? query}) async {
     return [
       User(
         id: 'user-friend-1',

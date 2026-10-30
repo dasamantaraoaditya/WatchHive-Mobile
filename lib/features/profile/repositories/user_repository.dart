@@ -297,8 +297,14 @@ class UserRepository {
   }
 
   /// Get list of users following the given user
-  Future<List<User>> getFollowers(String userId) async {
-    final response = await _api.get(ApiEndpoints.followers(userId));
+  Future<List<User>> getFollowers(String userId, {int limit = 100, String? query}) async {
+    final response = await _api.get(
+      ApiEndpoints.followers(userId),
+      queryParameters: {
+        'limit': limit,
+        if (query != null && query.trim().isNotEmpty) 'q': query.trim().replaceAll('@', ''),
+      },
+    );
     final data = response.data;
     final List<dynamic> list;
     if (data is Map<String, dynamic> && data['followers'] is List) {
@@ -317,8 +323,14 @@ class UserRepository {
   }
 
   /// Get list of users the given user is following
-  Future<List<User>> getFollowing(String userId) async {
-    final response = await _api.get(ApiEndpoints.following(userId));
+  Future<List<User>> getFollowing(String userId, {int limit = 100, String? query}) async {
+    final response = await _api.get(
+      ApiEndpoints.following(userId),
+      queryParameters: {
+        'limit': limit,
+        if (query != null && query.trim().isNotEmpty) 'q': query.trim().replaceAll('@', ''),
+      },
+    );
     final data = response.data;
     final List<dynamic> list;
     if (data is Map<String, dynamic> && data['following'] is List) {
@@ -334,6 +346,21 @@ class UserRepository {
           : item;
       return User.fromJson(userJson as Map<String, dynamic>);
     }).toList();
+  }
+
+  /// Get follow status relative to current user
+  Future<({bool isFollowing, bool isRequested})> getFollowStatus(String userId) async {
+    try {
+      final response = await _api.get(ApiEndpoints.followStatus(userId));
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return (
+          isFollowing: data['isFollowing'] == true,
+          isRequested: data['isRequested'] == true,
+        );
+      }
+    } catch (_) {}
+    return (isFollowing: false, isRequested: false);
   }
 
   /// Fetch follow statistics (followersCount, followingCount) for any user

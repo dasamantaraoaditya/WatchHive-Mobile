@@ -70,6 +70,11 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   final _movieSearchController = TextEditingController();
 
   String _friendSearchQuery = '';
+  final _friendSearchController = TextEditingController();
+  List<User> _searchedUsers = [];
+  bool _isSearchingFriends = false;
+  Timer? _friendDebounce;
+
   final _messageController = TextEditingController();
 
   final _scrollController = ScrollController();
@@ -112,11 +117,13 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _friendDebounce?.cancel();
     _scrollController.dispose();
     _messageFocusNode.dispose();
     _friendSearchFocusNode.dispose();
     _movieSearchFocusNode.dispose();
     _movieSearchController.dispose();
+    _friendSearchController.dispose();
     _messageController.dispose();
     super.dispose();
   }
@@ -148,14 +155,30 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
     try {
       final userRepo = ref.read(userRepositoryProvider);
       final me = await userRepo.getCurrentUser();
-      
-      final following = await userRepo.getFollowing(me.id).catchError((_) => <User>[]);
+
+      final following = await userRepo.getFollowing(me.id, limit: 100).catchError((_) => <User>[]);
 
       final friendMap = <String, User>{};
       for (final u in following) {
         if (u.id != me.id) {
-          friendMap[u.id] = u;
+          friendMap[u.id] = u.copyWith(isFollowing: true);
         }
+      }
+
+      // If initialToUserId was provided and not found in initial 100, check follow status directly
+      if (widget.initialToUserId != null && !friendMap.containsKey(widget.initialToUserId)) {
+        try {
+          final status = await userRepo.getFollowStatus(widget.initialToUserId!);
+          if (status.isFollowing) {
+            friendMap[widget.initialToUserId!] = User(
+              id: widget.initialToUserId!,
+              username: widget.initialToUserName ?? 'friend',
+              displayName: widget.initialToUserName,
+              createdAt: DateTime.now(),
+              isFollowing: true,
+            );
+          }
+        } catch (_) {}
       }
 
       if (mounted) {
@@ -170,7 +193,49 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   }
 
   void _onFriendSearchChanged(String query) {
-    setState(() => _friendSearchQuery = query.trim());
+    final trimmed = query.trim();
+    setState(() => _friendSearchQuery = trimmed);
+
+    _friendDebounce?.cancel();
+    final cleanQ = trimmed.replaceAll('@', '').trim().toLowerCase();
+    if (cleanQ.isEmpty) {
+      setState(() {
+        _searchedUsers = [];
+        _isSearchingFriends = false;
+      });
+      return;
+    }
+
+    // If already found locally among loaded _friends, no need for extra network call
+    final hasLocalMatch = _friends.any((u) {
+      final name = (u.displayName ?? '').toLowerCase();
+      final username = u.username.toLowerCase();
+      final fullName = u.name.toLowerCase();
+      return name.contains(cleanQ) || username.contains(cleanQ) || fullName.contains(cleanQ);
+    });
+
+    if (hasLocalMatch) {
+      return;
+    }
+
+    // If not found in the initial batch, search user's followed network on the backend
+    _friendDebounce = Timer(const Duration(milliseconds: 300), () async {
+      if (!mounted) return;
+      setState(() => _isSearchingFriends = true);
+      try {
+        final userRepo = ref.read(userRepositoryProvider);
+        final me = await userRepo.getCurrentUser();
+        final results = await userRepo.getFollowing(me.id, limit: 50, query: cleanQ);
+        if (mounted) {
+          setState(() {
+            _searchedUsers = results.map((u) => u.copyWith(isFollowing: true)).toList();
+            _isSearchingFriends = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _isSearchingFriends = false);
+      }
+    });
   }
 
   void _onSearchChanged(String query) {
@@ -529,12 +594,31 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                         Container(
                           key: _friendSearchKey,
                           child: TextField(
+                            controller: _friendSearchController,
                             focusNode: _friendSearchFocusNode,
                             onChanged: _onFriendSearchChanged,
                             style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
                             decoration: InputDecoration(
-                              hintText: 'Search followed users...',
+                              hintText: 'Search friends by name or @username...',
                               prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 18),
+                              suffixIcon: _isSearchingFriends
+                                  ? const Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                      ),
+                                    )
+                                  : (_friendSearchQuery.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
+                                          onPressed: () {
+                                            _friendSearchController.clear();
+                                            _onFriendSearchChanged('');
+                                          },
+                                        )
+                                      : null),
                               filled: true,
                               fillColor: AppColors.surface,
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -727,16 +811,40 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
 
   List<User> _getDisplayUsers() {
     if (_friendSearchQuery.isEmpty) return _friends;
-    final q = _friendSearchQuery.toLowerCase();
-    return _friends.where((u) {
+    final cleanQ = _friendSearchQuery.replaceAll('@', '').trim().toLowerCase();
+    if (cleanQ.isEmpty) return _friends;
+
+    final resultIds = <String>{};
+    final list = <User>[];
+
+    // 1. Add matching users from loaded friends (instant local search)
+    for (final u in _friends) {
       final name = (u.displayName ?? '').toLowerCase();
       final username = u.username.toLowerCase();
-      return name.contains(q) || username.contains(q);
-    }).toList();
+      final fullName = u.name.toLowerCase();
+      if (name.contains(cleanQ) || username.contains(cleanQ) || fullName.contains(cleanQ)) {
+        resultIds.add(u.id);
+        list.add(u);
+      }
+    }
+
+    // 2. Add matching users from remote network search
+    for (final u in _searchedUsers) {
+      if (!resultIds.contains(u.id)) {
+        resultIds.add(u.id);
+        list.add(u);
+      }
+    }
+
+    return list;
   }
 
   Widget _buildFriendsList() {
     final displayList = _getDisplayUsers();
+
+    if (_isSearchingFriends && displayList.isEmpty) {
+      return const WHSkeletonUserList(count: 3);
+    }
 
     if (displayList.isEmpty) {
       return Center(
@@ -746,7 +854,9 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
             const Icon(Icons.people_outline_rounded, size: 36, color: AppColors.textMuted),
             const SizedBox(height: 8),
             Text(
-              _friendSearchQuery.isNotEmpty ? 'No followed users found matching "$_friendSearchQuery"' : 'Not following any users yet',
+              _friendSearchQuery.isNotEmpty
+                  ? 'No friends found matching "$_friendSearchQuery"'
+                  : 'Not following any users yet',
               style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
           ],
