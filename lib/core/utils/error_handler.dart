@@ -147,22 +147,55 @@ class AppErrorHandler {
     if (data == null) return null;
 
     if (data is Map<String, dynamic>) {
+      // 1. Check detailed validation errors first (e.g., from express-validator details array)
+      if (data['details'] is List && (data['details'] as List).isNotEmpty) {
+        final first = (data['details'] as List).first;
+        if (first is Map && first['message'] is String && (first['message'] as String).trim().isNotEmpty) {
+          return _cleanMessage(first['message'] as String);
+        } else if (first is String && first.trim().isNotEmpty) {
+          return _cleanMessage(first);
+        }
+      }
+
+      // 2. Check message field
       if (data['message'] is String && (data['message'] as String).trim().isNotEmpty) {
-        return _cleanMessage(data['message'] as String);
+        final msg = data['message'] as String;
+        if (!msg.toLowerCase().contains('validation failed')) {
+          return _cleanMessage(msg);
+        }
       }
+
+      // 3. Check error field
       if (data['error'] is String && (data['error'] as String).trim().isNotEmpty) {
-        return _cleanMessage(data['error'] as String);
+        final err = data['error'] as String;
+        if (!err.toLowerCase().contains('validation failed')) {
+          return _cleanMessage(err);
+        }
       }
+
       if (data['detail'] is String && (data['detail'] as String).trim().isNotEmpty) {
-        return _cleanMessage(data['detail'] as String);
+        final detail = data['detail'] as String;
+        if (!detail.toLowerCase().contains('validation failed')) {
+          return _cleanMessage(detail);
+        }
       }
+
       if (data['errors'] is List && (data['errors'] as List).isNotEmpty) {
         final first = (data['errors'] as List).first;
         if (first is String && first.trim().isNotEmpty) return _cleanMessage(first);
         if (first is Map && first['message'] is String) return _cleanMessage(first['message']);
       }
+
+      // If backend explicitly sent "validation failed" with no other readable details
+      final rawError = (data['error'] ?? data['message'])?.toString().toLowerCase() ?? '';
+      if (rawError.contains('validation failed')) {
+        return 'Please verify the details you entered and try again.';
+      }
     } else if (data is String && data.trim().isNotEmpty) {
       if (!data.startsWith('<') && !data.contains('<!DOCTYPE')) {
+        if (data.toLowerCase().contains('validation failed')) {
+          return 'Please verify the details you entered and try again.';
+        }
         return _cleanMessage(data);
       }
     }
