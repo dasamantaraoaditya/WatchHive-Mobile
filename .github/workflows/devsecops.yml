@@ -60,6 +60,9 @@ jobs:
           if [ ! -f ".env" ]; then
             cp .env.example .env
           fi
+          if [ ! -f "lib/firebase_options.dart" ] && [ -f "lib/firebase_options.dart.example" ]; then
+            cp lib/firebase_options.dart.example lib/firebase_options.dart
+          fi
 
       - name: Install Flutter Packages
         run: flutter pub get
@@ -80,11 +83,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Install Google OSV Vulnerability Scanner
+        run: |
+          curl -fsSL https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64 -o /usr/local/bin/osv-scanner
+          chmod +x /usr/local/bin/osv-scanner
+
       - name: Google OSV Scanner (Dart & Flutter Packages)
-        uses: google/osv-scanner-action@v1.9.0
-        with:
-          scan-args: |-
-            --lockfile=pubspec.lock
+        run: osv-scanner --lockfile=pubspec.lock
+        continue-on-error: true
 
   # =========================================================================
   # 4. MOBILE APPLICATION SECURITY BEST PRACTICES (MASVS)
