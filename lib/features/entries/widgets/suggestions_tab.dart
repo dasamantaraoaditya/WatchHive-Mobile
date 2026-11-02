@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../shared/models/suggestion.dart';
@@ -10,6 +11,7 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../feed/widgets/smart_suggest_deck_sheet.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../profile/widgets/add_friends_sheet.dart';
 import '../repositories/suggestions_repository.dart';
 import 'suggest_movie_modal.dart';
 import 'suggestion_card.dart';
@@ -596,19 +598,44 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                                     ),
                                   ),
                                   const SizedBox(height: 18),
-                                  ElevatedButton.icon(
-                                    onPressed: () async {
-                                      await SuggestMovieModal.show(context);
-                                      _fetchSuggestions();
-                                    },
-                                    icon: const Icon(Icons.auto_awesome, size: 16),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                    ),
-                                    label: const Text('Suggest to Friends', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  Wrap(
+                                    alignment: WrapAlignment.center,
+                                    spacing: 10,
+                                    runSpacing: 8,
+                                    children: [
+                                      ElevatedButton.icon(
+                                        onPressed: () async {
+                                          await SuggestMovieModal.show(context);
+                                          _fetchSuggestions();
+                                        },
+                                        icon: const Icon(Icons.auto_awesome, size: 16),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          foregroundColor: Colors.black,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        ),
+                                        label: const Text('Suggest to Friends', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed: () {
+                                          final currentUser = ref.read(authStateProvider).value?.user;
+                                          if (currentUser != null) {
+                                            AddFriendsSheet.show(context, user: currentUser);
+                                          } else {
+                                            context.push('/search');
+                                          }
+                                        },
+                                        icon: const Icon(Icons.person_search_rounded, size: 16, color: AppColors.primary),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: AppColors.textPrimary,
+                                          side: const BorderSide(color: AppColors.primary, width: 1.5),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        ),
+                                        label: const Text('Find Friends', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),

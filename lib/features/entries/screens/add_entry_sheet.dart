@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/api_endpoints.dart';
@@ -23,6 +24,7 @@ import '../../../core/services/connectivity_service.dart';
 import '../../../core/services/offline_sync_manager.dart';
 import '../../../core/services/offline_storage_service.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../profile/widgets/add_friends_sheet.dart';
 import '../../profile/services/honey_badge_service.dart';
 import '../../../core/utils/share_helper.dart';
 
@@ -1969,7 +1971,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                         },
                                       ),
                                     ),
-                                  ] else if (_showFriendPicker && !_isSearchingFriends && _friendResults.isEmpty && _suggestedByController.text.isNotEmpty) ...[
+                                  ] else if (_showFriendPicker && !_isSearchingFriends && _friendResults.isEmpty) ...[
                                     const SizedBox(height: 6),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1984,8 +1986,29 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                              'No followers found for "${_suggestedByController.text.trim()}".',
+                                              _suggestedByController.text.isNotEmpty
+                                                  ? 'No followers found for "${_suggestedByController.text.trim()}".'
+                                                  : 'No friends in your hive yet.',
                                               style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.textMuted),
+                                            ),
+                                          ),
+                                          GestureDetector(
+                                            onTap: () {
+                                              final currentUser = ref.read(authStateProvider).value?.user;
+                                              if (currentUser != null) {
+                                                AddFriendsSheet.show(context, user: currentUser);
+                                              } else {
+                                                context.push('/search');
+                                              }
+                                            },
+                                            child: const Text(
+                                              'Find friends',
+                                              style: TextStyle(
+                                                fontFamily: 'Inter',
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.primary,
+                                              ),
                                             ),
                                           ),
                                         ],

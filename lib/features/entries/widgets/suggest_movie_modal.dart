@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../profile/repositories/user_repository.dart';
+import '../../profile/widgets/add_friends_sheet.dart';
 import '../../search/repositories/search_repository.dart';
 import '../repositories/suggestions_repository.dart';
 import '../../../core/utils/error_handler.dart';
@@ -861,17 +863,72 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
     }
 
     if (displayList.isEmpty) {
-      return Center(
+      if (_friendSearchQuery.isNotEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.people_outline_rounded, size: 36, color: AppColors.textMuted),
+              const SizedBox(height: 8),
+              Text(
+                'No friends found matching "$_friendSearchQuery"',
+                style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+        );
+      }
+
+      final currentUser = ref.read(authStateProvider).value?.user;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+        ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.people_outline_rounded, size: 36, color: AppColors.textMuted),
-            const SizedBox(height: 8),
-            Text(
-              _friendSearchQuery.isNotEmpty
-                  ? 'No friends found matching "$_friendSearchQuery"'
-                  : 'Not following any users yet',
-              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.primary, size: 22),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'No friends in your hive yet',
+              style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Find friends to follow and start sharing movie suggestions!',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                if (currentUser != null) {
+                  AddFriendsSheet.show(context, user: currentUser);
+                } else {
+                  context.push('/search');
+                }
+              },
+              icon: const Icon(Icons.person_search_rounded, size: 16),
+              label: const Text('Find Friends to Follow'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
