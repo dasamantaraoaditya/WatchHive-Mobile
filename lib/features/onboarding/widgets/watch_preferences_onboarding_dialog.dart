@@ -54,11 +54,12 @@ class _WatchPreferencesOnboardingDialogState
   void _loadExistingPreferences() {
     final user = ref.read(authStateProvider).value?.user;
     final onboardingService = ref.read(onboardingServiceProvider);
-    final cached = (user?.id.isNotEmpty == true)
-        ? onboardingService.getCachedPreferences(user!.id)
-        : null;
 
-    final effectivePrefs = user?.preferences ?? cached;
+    Map<String, dynamic>? effectivePrefs = user?.preferences;
+    if (user != null && !user.hasSubstantivePreferences) {
+      effectivePrefs = onboardingService.getCachedPreferences(user.id);
+    }
+
     if (effectivePrefs != null && effectivePrefs.isNotEmpty) {
       final existing = UserPreferences.fromJson(effectivePrefs);
       _selectedLanguages.addAll(existing.languages);
@@ -87,6 +88,14 @@ class _WatchPreferencesOnboardingDialogState
           _selectedPlatforms.clear();
           _selectedPlatforms.addAll(existing.streamingPlatforms);
         });
+        if (!user.hasSubstantivePreferences) {
+          ref.read(authStateProvider.notifier).updateUser(
+                user.copyWith(
+                  preferences: stored,
+                  hasCompletedOnboarding: true,
+                ),
+              );
+        }
       }
     }
   }

@@ -7,6 +7,7 @@ import '../../../shared/models/smart_suggest.dart';
 import '../../entries/repositories/suggestions_repository.dart';
 import '../../entries/repositories/watchlist_repository.dart';
 import '../../entries/screens/add_entry_sheet.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class SmartSuggestDeckSheet extends ConsumerStatefulWidget {
   final String initialMode;
@@ -61,7 +62,13 @@ class _SmartSuggestDeckSheetState extends ConsumerState<SmartSuggestDeckSheet> {
 
     try {
       final repo = ref.read(suggestionsRepositoryProvider);
-      final res = await repo.getSmartSuggestions(mode: _mode, limit: 10);
+      final user = ref.read(authStateProvider).value?.user;
+      final res = await repo.getSmartSuggestions(
+        mode: _mode,
+        limit: 10,
+        languages: user?.savedLanguages,
+        genres: user?.savedGenres,
+      );
       if (mounted) {
         setState(() {
           _items = res.items;

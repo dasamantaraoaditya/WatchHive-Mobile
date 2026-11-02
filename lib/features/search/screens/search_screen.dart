@@ -10,8 +10,10 @@ import '../repositories/search_repository.dart';
 import '../../profile/repositories/user_repository.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../onboarding/widgets/screen_guide_dialog.dart';
+import '../../auth/providers/auth_provider.dart';
 
 enum TrendingFilter {
+  forYou('For You ✨', 'all', 'for_you'),
   allTrending('All Trending', 'all', 'trending'),
   trendingMovies('Movies', 'movie', 'trending'),
   trendingTv('TV Shows', 'tv', 'trending'),
@@ -20,7 +22,7 @@ enum TrendingFilter {
 
   final String label;
   final String mediaType;
-  final String category; // 'trending' | 'popular'
+  final String category; // 'for_you' | 'trending' | 'popular'
   const TrendingFilter(this.label, this.mediaType, this.category);
 }
 
@@ -75,6 +77,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   }
 
   Future<void> _loadInitialDiscovery() async {
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null && user.hasSubstantivePreferences) {
+      _selectedFilter = TrendingFilter.forYou;
+    } else {
+      _selectedFilter = TrendingFilter.allTrending;
+    }
     _loadDiscoveryMedia(_selectedFilter);
     _loadSuggestedUsers();
     _loadCommunityBuzz();
@@ -106,7 +114,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
       final repo = ref.read(searchRepositoryProvider);
       final List<MediaResult> results;
 
-      if (filter.category == 'popular') {
+      if (filter.category == 'for_you') {
+        final trending = await repo.getTrending(mediaType: 'all', timeWindow: 'week');
+        final popMovies = await repo.getPopular(type: 'movie');
+        final popTv = await repo.getPopular(type: 'tv');
+
+        final user = ref.read(authStateProvider).value?.user;
+        final preferredLangs = user?.savedLanguages.map((l) => l.toLowerCase()).toSet() ?? {};
+        final preferredGenres = user?.savedGenreIds.toSet() ?? {};
+
+        final map = <int, MediaResult>{};
+        for (final m in [...trending, ...popMovies, ...popTv]) {
+          map[m.id] = m;
+        }
+
+        final matched = <MediaResult>[];
+        final others = <MediaResult>[];
+
+        for (final m in map.values) {
+          final langMatch = m.originalLanguage != null && preferredLangs.contains(m.originalLanguage);
+          final genreMatch = m.genreIds.any((id) => preferredGenres.contains(id));
+          if (langMatch || genreMatch) {
+            matched.add(m);
+          } else {
+            others.add(m);
+          }
+        }
+
+        matched.sort((a, b) => (b.voteAverage ?? 0).compareTo(a.voteAverage ?? 0));
+        results = matched.isNotEmpty ? [...matched, ...others] : others;
+      } else if (filter.category == 'popular') {
         results = await repo.getPopular(type: filter.mediaType);
       } else {
         results = await repo.getTrending(
@@ -1347,13 +1384,19 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
   }
 }
 
-class _MediaPosterCard extends StatelessWidget {
+class _MediaPosterCard extends ConsumerWidget {
   final MediaResult media;
   final VoidCallback onTap;
   const _MediaPosterCard({required this.media, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authStateProvider).value?.user;
+    final preferredLangs = user?.savedLanguages.map((l) => l.toLowerCase()).toSet() ?? {};
+    final preferredGenres = user?.savedGenreIds.toSet() ?? {};
+    final match = (media.originalLanguage != null && preferredLangs.contains(media.originalLanguage)) ||
+        media.genreIds.any((g) => preferredGenres.contains(g));
+
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
@@ -1367,7 +1410,7 @@ class _MediaPosterCard extends StatelessWidget {
               height: double.infinity,
               borderRadius: 0,
             ),
-            // Top badges (Media type & Rating)
+            // Top badges (Media type, Taste Match, & Rating)
             Positioned(
               top: 8,
               left: 8,
@@ -1375,23 +1418,55 @@ class _MediaPosterCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      media.mediaType == 'tv' ? 'TV' : 'MOVIE',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 9,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          media.mediaType == 'tv' ? 'TV' : 'MOVIE',
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (match) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.auto_awesome, size: 9, color: Colors.black),
+                              SizedBox(width: 2),
+                              Text(
+                                'TASTE',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.black,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   if (media.voteAverage != null && media.voteAverage! > 0)
                     Container(

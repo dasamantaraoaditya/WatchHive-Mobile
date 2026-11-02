@@ -440,10 +440,10 @@ class InstagramStoryCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Row(
+                                const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Flexible(
+                                    Flexible(
                                       child: Text(
                                         'View on WatchersHive',
                                         style: TextStyle(
@@ -455,8 +455,8 @@ class InstagramStoryCard extends StatelessWidget {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
+                                    SizedBox(width: 4),
+                                    Icon(
                                       Icons.arrow_forward_rounded,
                                       size: 12,
                                       color: AppColors.primary,

@@ -59,16 +59,30 @@ class OnboardingService {
     if (userId.trim().isEmpty) return null;
     final cleanId = userId.trim();
     if (_preferencesCache.containsKey(cleanId)) {
-      return _preferencesCache[cleanId];
+      final cached = _preferencesCache[cleanId];
+      if (cached != null &&
+          cached.isNotEmpty &&
+          ((cached['languages'] as List?)?.isNotEmpty == true ||
+              (cached['genres'] as List?)?.isNotEmpty == true ||
+              (cached['streamingPlatforms'] as List?)?.isNotEmpty == true)) {
+        return cached;
+      }
     }
 
     // 1. Try local SQLite database first
     try {
       final dbPrefs = await _offlineStorage.getUserPreferences(cleanId);
       if (dbPrefs != null && dbPrefs.isNotEmpty) {
-        _preferencesCache[cleanId] = dbPrefs;
-        _onboardingCompletedCache[cleanId] = true;
-        return dbPrefs;
+        final langs = dbPrefs['languages'] as List?;
+        final genres = dbPrefs['genres'] as List?;
+        final platforms = dbPrefs['streamingPlatforms'] as List?;
+        if ((langs != null && langs.isNotEmpty) ||
+            (genres != null && genres.isNotEmpty) ||
+            (platforms != null && platforms.isNotEmpty)) {
+          _preferencesCache[cleanId] = dbPrefs;
+          _onboardingCompletedCache[cleanId] = true;
+          return dbPrefs;
+        }
       }
     } catch (_) {}
 
@@ -128,7 +142,7 @@ class OnboardingService {
   }
 
   /// Asynchronously checks if the first-time watch preferences dialog should be shown.
-  /// Strictly checks persistent storage so it is NEVER shown on app restarts.
+  /// Strictly checks persistent storage so it is NEVER shown on app restarts or twice in one session.
   Future<bool> shouldPromptUser(User? user) async {
     if (user == null || user.id.isEmpty) return false;
     if (_hasPromptedThisLaunch) return false;
@@ -136,23 +150,21 @@ class OnboardingService {
     final userId = user.id.trim();
     if (_onboardingCompletedCache[userId] == true) return false;
     if (user.hasCompletedOnboarding) return false;
-
-    if (user.preferences != null && user.preferences!.isNotEmpty) {
-      final langs = user.preferences?['languages'] as List?;
-      final genres = user.preferences?['genres'] as List?;
-      if ((langs != null && langs.isNotEmpty) || (genres != null && genres.isNotEmpty)) {
-        _onboardingCompletedCache[userId] = true;
-        return false;
-      }
+    if (user.hasSubstantivePreferences) {
+      _onboardingCompletedCache[userId] = true;
+      return false;
     }
 
     final isDone = await isPreferencesCompleted(userId);
-    if (isDone) return false;
+    if (isDone) {
+      _onboardingCompletedCache[userId] = true;
+      return false;
+    }
 
     return true;
   }
 
-  /// Determines if the first-time watch preferences dialog should be shown.
+  /// Determines if the first-time watch preferences dialog should be shown synchronously.
   bool shouldShowPreferences(User? user) {
     if (user == null || user.id.isEmpty) return false;
     if (_hasPromptedThisLaunch) return false;
@@ -164,18 +176,20 @@ class OnboardingService {
     if (user.hasCompletedOnboarding) return false;
 
     // 2. If user already has valid preferences in user object, do not show
-    if (user.preferences != null && user.preferences!.isNotEmpty) {
-      final langs = user.preferences?['languages'] as List?;
-      final genres = user.preferences?['genres'] as List?;
+    if (user.hasSubstantivePreferences) {
+      _onboardingCompletedCache[userId] = true;
+      return false;
+    }
+
+    // 3. If preferences exist in memory cache, do not show
+    final cached = _preferencesCache[userId];
+    if (cached != null && cached.isNotEmpty) {
+      final langs = cached['languages'] as List?;
+      final genres = cached['genres'] as List?;
       if ((langs != null && langs.isNotEmpty) || (genres != null && genres.isNotEmpty)) {
         _onboardingCompletedCache[userId] = true;
         return false;
       }
-    }
-
-    // 3. If preferences exist in memory cache, do not show
-    if (_preferencesCache[userId] != null && _preferencesCache[userId]!.isNotEmpty) {
-      return false;
     }
 
     return true;
@@ -189,7 +203,7 @@ class OnboardingService {
     Map<String, dynamic>? effectivePrefs = user.preferences;
     bool effectiveCompleted = user.hasCompletedOnboarding;
 
-    if (effectivePrefs == null || effectivePrefs.isEmpty) {
+    if (!user.hasSubstantivePreferences) {
       final local = await loadLocalPreferences(userId);
       if (local != null && local.isNotEmpty) {
         effectivePrefs = local;

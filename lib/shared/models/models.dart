@@ -33,6 +33,8 @@ class MediaResult {
   final String? overview;
   final String mediaType; // movie | tv
   final double? voteAverage;
+  final String? originalLanguage;
+  final List<int> genreIds;
 
   const MediaResult({
     required this.id,
@@ -42,25 +44,43 @@ class MediaResult {
     this.overview,
     required this.mediaType,
     this.voteAverage,
+    this.originalLanguage,
+    this.genreIds = const [],
   });
 
-  factory MediaResult.fromJson(Map<String, dynamic> json) => MediaResult(
-        id: (json['id'] as num?)?.toInt() ?? 0,
-        title: (json['title'] ??
-                json['name'] ??
-                json['original_title'] ??
-                json['original_name'] ??
-                'Untitled')
-            .toString(),
-        posterPath: (json['poster_path'] as String?) ??
-            (json['backdrop_path'] as String?),
-        releaseDate:
-            (json['release_date'] ?? json['first_air_date']) as String?,
-        overview: json['overview'] as String?,
-        mediaType: json['media_type'] as String? ?? 'movie',
-        voteAverage: (json['vote_average'] as num?)?.toDouble(),
-      );
+  factory MediaResult.fromJson(Map<String, dynamic> json) {
+    final rawGenres = json['genre_ids'] as List<dynamic>? ??
+        ((json['genres'] as List<dynamic>?)
+            ?.map((g) => g is Map ? g['id'] : null)
+            .whereType<dynamic>()
+            .toList());
 
+    final parsedGenreIds = (rawGenres != null)
+        ? rawGenres
+            .map((id) => (id is num) ? id.toInt() : int.tryParse(id.toString()) ?? 0)
+            .where((id) => id > 0)
+            .toList()
+        : const <int>[];
+
+    return MediaResult(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      title: (json['title'] ??
+              json['name'] ??
+              json['original_title'] ??
+              json['original_name'] ??
+              'Untitled')
+          .toString(),
+      posterPath: (json['poster_path'] as String?) ??
+          (json['backdrop_path'] as String?),
+      releaseDate:
+          (json['release_date'] ?? json['first_air_date']) as String?,
+      overview: json['overview'] as String?,
+      mediaType: json['media_type'] as String? ?? 'movie',
+      voteAverage: (json['vote_average'] as num?)?.toDouble(),
+      originalLanguage: (json['original_language'] as String?)?.toLowerCase(),
+      genreIds: parsedGenreIds,
+    );
+  }
 
   String get year {
     if (releaseDate == null || releaseDate!.isEmpty) return '';

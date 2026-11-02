@@ -53,13 +53,23 @@ class SuggestionsRepository {
   Future<SmartSuggestResponse> getSmartSuggestions({
     String mode = 'social',
     int limit = 10,
+    List<String>? languages,
+    List<String>? genres,
   }) async {
+    final queryParams = <String, dynamic>{
+      'mode': mode,
+      'limit': limit,
+    };
+    if (languages != null && languages.isNotEmpty) {
+      queryParams['languages'] = languages.join(',');
+    }
+    if (genres != null && genres.isNotEmpty) {
+      queryParams['genres'] = genres.join(',');
+    }
+
     final response = await _api.get(
       '/suggestions/smart-suggest',
-      queryParameters: {
-        'mode': mode,
-        'limit': limit,
-      },
+      queryParameters: queryParams,
     );
     return SmartSuggestResponse.fromJson(response.data as Map<String, dynamic>);
   }

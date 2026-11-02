@@ -65,7 +65,13 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
 
     try {
       final repo = ref.read(suggestionsRepositoryProvider);
-      final res = await repo.getSmartSuggestions(mode: mode, limit: 6);
+      final user = ref.read(authStateProvider).value?.user;
+      final res = await repo.getSmartSuggestions(
+        mode: mode,
+        limit: 6,
+        languages: user?.savedLanguages,
+        genres: user?.savedGenres,
+      );
       if (mounted) {
         setState(() {
           _itemsByMode[mode] = res.items;
