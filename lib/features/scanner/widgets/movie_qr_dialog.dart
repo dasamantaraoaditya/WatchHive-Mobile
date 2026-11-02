@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../core/config/web_urls.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/share_helper.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/wh_alert.dart';
 
@@ -85,10 +85,19 @@ class MovieQrDialog extends StatelessWidget {
     WHAlert.showSuccess(context, 'Movie link copied to clipboard! 📋');
   }
 
-  void _shareMovie() {
-    Share.share(
-      'Check out "$title" on WatchersHive! 🎬🐝 Scan or open to track together:\n\n$_movieUrl',
-      subject: 'WatchersHive: $title',
+  void _shareStory(BuildContext context) {
+    Navigator.of(context).pop();
+    ShareHelper.showStoryShareModal(
+      context,
+      title: title,
+      posterPath: posterPath,
+      tmdbId: tmdbId,
+      mediaType: mediaType,
+      releaseYear: releaseYear,
+      userDisplayName: suggestedByUser?.displayName ?? suggestedByUser?.username,
+      username: suggestedByUser?.username,
+      userAvatarUrl: suggestedByUser?.profilePictureUrl,
+      isCompleted: true,
     );
   }
 
@@ -381,7 +390,7 @@ class MovieQrDialog extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // Share
+                        // Share Story
                         Expanded(
                           child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
@@ -391,10 +400,10 @@ class MovieQrDialog extends StatelessWidget {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               elevation: 0,
                             ),
-                            onPressed: _shareMovie,
-                            icon: const Icon(Icons.share_rounded, size: 16),
+                            onPressed: () => _shareStory(context),
+                            icon: const Icon(Icons.auto_awesome_rounded, size: 16),
                             label: const Text(
-                              'Share Code',
+                              'Share Story',
                               style: TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 13,

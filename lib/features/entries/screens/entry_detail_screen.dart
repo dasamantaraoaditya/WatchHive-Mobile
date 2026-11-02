@@ -188,12 +188,18 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
               tooltip: 'Share Watch',
               onPressed: () {
                 ShareHelper.shareCompletedWatch(
+                  context: context,
                   title: _entry!.title,
+                  posterPath: _entry!.posterPath,
+                  backdropPath: _entry!.backdropPath,
                   rating: _entry!.rating,
                   review: _entry!.review,
-                  tmdbId: _entry!.tmdbId,
+                  tmdbId: _entry!.tmdbId > 0 ? _entry!.tmdbId : null,
                   mediaType: (_entry!.type == 'TV_SHOW' || _entry!.type == 'EPISODE') ? 'tv' : 'movie',
                   userDisplayName: _entry!.user?.displayName ?? _entry!.user?.username,
+                  username: _entry!.user?.username,
+                  userAvatarUrl: _entry!.user?.profilePictureUrl,
+                  isCompleted: !_entry!.isWatching,
                 );
               },
             ),

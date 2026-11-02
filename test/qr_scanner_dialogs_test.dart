@@ -67,7 +67,7 @@ void main() {
 
       // Verify Action Buttons
       expect(find.text('Copy Link'), findsOneWidget);
-      expect(find.text('Share Code'), findsOneWidget);
+      expect(find.text('Share Story'), findsOneWidget);
       expect(find.text('Open QR Scanner'), findsOneWidget);
     });
 

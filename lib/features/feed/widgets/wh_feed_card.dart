@@ -629,12 +629,18 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                           ),
                           onPressed: () {
                             ShareHelper.shareCompletedWatch(
+                              context: context,
                               title: entry.title,
+                              posterPath: entry.posterPath,
+                              backdropPath: entry.backdropPath,
                               rating: entry.rating,
                               review: entry.review,
-                              tmdbId: entry.tmdbId,
+                              tmdbId: entry.tmdbId > 0 ? entry.tmdbId : null,
                               mediaType: (entry.type == 'TV_SHOW' || entry.type == 'EPISODE') ? 'tv' : 'movie',
                               userDisplayName: entry.user?.displayName ?? entry.user?.username,
+                              username: entry.user?.username,
+                              userAvatarUrl: entry.user?.profilePictureUrl,
+                              isCompleted: !entry.isWatching,
                             );
                           },
                         ),

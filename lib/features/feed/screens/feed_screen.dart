@@ -15,7 +15,10 @@ import '../../../core/notifications/push_notification_service.dart';
 import '../../entries/screens/add_entry_sheet.dart';
 import '../widgets/wh_feed_card.dart';
 import '../widgets/smart_suggest_hero_card.dart';
+import '../widgets/feed_add_friends_card.dart';
 import '../../onboarding/widgets/screen_guide_dialog.dart';
+import '../../profile/widgets/add_friends_sheet.dart';
+import '../../profile/repositories/user_repository.dart';
 
 export '../providers/feed_provider.dart';
 
@@ -33,6 +36,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
   final _scrollController = ScrollController();
   bool _hasCheckedTour = false;
   bool _hasSyncedPush = false;
+  bool _isFriendsBannerDismissed = false;
 
   @override
   void initState() {
@@ -44,8 +48,58 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(feedProvider.notifier).onArrivedAtFeed();
+        _checkFriendsBannerDismissed();
+        _refreshFollowStatsOnce();
       }
     });
+  }
+
+  Future<void> _checkFriendsBannerDismissed() async {
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null && mounted) {
+      final dismissed = await FeedAddFriendsCard.isDismissed(user.id);
+      if (dismissed && mounted) {
+        setState(() => _isFriendsBannerDismissed = true);
+      }
+    }
+  }
+
+  Future<void> _refreshFollowStatsOnce() async {
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null && user.id.isNotEmpty) {
+      try {
+        final stats = await ref.read(userRepositoryProvider).getFollowStats(user.id);
+        final current = ref.read(authStateProvider).value?.user;
+        if (current != null && mounted) {
+          if (current.followingCount != stats.followingCount ||
+              current.followersCount != stats.followersCount) {
+            ref.read(authStateProvider.notifier).updateUser(
+              current.copyWith(
+                followingCount: stats.followingCount,
+                followersCount: stats.followersCount,
+              ),
+            );
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  void _dismissFriendsBanner() {
+    setState(() => _isFriendsBannerDismissed = true);
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null) {
+      FeedAddFriendsCard.setDismissed(user.id);
+    }
+  }
+
+  void _openAddFriends() {
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null) {
+      AddFriendsSheet.show(context, user: user);
+    } else {
+      context.push('/search');
+    }
   }
 
   @override
@@ -228,6 +282,18 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                 const SliverToBoxAdapter(
                   child: SmartSuggestHeroCard(),
                 ),
+                if (currentUser != null &&
+                    currentUser.followingCount == 0 &&
+                    !_isFriendsBannerDismissed)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                      child: FeedAddFriendsCard(
+                        onAddFriends: _openAddFriends,
+                        onDismiss: _dismissFriendsBanner,
+                      ),
+                    ),
+                  ),
                 if (feedState.isLoading && feedState.entries.isEmpty)
                   const SliverToBoxAdapter(child: WHSkeletonFeed(itemCount: 3))
                 else if (feedState.error != null && feedState.entries.isEmpty)
