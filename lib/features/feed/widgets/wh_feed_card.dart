@@ -17,6 +17,7 @@ import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../entries/widgets/platform_logo_badge.dart';
 import '../providers/feed_provider.dart';
+import '../../../core/utils/share_helper.dart';
 
 
 class WHFeedCard extends ConsumerStatefulWidget {
@@ -557,57 +558,90 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                   ),
                 ],
                 const Spacer(),
-                // Quick Actions: Watchlist, Log Watch, Suggest
-                if (hasValidTmdb)
-                  IconButton(
-                    tooltip: inWatchlist ? 'In Watchlist' : 'Add to Watchlist',
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    splashRadius: 18,
-                    icon: _isWatchlistLoading
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                            ),
-                          )
-                        : Icon(
-                            inWatchlist ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-                            size: 19,
-                            color: inWatchlist ? AppColors.primaryDark : AppColors.textMuted,
+                // Quick Actions: Watchlist, Log Watch, Suggest, Share
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (hasValidTmdb)
+                          IconButton(
+                            tooltip: inWatchlist ? 'In Watchlist' : 'Add to Watchlist',
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                            splashRadius: 18,
+                            icon: _isWatchlistLoading
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                    ),
+                                  )
+                                : Icon(
+                                    inWatchlist ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                                    size: 19,
+                                    color: inWatchlist ? AppColors.primaryDark : AppColors.textMuted,
+                                  ),
+                            onPressed: () => _handleWatchlistToggle(inWatchlist),
                           ),
-                    onPressed: () => _handleWatchlistToggle(inWatchlist),
-                  ),
-                IconButton(
-                  tooltip: 'Log Watch',
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  splashRadius: 18,
-                  icon: const Icon(
-                    Icons.add_task_rounded,
-                    size: 19,
-                    color: AppColors.textMuted,
-                  ),
-                  onPressed: _handleQuickLog,
-                ),
-                if (hasValidTmdb)
-                  IconButton(
-                    tooltip: 'Suggest to Friend',
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    splashRadius: 18,
-                    icon: const Icon(
-                      Icons.send_rounded,
-                      size: 18,
-                      color: AppColors.textMuted,
+                        IconButton(
+                          tooltip: 'Log Watch',
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          splashRadius: 18,
+                          icon: const Icon(
+                            Icons.add_task_rounded,
+                            size: 19,
+                            color: AppColors.textMuted,
+                          ),
+                          onPressed: _handleQuickLog,
+                        ),
+                        if (hasValidTmdb)
+                          IconButton(
+                            tooltip: 'Suggest to Friend',
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                            splashRadius: 18,
+                            icon: const Icon(
+                              Icons.send_rounded,
+                              size: 18,
+                              color: AppColors.textMuted,
+                            ),
+                            onPressed: _handleQuickSuggest,
+                          ),
+                        IconButton(
+                          tooltip: 'Share Watch',
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          splashRadius: 18,
+                          icon: const Icon(
+                            Icons.share_outlined,
+                            size: 18,
+                            color: AppColors.textMuted,
+                          ),
+                          onPressed: () {
+                            ShareHelper.shareCompletedWatch(
+                              title: entry.title,
+                              rating: entry.rating,
+                              review: entry.review,
+                              tmdbId: entry.tmdbId,
+                              mediaType: (entry.type == 'TV_SHOW' || entry.type == 'EPISODE') ? 'tv' : 'movie',
+                              userDisplayName: entry.user?.displayName ?? entry.user?.username,
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                    onPressed: _handleQuickSuggest,
                   ),
+                ),
               ],
             ),
           ),

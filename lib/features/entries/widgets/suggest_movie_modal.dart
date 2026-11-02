@@ -154,18 +154,21 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   Future<void> _loadFriends() async {
     try {
       final userRepo = ref.read(userRepositoryProvider);
-      final me = await userRepo.getCurrentUser();
+      final currentUserId = ref.read(authStateProvider).value?.user?.id;
+      final myId = (currentUserId != null && currentUserId.isNotEmpty)
+          ? currentUserId
+          : (await userRepo.getCurrentUser()).id;
 
-      final following = await userRepo.getFollowing(me.id, limit: 100).catchError((_) => <User>[]);
+      final following = await userRepo.getFollowing(myId, limit: 200).catchError((_) => <User>[]);
 
       final friendMap = <String, User>{};
       for (final u in following) {
-        if (u.id != me.id) {
+        if (u.id != myId) {
           friendMap[u.id] = u.copyWith(isFollowing: true);
         }
       }
 
-      // If initialToUserId was provided and not found in initial 100, check follow status directly
+      // If initialToUserId was provided and not found in initial 200, check follow status directly
       if (widget.initialToUserId != null && !friendMap.containsKey(widget.initialToUserId)) {
         try {
           final status = await userRepo.getFollowStatus(widget.initialToUserId!);
@@ -206,7 +209,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
       return;
     }
 
-    // If already found locally among loaded _friends, no need for extra network call
+    // Check if matching friends are already loaded locally
     final hasLocalMatch = _friends.any((u) {
       final name = (u.displayName ?? '').toLowerCase();
       final username = u.username.toLowerCase();
@@ -214,21 +217,32 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
       return name.contains(cleanQ) || username.contains(cleanQ) || fullName.contains(cleanQ);
     });
 
-    if (hasLocalMatch) {
+    // If local match exists and total loaded friends is less than 200, all friends are already in memory
+    if (hasLocalMatch && _friends.length < 200) {
       return;
     }
 
-    // If not found in the initial batch, search user's followed network on the backend
-    _friendDebounce = Timer(const Duration(milliseconds: 300), () async {
+    // If not found locally or more friends might exist beyond initial 200, search user's followed network
+    _friendDebounce = Timer(const Duration(milliseconds: 250), () async {
       if (!mounted) return;
       setState(() => _isSearchingFriends = true);
       try {
         final userRepo = ref.read(userRepositoryProvider);
-        final me = await userRepo.getCurrentUser();
-        final results = await userRepo.getFollowing(me.id, limit: 50, query: cleanQ);
+        final currentUserId = ref.read(authStateProvider).value?.user?.id;
+        final myId = (currentUserId != null && currentUserId.isNotEmpty)
+            ? currentUserId
+            : (await userRepo.getCurrentUser()).id;
+
+        final results = await userRepo.getFollowing(myId, limit: 50, query: cleanQ);
         if (mounted) {
           setState(() {
-            _searchedUsers = results.map((u) => u.copyWith(isFollowing: true)).toList();
+            _searchedUsers = results.where((u) {
+              if (u.id == myId) return false;
+              final name = (u.displayName ?? '').toLowerCase();
+              final username = u.username.toLowerCase();
+              final fullName = u.name.toLowerCase();
+              return name.contains(cleanQ) || username.contains(cleanQ) || fullName.contains(cleanQ);
+            }).map((u) => u.copyWith(isFollowing: true)).toList();
             _isSearchingFriends = false;
           });
         }
@@ -690,7 +704,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                       else
                         Container(
                           constraints: BoxConstraints(
-                            maxHeight: isKeyboardOpen ? 150 : 230,
+                            maxHeight: isKeyboardOpen ? 180 : 260,
                           ),
                           child: _buildFriendsList(),
                         ),

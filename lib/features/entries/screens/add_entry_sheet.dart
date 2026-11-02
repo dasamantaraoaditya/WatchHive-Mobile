@@ -24,6 +24,7 @@ import '../../../core/services/offline_sync_manager.dart';
 import '../../../core/services/offline_storage_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../profile/services/honey_badge_service.dart';
+import '../../../core/utils/share_helper.dart';
 
 class _LocationPreset {
   final String label;
@@ -837,6 +838,13 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       }
 
       if (mounted) {
+        final savedTitle = title;
+        final savedRating = _rating;
+        final savedReview = _reviewController.text;
+        final savedTmdbId = _tmdbId > 0 ? _tmdbId : (_selectedMedia?.id ?? widget.prefillTmdbId);
+        final savedMediaType = (_type == 'TV_SHOW' || _type == 'tv') ? 'tv' : 'movie';
+        final wasCompleted = !_isWatching;
+
         widget.onSuccess?.call();
         Navigator.of(context).pop();
         if (isPendingSync) {
@@ -844,14 +852,25 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
             context,
             'Saved offline. Will sync automatically when reconnected.',
           );
+        } else if (wasCompleted) {
+          WHAlert.showSuccessWithAction(
+            context,
+            message: isEditing ? 'Completed "$savedTitle".' : 'Logged "$savedTitle".',
+            actionLabel: 'Share',
+            onAction: () {
+              ShareHelper.shareCompletedWatch(
+                title: savedTitle,
+                rating: savedRating,
+                review: savedReview,
+                tmdbId: savedTmdbId,
+                mediaType: savedMediaType,
+              );
+            },
+          );
         } else {
           WHAlert.showSuccess(
             context,
-            isEditing
-                ? (widget.editEntry?.isWatching == true && !_isWatching
-                    ? 'Completed "$title".'
-                    : 'Updated "$title".')
-                : (_isWatching ? 'Started watching "$title".' : 'Logged "$title".'),
+            isEditing ? 'Updated "$savedTitle".' : 'Started watching "$savedTitle".',
           );
         }
       }

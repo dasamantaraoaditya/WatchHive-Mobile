@@ -109,11 +109,33 @@ class WHAlert {
     );
   }
 
+  /// Displays a mobile-friendly, floating Toast alert banner with an optional action button.
+  static void showSuccessWithAction(
+    BuildContext context, {
+    required String message,
+    required String actionLabel,
+    required VoidCallback onAction,
+    Duration duration = const Duration(milliseconds: 4000),
+  }) {
+    _showFloatingToast(
+      context,
+      message: message,
+      severity: WHAlertSeverity.success,
+      icon: Icons.check_circle_rounded,
+      actionLabel: actionLabel,
+      onAction: onAction,
+      duration: duration,
+    );
+  }
+
   static void _showFloatingToast(
     BuildContext context, {
     required String message,
     required WHAlertSeverity severity,
     required IconData icon,
+    String? actionLabel,
+    VoidCallback? onAction,
+    Duration duration = const Duration(milliseconds: 3200),
   }) {
     final (iconColor, bgColor, textColor, borderColor) = switch (severity) {
       WHAlertSeverity.success => (
@@ -160,7 +182,7 @@ class WHAlert {
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: borderColor, width: 1.2),
         ),
-        duration: const Duration(milliseconds: 3200),
+        duration: duration,
         content: Row(
           children: [
             Container(
@@ -184,6 +206,33 @@ class WHAlert {
                 ),
               ),
             ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(width: 8),
+              TextButton(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  backgroundColor: iconColor.withValues(alpha: 0.12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  onAction();
+                },
+                child: Text(
+                  actionLabel,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: iconColor,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
