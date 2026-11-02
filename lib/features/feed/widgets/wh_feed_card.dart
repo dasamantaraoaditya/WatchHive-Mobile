@@ -27,6 +27,7 @@ class WHFeedCard extends ConsumerStatefulWidget {
   final VoidCallback? onCommentTap;
   final VoidCallback onUserTap;
   final VoidCallback onMediaTap;
+  final bool initiallyExpandedReview;
 
   const WHFeedCard({
     super.key,
@@ -37,6 +38,7 @@ class WHFeedCard extends ConsumerStatefulWidget {
     this.onCommentTap,
     required this.onUserTap,
     required this.onMediaTap,
+    this.initiallyExpandedReview = false,
   });
 
   @override
@@ -46,6 +48,22 @@ class WHFeedCard extends ConsumerStatefulWidget {
 class _WHFeedCardState extends ConsumerState<WHFeedCard> {
   bool? _inWatchlistLocal;
   bool _isWatchlistLoading = false;
+  late bool _isReviewExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _isReviewExpanded = widget.initiallyExpandedReview;
+  }
+
+  @override
+  void didUpdateWidget(covariant WHFeedCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.entry.id != widget.entry.id) {
+      _isReviewExpanded = widget.initiallyExpandedReview;
+      _inWatchlistLocal = null;
+    }
+  }
 
   Future<void> _handleWatchlistToggle(bool currentStatus) async {
     if (_isWatchlistLoading || widget.entry.tmdbId <= 0) return;
@@ -503,56 +521,11 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
           ),
 
           // Review / MindLens Insight Quote Box
-          if (entry.review != null && entry.review!.isNotEmpty) ...[
+          if (entry.review != null && entry.review!.trim().isNotEmpty) ...[
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.psychology_outlined, color: AppColors.primary, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isSuggestion ? 'Why you might like this' : 'Review & Insight',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            '“${entry.review!.trim()}”',
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'Georgia',
-                              fontFamilyFallback: ['serif'],
-                              fontSize: 14,
-                              fontStyle: FontStyle.italic,
-                              color: AppColors.textPrimary,
-                              height: 1.5,
-                              letterSpacing: 0.15,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: _buildReviewBox(entry.review!, isSuggestion),
             ),
           ],
 
@@ -639,6 +612,110 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildReviewBox(String rawReview, bool isSuggestion) {
+    final review = rawReview.trim();
+    const int reviewCharLimit = 160;
+    final bool isLongReview = review.length > reviewCharLimit || review.split('\n').length > 2;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isLongReview
+              ? () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _isReviewExpanded = !_isReviewExpanded);
+                }
+              : null,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.psychology_outlined, color: AppColors.primary, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isSuggestion ? 'Why you might like this' : 'Review & Insight',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeInOutCubic,
+                        alignment: Alignment.topLeft,
+                        child: Text(
+                          '“$review”',
+                          maxLines: _isReviewExpanded ? null : 3,
+                          overflow: _isReviewExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'Georgia',
+                            fontFamilyFallback: ['serif'],
+                            fontSize: 14,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.textPrimary,
+                            height: 1.5,
+                            letterSpacing: 0.15,
+                          ),
+                        ),
+                      ),
+                      if (isLongReview) ...[
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _isReviewExpanded = !_isReviewExpanded);
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _isReviewExpanded ? 'Show less' : 'Read more',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(
+                                _isReviewExpanded
+                                    ? Icons.keyboard_arrow_up_rounded
+                                    : Icons.keyboard_arrow_down_rounded,
+                                size: 16,
+                                color: AppColors.primaryDark,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

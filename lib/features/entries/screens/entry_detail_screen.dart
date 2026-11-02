@@ -299,6 +299,7 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
         children: [
           WHFeedCard(
             entry: entryToDisplay,
+            initiallyExpandedReview: true,
             isLiked: _isLiked,
             isOwnEntry: currentUserId == entryToDisplay.userId,
             onLike: _toggleLike,
