@@ -262,6 +262,15 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   'You retain complete ownership of your cinematic logs. At any time in the app, you can:\n• Export all your entries and reviews as JSON via Data Management.\n• Permanently delete your account and all associated logs in Settings.',
             ),
 
+            // 9. Non-Commercial Status & TMDb Attribution
+            _buildSection(
+              number: '9',
+              title: 'Non-Commercial Notice & TMDb Attribution',
+              content:
+                  'WatchersHive is an independent, non-commercial, fan-made social movie and TV tracking community application built strictly for educational, personal cataloging, and entertainment purposes. We generate zero revenue and display no advertisements.\n\n'
+                  'This product uses the TMDB API but is not endorsed or certified by TMDB. All movie/TV metadata, titles, and artwork belong to their respective copyright holders under fair use.',
+            ),
+
             const SizedBox(height: 16),
             const Divider(height: 1, color: AppColors.border),
             const SizedBox(height: 20),

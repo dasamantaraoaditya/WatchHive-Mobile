@@ -118,6 +118,7 @@ class ApiEndpoints {
   static String followUser(String id) => '/follows/$id';
   static String followers(String id) => '/follows/$id/followers';
   static String following(String id) => '/follows/$id/following';
+  static String followStatus(String id) => '/follows/$id/status';
   static String followStats(String id) => '/follows/stats/$id';
   static String acceptFollowRequest(String id) => '/follows/requests/$id/accept';
   static String rejectFollowRequest(String id) => '/follows/requests/$id/reject';

@@ -14,6 +14,7 @@ import '../../feed/widgets/wh_feed_card.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
 import '../../onboarding/widgets/screen_guide_dialog.dart';
+import '../../../core/utils/share_helper.dart';
 
 class EntryDetailScreen extends ConsumerStatefulWidget {
   final String entryId;
@@ -181,6 +182,21 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
           ),
         ),
         actions: [
+          if (_entry != null)
+            IconButton(
+              icon: const Icon(Icons.share_outlined, color: AppColors.textPrimary),
+              tooltip: 'Share Watch',
+              onPressed: () {
+                ShareHelper.shareCompletedWatch(
+                  title: _entry!.title,
+                  rating: _entry!.rating,
+                  review: _entry!.review,
+                  tmdbId: _entry!.tmdbId,
+                  mediaType: (_entry!.type == 'TV_SHOW' || _entry!.type == 'EPISODE') ? 'tv' : 'movie',
+                  userDisplayName: _entry!.user?.displayName ?? _entry!.user?.username,
+                );
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
             tooltip: 'About Watch Post',
@@ -299,6 +315,7 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
         children: [
           WHFeedCard(
             entry: entryToDisplay,
+            initiallyExpandedReview: true,
             isLiked: _isLiked,
             isOwnEntry: currentUserId == entryToDisplay.userId,
             onLike: _toggleLike,

@@ -17,6 +17,7 @@ import '../widgets/offline_sync_card.dart';
 import 'edit_profile_dialog.dart';
 import '../widgets/avatar_viewer_dialog.dart';
 import '../widgets/honey_badges_dialog.dart';
+import '../widgets/legal_disclaimer_dialog.dart';
 import '../widgets/add_friends_sheet.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/notifications/push_notification_service.dart';
@@ -1514,6 +1515,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   title: 'Privacy Policy & Terms',
                   subtitle: 'Data usage, MindLens metrics & rights',
                   onTap: () => context.push('/privacy-policy'),
+                ),
+                const Divider(height: 1, color: AppColors.border),
+                _buildActionTile(
+                  icon: Icons.gavel_rounded,
+                  title: 'Legal & Non-Commercial Disclaimer',
+                  subtitle: 'Licenses, TMDb attribution & copyright terms',
+                  onTap: () => LegalDisclaimerDialog.show(context),
                 ),
                 const Divider(height: 1, color: AppColors.border),
                 _buildActionTile(

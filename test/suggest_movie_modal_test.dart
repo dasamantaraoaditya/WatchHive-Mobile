@@ -29,7 +29,7 @@ class _FakeUserRepository extends UserRepository {
   }
 
   @override
-  Future<List<User>> getFollowers(String userId) async {
+  Future<List<User>> getFollowers(String userId, {int limit = 100, String? query}) async {
     getFollowersCalled = true;
     return [
       User(
@@ -43,7 +43,7 @@ class _FakeUserRepository extends UserRepository {
   }
 
   @override
-  Future<List<User>> getFollowing(String userId) async {
+  Future<List<User>> getFollowing(String userId, {int limit = 100, String? query}) async {
     getFollowingCalled = true;
     return [
       User(
@@ -159,9 +159,9 @@ void main() {
     expect(find.text('Follower Only'), findsNothing);
     expect(find.text('Random Stranger'), findsNothing);
 
-    // 4. Test in-memory followed user search filtering
+    // 4. Test in-memory followed user search filtering (including @ prefix)
     final searchInput = find.byType(TextField).first;
-    await tester.enterText(searchInput, 'jane');
+    await tester.enterText(searchInput, '@cinephile_jane');
     await tester.pumpAndSettle();
 
     // Search should filter locally without calling searchUsers API
@@ -169,7 +169,14 @@ void main() {
     expect(find.text('Jane Cinephile'), findsOneWidget);
     expect(find.text('Sam Buff'), findsNothing);
 
-    // 5. Select followed user and verify send
+    // 5. Test clear button resets the search
+    final clearBtn = find.byIcon(Icons.close_rounded).last;
+    await tester.tap(clearBtn);
+    await tester.pumpAndSettle();
+    expect(find.text('Jane Cinephile'), findsOneWidget);
+    expect(find.text('Sam Buff'), findsOneWidget);
+
+    // 6. Select followed user and verify send
     await tester.tap(find.text('Jane Cinephile'));
     await tester.pumpAndSettle();
 
