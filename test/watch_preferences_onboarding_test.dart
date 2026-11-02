@@ -113,5 +113,70 @@ void main() {
       expect(retrieved['genres'], equals(['Action', 'Thriller']));
       expect(retrieved['streamingPlatforms'], equals(['Netflix']));
     });
+
+    test('User.hasSubstantivePreferences detects non-empty preferences correctly', () {
+      final userEmpty = User(
+        id: 'u1',
+        username: 'test',
+        createdAt: DateTime.now(),
+        preferences: {},
+      );
+      expect(userEmpty.hasSubstantivePreferences, isFalse);
+
+      final userListsEmpty = User(
+        id: 'u2',
+        username: 'test',
+        createdAt: DateTime.now(),
+        preferences: {'languages': [], 'genres': []},
+      );
+      expect(userListsEmpty.hasSubstantivePreferences, isFalse);
+
+      final userValid = User(
+        id: 'u3',
+        username: 'test',
+        createdAt: DateTime.now(),
+        preferences: {
+          'languages': ['te'],
+          'genres': ['Sci-Fi'],
+          'streamingPlatforms': ['Netflix'],
+        },
+      );
+      expect(userValid.hasSubstantivePreferences, isTrue);
+      expect(userValid.savedLanguages, equals(['te']));
+      expect(userValid.savedGenres, equals(['Sci-Fi']));
+      expect(userValid.savedStreamingPlatforms, equals(['Netflix']));
+    });
+
+    test('resolveUserWithPreferences restores local cache when server returns empty map or empty lists', () async {
+      final offlineStorage = OfflineStorageService();
+      final localPrefs = {
+        'languages': ['te', 'en'],
+        'genres': ['Sci-Fi', 'Thriller'],
+        'genreIds': [878, 53],
+        'streamingPlatforms': ['Prime Video'],
+      };
+      await offlineStorage.saveUserPreferences('user-cache-111', localPrefs);
+
+      final serviceWithDb = OnboardingService(
+        ApiClient(AuthManager()),
+        null,
+        offlineStorage,
+      );
+
+      // Server returns empty preferences {}
+      final serverUser = User(
+        id: 'user-cache-111',
+        username: 'cinephile',
+        createdAt: DateTime.now(),
+        hasCompletedOnboarding: false,
+        preferences: {},
+      );
+
+      final resolved = await serviceWithDb.resolveUserWithPreferences(serverUser);
+      expect(resolved.hasSubstantivePreferences, isTrue);
+      expect(resolved.savedLanguages, equals(['te', 'en']));
+      expect(resolved.savedGenres, equals(['Sci-Fi', 'Thriller']));
+      expect(resolved.hasCompletedOnboarding, isTrue);
+    });
   });
 }

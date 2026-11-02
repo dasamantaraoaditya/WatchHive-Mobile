@@ -143,10 +143,14 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   Future<void> login({required String email, required String password}) async {
     state = const AsyncLoading();
     try {
-      final user = await ref.read(authRepositoryProvider).login(
+      final rawUser = await ref.read(authRepositoryProvider).login(
             email: email,
             password: password,
           );
+      final user = await ref
+          .read(onboardingServiceProvider)
+          .resolveUserWithPreferences(rawUser);
+      await ref.read(authManagerProvider).saveUser(user);
       unawaited(syncDeviceToken());
       state = AsyncData(AuthState(user: user, isAuthenticated: true));
     } catch (e, st) {
@@ -162,11 +166,15 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }) async {
     state = const AsyncLoading();
     try {
-      final user = await ref.read(authRepositoryProvider).register(
+      final rawUser = await ref.read(authRepositoryProvider).register(
             username: username,
             email: email,
             password: password,
           );
+      final user = await ref
+          .read(onboardingServiceProvider)
+          .resolveUserWithPreferences(rawUser);
+      await ref.read(authManagerProvider).saveUser(user);
       unawaited(syncDeviceToken());
       state = AsyncData(AuthState(user: user, isAuthenticated: true));
     } catch (e, st) {
@@ -178,7 +186,11 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   Future<void> googleSignIn(String idToken) async {
     state = const AsyncLoading();
     try {
-      final user = await ref.read(authRepositoryProvider).googleSignIn(idToken);
+      final rawUser = await ref.read(authRepositoryProvider).googleSignIn(idToken);
+      final user = await ref
+          .read(onboardingServiceProvider)
+          .resolveUserWithPreferences(rawUser);
+      await ref.read(authManagerProvider).saveUser(user);
       unawaited(syncDeviceToken());
       state = AsyncData(AuthState(user: user, isAuthenticated: true));
     } catch (e, st) {
@@ -196,13 +208,17 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }) async {
     state = const AsyncLoading();
     try {
-      final user = await ref.read(authRepositoryProvider).appleSignIn(
+      final rawUser = await ref.read(authRepositoryProvider).appleSignIn(
             identityToken: identityToken,
             userIdentifier: userIdentifier,
             email: email,
             givenName: givenName,
             familyName: familyName,
           );
+      final user = await ref
+          .read(onboardingServiceProvider)
+          .resolveUserWithPreferences(rawUser);
+      await ref.read(authManagerProvider).saveUser(user);
       unawaited(syncDeviceToken());
       state = AsyncData(AuthState(user: user, isAuthenticated: true));
     } catch (e, st) {
@@ -238,7 +254,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     // Preserve existing preferences so server fetches with missing preference schemas never wipe them out
     final existingUser = state.value?.user;
     var finalUser = updatedUser;
-    if (finalUser.preferences == null && existingUser?.preferences != null) {
+    if (!finalUser.hasSubstantivePreferences && existingUser?.hasSubstantivePreferences == true) {
       finalUser = finalUser.copyWith(
         preferences: existingUser!.preferences,
         hasCompletedOnboarding: existingUser.hasCompletedOnboarding,

@@ -9,6 +9,7 @@ import '../../../shared/models/smart_suggest.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../feed/widgets/smart_suggest_deck_sheet.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../repositories/suggestions_repository.dart';
 import 'suggest_movie_modal.dart';
 import 'suggestion_card.dart';
@@ -77,7 +78,13 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
     setState(() => _isSmartLoading = true);
     try {
       final repo = ref.read(suggestionsRepositoryProvider);
-      final res = await repo.getSmartSuggestions(mode: _smartMode, limit: 16);
+      final user = ref.read(authStateProvider).value?.user;
+      final res = await repo.getSmartSuggestions(
+        mode: _smartMode,
+        limit: 16,
+        languages: user?.savedLanguages,
+        genres: user?.savedGenres,
+      );
       if (mounted) {
         setState(() {
           _smartItems = res.items;

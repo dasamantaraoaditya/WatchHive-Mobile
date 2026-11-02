@@ -75,6 +75,37 @@ class User {
   String get name => (displayName != null && displayName!.trim().isNotEmpty) ? displayName! : username;
   String? get displayLocation => (location != null && location!.trim().isNotEmpty) ? location!.trim() : null;
 
+  /// Returns true if this user has non-empty, substantive watch preferences saved.
+  bool get hasSubstantivePreferences {
+    if (preferences == null || preferences!.isEmpty) return false;
+    final langs = preferences!['languages'] as List?;
+    final genres = preferences!['genres'] as List?;
+    final platforms = preferences!['streamingPlatforms'] as List?;
+    return (langs != null && langs.isNotEmpty) ||
+        (genres != null && genres.isNotEmpty) ||
+        (platforms != null && platforms.isNotEmpty);
+  }
+
+  List<String> get savedLanguages {
+    final list = preferences?['languages'] as List?;
+    return list?.map((e) => e.toString()).toList() ?? const [];
+  }
+
+  List<String> get savedGenres {
+    final list = preferences?['genres'] as List?;
+    return list?.map((e) => e.toString()).toList() ?? const [];
+  }
+
+  List<int> get savedGenreIds {
+    final list = preferences?['genreIds'] as List?;
+    return list?.map((e) => int.tryParse(e.toString()) ?? 0).where((id) => id > 0).toList() ?? const [];
+  }
+
+  List<String> get savedStreamingPlatforms {
+    final list = preferences?['streamingPlatforms'] as List?;
+    return list?.map((e) => e.toString()).toList() ?? const [];
+  }
+
   static int _parseInt(dynamic val) {
     if (val == null) return 0;
     if (val is num) return val.toInt();

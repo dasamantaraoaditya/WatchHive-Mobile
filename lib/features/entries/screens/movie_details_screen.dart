@@ -1580,56 +1580,122 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
 
                   // Where to Watch (Streaming Providers)
                   if (streamProviders.isNotEmpty || rentProviders.isNotEmpty || buyProviders.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Where to Watch (India / Global)',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
+                    Builder(
+                      builder: (context) {
+                        final currentUser = ref.watch(authStateProvider).value?.user;
+                        final userPlatforms = currentUser?.savedStreamingPlatforms ?? const <String>[];
+                        final matchingSubscribed = streamProviders.where((p) {
+                          final name = (p['provider_name'] as String? ?? '').toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+                          return userPlatforms.any((up) {
+                            final cleanUp = up.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+                            return name.contains(cleanUp) || cleanUp.contains(name);
+                          });
+                        }).toList();
+
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.border),
                           ),
-                          const SizedBox(height: 12),
-                          if (streamProviders.isNotEmpty) ...[
-                            _ProviderRow(
-                              typeLabel: 'Stream:',
-                              providers: streamProviders,
-                              fallbackLink: localProviders?['link'] as String?,
-                              title: title,
-                              onTapProvider: _launchProviderUrl,
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                          if (rentProviders.isNotEmpty) ...[
-                            _ProviderRow(
-                              typeLabel: 'Rent:',
-                              providers: rentProviders,
-                              fallbackLink: localProviders?['link'] as String?,
-                              title: title,
-                              onTapProvider: _launchProviderUrl,
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                          if (buyProviders.isNotEmpty)
-                            _ProviderRow(
-                              typeLabel: 'Buy:',
-                              providers: buyProviders,
-                              fallbackLink: localProviders?['link'] as String?,
-                              title: title,
-                              onTapProvider: _launchProviderUrl,
-                            ),
-                        ],
-                      ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Where to Watch',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  if (matchingSubscribed.isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.check_circle_rounded, size: 12, color: AppColors.primary),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'In Subscriptions',
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              if (matchingSubscribed.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    'Included in your active subscriptions: ${matchingSubscribed.map((p) => p['provider_name']).join(', ')}',
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 12),
+                              if (streamProviders.isNotEmpty) ...[
+                                _ProviderRow(
+                                  typeLabel: 'Stream:',
+                                  providers: streamProviders,
+                                  userPlatforms: userPlatforms,
+                                  fallbackLink: localProviders?['link'] as String?,
+                                  title: title,
+                                  onTapProvider: _launchProviderUrl,
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                              if (rentProviders.isNotEmpty) ...[
+                                _ProviderRow(
+                                  typeLabel: 'Rent:',
+                                  providers: rentProviders,
+                                  userPlatforms: userPlatforms,
+                                  fallbackLink: localProviders?['link'] as String?,
+                                  title: title,
+                                  onTapProvider: _launchProviderUrl,
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                              if (buyProviders.isNotEmpty)
+                                _ProviderRow(
+                                  typeLabel: 'Buy:',
+                                  providers: buyProviders,
+                                  userPlatforms: userPlatforms,
+                                  fallbackLink: localProviders?['link'] as String?,
+                                  title: title,
+                                  onTapProvider: _launchProviderUrl,
+                                ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 24),
                   ],
@@ -2619,6 +2685,7 @@ class _StatCard extends StatelessWidget {
 class _ProviderRow extends StatelessWidget {
   final String typeLabel;
   final List<dynamic> providers;
+  final List<String> userPlatforms;
   final String? fallbackLink;
   final String title;
   final Function(String, String?, String) onTapProvider;
@@ -2626,10 +2693,21 @@ class _ProviderRow extends StatelessWidget {
   const _ProviderRow({
     required this.typeLabel,
     required this.providers,
+    this.userPlatforms = const [],
     required this.fallbackLink,
     required this.title,
     required this.onTapProvider,
   });
+
+  bool _isSubscribed(String providerName) {
+    if (userPlatforms.isEmpty) return false;
+    final cleanP = providerName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    for (final up in userPlatforms) {
+      final cleanU = up.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (cleanP.contains(cleanU) || cleanU.contains(cleanP)) return true;
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2655,28 +2733,45 @@ class _ProviderRow extends StatelessWidget {
               children: providers.map((p) {
                 final logo = p['logo_path'] as String?;
                 final name = p['provider_name'] as String? ?? 'Provider';
+                final isSub = _isSubscribed(name);
 
                 return GestureDetector(
                   onTap: () => onTapProvider(name, fallbackLink, title),
                   child: Container(
                     margin: const EdgeInsets.only(right: 8),
                     child: Tooltip(
-                      message: name,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: logo != null
-                            ? CachedNetworkImage(
-                                imageUrl: 'https://image.tmdb.org/t/p/w92$logo',
-                                width: 36,
-                                height: 36,
-                                fit: BoxFit.cover,
-                              )
-                            : Container(
-                                width: 36,
-                                height: 36,
-                                color: AppColors.surfaceElevated,
-                                child: const Icon(Icons.play_circle_outline, size: 20),
-                              ),
+                      message: isSub ? '$name (In Your Subscriptions)' : name,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(11),
+                          border: isSub
+                              ? Border.all(color: AppColors.primary, width: 2)
+                              : null,
+                          boxShadow: isSub
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.primary.withValues(alpha: 0.35),
+                                    blurRadius: 6,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(isSub ? 9 : 10),
+                          child: logo != null
+                              ? CachedNetworkImage(
+                                  imageUrl: 'https://image.tmdb.org/t/p/w92$logo',
+                                  width: 36,
+                                  height: 36,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  width: 36,
+                                  height: 36,
+                                  color: AppColors.surfaceElevated,
+                                  child: const Icon(Icons.play_circle_outline, size: 20),
+                                ),
+                        ),
                       ),
                     ),
                   ),

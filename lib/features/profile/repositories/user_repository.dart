@@ -41,7 +41,7 @@ class UserRepository {
       } catch (_) {}
     }
 
-    if (user.preferences == null && _onboardingService != null) {
+    if (!user.hasSubstantivePreferences && _onboardingService != null) {
       user = await _onboardingService.resolveUserWithPreferences(user);
     }
 
@@ -114,7 +114,7 @@ class UserRepository {
     final map = resData is Map<String, dynamic> ? resData : <String, dynamic>{};
     final userJson = map.containsKey('user') ? map['user'] as Map<String, dynamic> : map;
     var user = User.fromJson(userJson);
-    if (user.preferences == null && _onboardingService != null) {
+    if (!user.hasSubstantivePreferences && _onboardingService != null) {
       user = await _onboardingService.resolveUserWithPreferences(user);
     }
     return user;
