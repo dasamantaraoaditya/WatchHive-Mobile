@@ -28,6 +28,8 @@ import '../../profile/repositories/user_repository.dart';
 import '../../scanner/widgets/movie_qr_dialog.dart';
 import '../../onboarding/widgets/screen_guide_dialog.dart';
 import '../../../core/utils/share_helper.dart';
+import '../widgets/friends_watched_bar.dart';
+import '../widgets/friends_who_watched_sheet.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -67,6 +69,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   Entry? _loggedEntry;
   User? _authorUser;
   Entry? _myOwnEntry;
+  List<Entry> _friendsEntries = [];
 
   // Watchlist & Transition States
   bool _inWatchlist = false;
@@ -120,12 +123,72 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   }
 
   Future<void> _loadInitialData() async {
+    _loadFriendsEntries();
     await Future.wait([
       _loadDetails(),
       _checkWatchlistStatus(),
       _loadRecommendations(),
     ]);
     await _checkUserEntry();
+    _loadFriendsEntries();
+  }
+
+  void _loadFriendsEntries() {
+    final currentUser = ref.read(authStateProvider).value?.user;
+    final Map<String, Entry> friendsMap = {};
+
+    // 1. Initial entry if from a friend
+    if (widget.initialEntry != null) {
+      final uid = widget.initialEntry!.userId;
+      if (currentUser == null || uid != currentUser.id) {
+        var entry = widget.initialEntry!;
+        if (entry.user == null && widget.authorUser != null) {
+          entry = entry.copyWith(user: widget.authorUser);
+        }
+        friendsMap[uid] = entry;
+      }
+    }
+
+    // 2. Scan feed entries matching this movie/show
+    try {
+      final feedEntries = ref.read(feedProvider).entries;
+      final currentTitle = (_details?['title'] ?? _details?['name'] ?? '').toString().trim().toLowerCase();
+      for (final entry in feedEntries) {
+        final matchesTmdb = entry.tmdbId == widget.tmdbId;
+        final matchesTitle = currentTitle.isNotEmpty &&
+            entry.title.trim().toLowerCase() == currentTitle;
+
+        if (matchesTmdb || matchesTitle) {
+          final uid = entry.userId;
+          if (currentUser == null || uid != currentUser.id) {
+            if (!friendsMap.containsKey(uid) || (friendsMap[uid]!.user == null && entry.user != null)) {
+              friendsMap[uid] = entry;
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 3. Current _loggedEntry if it belongs to someone else
+    if (_loggedEntry != null) {
+      final uid = _loggedEntry!.userId;
+      if (currentUser == null || uid != currentUser.id) {
+        var entry = _loggedEntry!;
+        if (entry.user == null && _authorUser != null) {
+          entry = entry.copyWith(user: _authorUser);
+        }
+        if (!friendsMap.containsKey(uid) || (friendsMap[uid]!.user == null && entry.user != null)) {
+          friendsMap[uid] = entry;
+        }
+      }
+    }
+
+    final list = friendsMap.values.toList();
+    if (mounted) {
+      setState(() {
+        _friendsEntries = list;
+      });
+    }
   }
 
   Future<void> _checkUserEntry() async {
@@ -163,6 +226,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         }
       }
     } catch (_) {}
+    _loadFriendsEntries();
   }
 
   bool get _isMyEntry {
@@ -1333,18 +1397,45 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-
-                  // Logged Watch Entry & Review Details
-                  if (_loggedEntry != null) ...[
-                    _buildLoggedReviewCard(
-                      context: context,
-                      entry: _loggedEntry!,
-                      author: _authorUser,
-                      isMe: _isMyEntry,
+                  // Friends Who Watched Bar (Social Proof: Max 3 avatars + '+N' badge & sheet modal)
+                  if (_friendsEntries.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    FriendsWatchedBar(
+                      friendsEntries: _friendsEntries,
+                      movieTitle: title,
+                      onTap: () {
+                        final activeSelfEntry = _isMyEntry ? _loggedEntry : _myOwnEntry;
+                        FriendsWhoWatchedSheet.show(
+                          context,
+                          movieTitle: title,
+                          friendsEntries: _friendsEntries,
+                          myEntry: activeSelfEntry,
+                        );
+                      },
                     ),
-                    const SizedBox(height: 20),
                   ],
+
+                  // Personal Logged Watch Entry & Review Details (Only for current user's entry)
+                  Builder(
+                    builder: (context) {
+                      final activeSelfEntry = _isMyEntry ? _loggedEntry : _myOwnEntry;
+                      final currentUser = ref.watch(authStateProvider).value?.user;
+                      if (activeSelfEntry == null) return const SizedBox.shrink();
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(height: 20),
+                          _buildLoggedReviewCard(
+                            context: context,
+                            entry: activeSelfEntry,
+                            author: _isMyEntry ? _authorUser : currentUser,
+                            isMe: true,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
 
                   // Accolades & Awards Section (if present)
                   if (awards != null && awards.isNotEmpty || criticRatings.isNotEmpty) ...[
