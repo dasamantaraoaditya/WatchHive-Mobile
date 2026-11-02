@@ -6,6 +6,7 @@ import '../../../core/config/web_urls.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../repositories/user_repository.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../scanner/widgets/user_qr_dialog.dart';
@@ -78,10 +79,26 @@ class _AddFriendsSheetState extends ConsumerState<AddFriendsSheet> {
         if (mounted) {
           setState(() => _followingMap[target.id] = false);
         }
+        final currentUser = ref.read(authStateProvider).value?.user;
+        if (currentUser != null) {
+          ref.read(authStateProvider.notifier).updateUser(
+            currentUser.copyWith(
+              followingCount: currentUser.followingCount > 0 ? currentUser.followingCount - 1 : 0,
+            ),
+          );
+        }
       } else {
         await ref.read(userRepositoryProvider).followUser(target.id);
         if (mounted) {
           setState(() => _followingMap[target.id] = true);
+        }
+        final currentUser = ref.read(authStateProvider).value?.user;
+        if (currentUser != null) {
+          ref.read(authStateProvider.notifier).updateUser(
+            currentUser.copyWith(
+              followingCount: currentUser.followingCount + 1,
+            ),
+          );
         }
       }
     } catch (e) {
