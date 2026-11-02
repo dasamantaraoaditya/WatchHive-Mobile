@@ -844,6 +844,16 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         final savedTmdbId = _tmdbId > 0 ? _tmdbId : (_selectedMedia?.id ?? widget.prefillTmdbId);
         final savedMediaType = (_type == 'TV_SHOW' || _type == 'tv') ? 'tv' : 'movie';
         final wasCompleted = !_isWatching;
+        final savedPoster = _selectedMedia?.posterPath ??
+            _mediaDetails?['poster_path'] as String? ??
+            widget.editEntry?.posterPath;
+        final savedBackdrop = _mediaDetails?['backdrop_path'] as String? ??
+            widget.editEntry?.backdropPath;
+        final relDate = _selectedMedia?.releaseDate;
+        final savedYear = (relDate != null && relDate.length >= 4)
+            ? relDate.substring(0, 4)
+            : null;
+        final currentUser = ref.read(authStateProvider).value?.user;
 
         widget.onSuccess?.call();
         Navigator.of(context).pop();
@@ -856,14 +866,22 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
           WHAlert.showSuccessWithAction(
             context,
             message: isEditing ? 'Completed "$savedTitle".' : 'Logged "$savedTitle".',
-            actionLabel: 'Share',
+            actionLabel: 'Share Story',
             onAction: () {
               ShareHelper.shareCompletedWatch(
+                context: context,
                 title: savedTitle,
+                posterPath: savedPoster,
+                backdropPath: savedBackdrop,
                 rating: savedRating,
                 review: savedReview,
                 tmdbId: savedTmdbId,
                 mediaType: savedMediaType,
+                releaseYear: savedYear,
+                userDisplayName: currentUser?.displayName ?? currentUser?.username,
+                username: currentUser?.username,
+                userAvatarUrl: currentUser?.profilePictureUrl,
+                isCompleted: true,
               );
             },
           );

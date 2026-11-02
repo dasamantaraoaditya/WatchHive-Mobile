@@ -27,6 +27,7 @@ import '../widgets/add_to_watchlist_sheet.dart';
 import '../../profile/repositories/user_repository.dart';
 import '../../scanner/widgets/movie_qr_dialog.dart';
 import '../../onboarding/widgets/screen_guide_dialog.dart';
+import '../../../core/utils/share_helper.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -492,6 +493,33 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     );
   }
 
+  void _shareStory() {
+    final currentUser = ref.read(authStateProvider).value?.user;
+    final title = (_details?['title'] ?? _details?['name'] ?? 'Movie/Show').toString();
+    final posterPath = _details?['poster_path']?.toString();
+    final backdropPath = _details?['backdrop_path']?.toString();
+    final releaseDate = (_details?['release_date'] ?? _details?['first_air_date'])?.toString();
+    final releaseYear = (releaseDate != null && releaseDate.length >= 4)
+        ? releaseDate.substring(0, 4)
+        : null;
+    final voteAverage = (_details?['vote_average'] as num?)?.toDouble();
+
+    ShareHelper.showStoryShareModal(
+      context,
+      title: title,
+      posterPath: posterPath,
+      backdropPath: backdropPath,
+      rating: voteAverage,
+      tmdbId: widget.tmdbId,
+      mediaType: _effectiveIsTv ? 'tv' : 'movie',
+      releaseYear: releaseYear,
+      userDisplayName: currentUser?.displayName ?? currentUser?.username,
+      username: currentUser?.username,
+      userAvatarUrl: currentUser?.profilePictureUrl,
+      isCompleted: true,
+    );
+  }
+
   String _formatCategoryLabel() {
     if (_details == null) return _effectiveIsTv ? 'TV Series' : 'Feature Film';
     final genres = (_details!['genres'] as List<dynamic>? ?? [])
@@ -750,6 +778,21 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                 ),
               ),
             actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Center(
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.black.withValues(alpha: 0.55),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.share_outlined, color: Colors.white, size: 19),
+                      tooltip: 'Share Story',
+                      onPressed: _shareStory,
+                    ),
+                  ),
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Center(
