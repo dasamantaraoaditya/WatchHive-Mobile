@@ -13,18 +13,30 @@ class WatchPreferencesOnboardingDialog extends ConsumerStatefulWidget {
     this.isEditing = false,
   });
 
+  static bool _isShowing = false;
+
   /// Presents the WatchPreferencesOnboardingDialog on the root navigator.
+  /// Uses a strict concurrency lock so it can never be presented twice concurrently.
   static Future<bool?> show(
     BuildContext context, {
     bool isEditing = false,
   }) async {
-    return showDialog<bool>(
-      context: context,
-      useRootNavigator: true,
-      barrierDismissible: isEditing,
-      barrierColor: Colors.black.withValues(alpha: 0.75),
-      builder: (ctx) => WatchPreferencesOnboardingDialog(isEditing: isEditing),
-    );
+    if (_isShowing && !isEditing) {
+      debugPrint('[WatchPreferencesOnboardingDialog] Dialog is already open, ignoring duplicate show call');
+      return false;
+    }
+    _isShowing = true;
+    try {
+      return await showDialog<bool>(
+        context: context,
+        useRootNavigator: true,
+        barrierDismissible: isEditing,
+        barrierColor: Colors.black.withValues(alpha: 0.75),
+        builder: (ctx) => WatchPreferencesOnboardingDialog(isEditing: isEditing),
+      );
+    } finally {
+      _isShowing = false;
+    }
   }
 
   @override

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:watchhive_mobile/core/utils/share_helper.dart';
+import 'package:watchhive_mobile/features/feed/widgets/wh_feed_card.dart';
 import 'package:watchhive_mobile/features/share/widgets/instagram_story_card.dart';
 import 'package:watchhive_mobile/features/share/widgets/story_share_modal.dart';
+import 'package:watchhive_mobile/shared/models/entry.dart';
+import 'package:watchhive_mobile/shared/models/user.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -179,6 +183,75 @@ void main() {
 
       expect(find.text('Share to Story'), findsOneWidget);
       expect(find.text('Blade Runner 2049'), findsOneWidget);
+    });
+  });
+
+  group('Post Sharing Ownership Restrictions', () {
+    final otherUser = User(
+      id: 'other-user-999',
+      username: 'other_user',
+      displayName: 'Other Person',
+      createdAt: DateTime(2025, 1, 1),
+    );
+
+    final mockEntry = Entry(
+      id: 'entry-999',
+      userId: 'other-user-999',
+      tmdbId: 157336,
+      title: 'Interstellar',
+      type: 'MOVIE',
+      watchedAt: DateTime(2025, 6, 1),
+      rating: 9.0,
+      user: otherUser,
+      createdAt: DateTime(2025, 6, 1),
+    );
+
+    testWidgets('WHFeedCard does NOT show share button for another user\'s post', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: WHFeedCard(
+                entry: mockEntry,
+                isLiked: false,
+                isOwnEntry: false, // NOT own post
+                onLike: () {},
+                onUserTap: () {},
+                onMediaTap: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Ensure 'Share Watch' tooltip / IconButton is NOT present for someone else's post
+      expect(find.byTooltip('Share Watch'), findsNothing);
+    });
+
+    testWidgets('WHFeedCard DOES show share button for own post', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: WHFeedCard(
+                entry: mockEntry,
+                isLiked: false,
+                isOwnEntry: true, // OWN post
+                onLike: () {},
+                onUserTap: () {},
+                onMediaTap: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Ensure 'Share Watch' tooltip / IconButton IS present for own post
+      expect(find.byTooltip('Share Watch'), findsOneWidget);
     });
   });
 }

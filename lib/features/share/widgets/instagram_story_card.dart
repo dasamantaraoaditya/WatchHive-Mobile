@@ -88,13 +88,18 @@ class InstagramStoryCard extends StatelessWidget {
       aspectRatio: 9 / 16,
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF0F0E0D),
+          color: AppColors.background,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.6),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 30,
               offset: const Offset(0, 10),
+            ),
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.18),
+              blurRadius: 20,
+              spreadRadius: 1,
             ),
           ],
         ),
@@ -102,7 +107,7 @@ class InstagramStoryCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Background Artwork Bleed (blurred cinematic backdrop)
+            // Background Artwork Bleed (blurred warm cinematic backdrop)
             if (backdropUrl != null) ...[
               Positioned.fill(
                 child: CachedNetworkImage(
@@ -113,16 +118,16 @@ class InstagramStoryCard extends StatelessWidget {
               ),
               Positioned.fill(
                 child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          const Color(0xFF0D0B0A).withValues(alpha: 0.82),
-                          const Color(0xFF141210).withValues(alpha: 0.88),
-                          const Color(0xFF0D0B0A).withValues(alpha: 0.95),
+                          const Color(0xFFFFFDF8).withValues(alpha: 0.88),
+                          const Color(0xFFFFF9F0).withValues(alpha: 0.93),
+                          const Color(0xFFFFF4E0).withValues(alpha: 0.97),
                         ],
                       ),
                     ),
@@ -130,23 +135,23 @@ class InstagramStoryCard extends StatelessWidget {
                 ),
               ),
             ] else ...[
-              // Ambient gradient mesh fallback
+              // Ambient warm honey cream gradient mesh fallback
               Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                     colors: [
-                      Color(0xFF1B1713),
-                      Color(0xFF0D0C0B),
-                      Color(0xFF16130F),
+                      Color(0xFFFFFDF7),
+                      Color(0xFFFFF9F0),
+                      Color(0xFFFFF3DE),
                     ],
                   ),
                 ),
               ),
             ],
 
-            // Subtle warm honey ambient glow from top-right and bottom-left
+            // Warm honey ambient glow orbs
             Positioned(
               top: -60,
               right: -60,
@@ -155,7 +160,7 @@ class InstagramStoryCard extends StatelessWidget {
                 height: 220,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: 0.15),
+                  color: AppColors.primary.withValues(alpha: 0.22),
                 ),
               ),
             ),
@@ -167,7 +172,7 @@ class InstagramStoryCard extends StatelessWidget {
                 height: 240,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: 0.10),
+                  color: AppColors.primaryLight.withValues(alpha: 0.18),
                 ),
               ),
             ),
@@ -218,11 +223,11 @@ class InstagramStoryCard extends StatelessWidget {
                               ],
                               Text(
                                 _attributionText,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.white.withValues(alpha: 0.75),
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -246,18 +251,18 @@ class InstagramStoryCard extends StatelessWidget {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.35),
+                                color: AppColors.primary.withValues(alpha: 0.65),
                                 width: 1.5,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.75),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 12),
+                                  color: const Color(0xFF2D2926).withValues(alpha: 0.22),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
                                 ),
                                 BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.12),
-                                  blurRadius: 20,
+                                  color: AppColors.primary.withValues(alpha: 0.25),
+                                  blurRadius: 18,
                                   spreadRadius: 1,
                                 ),
                               ],
@@ -270,13 +275,13 @@ class InstagramStoryCard extends StatelessWidget {
                                     imageUrl: posterUrl,
                                     fit: BoxFit.cover,
                                     placeholder: (_, __) => Container(
-                                      color: const Color(0xFF1E1B17),
+                                      color: AppColors.surfaceHighest,
                                       child: const Center(
                                         child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 36),
                                       ),
                                     ),
                                     errorWidget: (_, __, ___) => Container(
-                                      color: const Color(0xFF1E1B17),
+                                      color: AppColors.surfaceHighest,
                                       child: const Center(
                                         child: Icon(Icons.broken_image_rounded, color: AppColors.textMuted, size: 36),
                                       ),
@@ -284,7 +289,7 @@ class InstagramStoryCard extends StatelessWidget {
                                   )
                                 else
                                   Container(
-                                    color: const Color(0xFF1E1B17),
+                                    color: AppColors.surfaceHighest,
                                     child: const Center(
                                       child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 48),
                                     ),
@@ -300,7 +305,7 @@ class InstagramStoryCard extends StatelessWidget {
                                       color: Colors.black.withValues(alpha: 0.75),
                                       borderRadius: BorderRadius.circular(6),
                                       border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.15),
+                                        color: Colors.white.withValues(alpha: 0.2),
                                         width: 0.8,
                                       ),
                                     ),
@@ -335,7 +340,7 @@ class InstagramStoryCard extends StatelessWidget {
                               fontFamily: 'Inter',
                               fontSize: 21,
                               fontWeight: FontWeight.w900,
-                              color: Colors.white,
+                              color: AppColors.textPrimary,
                               letterSpacing: -0.4,
                               height: 1.2,
                             ),
@@ -355,24 +360,31 @@ class InstagramStoryCard extends StatelessWidget {
                               margin: const EdgeInsets.symmetric(horizontal: 12),
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(12),
+                                color: Colors.white.withValues(alpha: 0.95),
+                                borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.12),
-                                  width: 0.8,
+                                  color: AppColors.primary.withValues(alpha: 0.35),
+                                  width: 1,
                                 ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
                               ),
                               child: Text(
                                 '"${_cleanReviewSnippet(review!)}"',
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 11.5,
                                   fontStyle: FontStyle.italic,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.9),
+                                  color: AppColors.textPrimary,
                                   height: 1.3,
                                 ),
                               ),
@@ -386,12 +398,19 @@ class InstagramStoryCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.09),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                          width: 1,
+                          color: AppColors.primary.withValues(alpha: 0.45),
+                          width: 1.2,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.07),
+                            blurRadius: 14,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -402,6 +421,10 @@ class InstagramStoryCard extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppColors.border,
+                                width: 0.8,
+                              ),
                             ),
                             child: QrImageView(
                               data: _movieUrl,
@@ -410,11 +433,11 @@ class InstagramStoryCard extends StatelessWidget {
                               backgroundColor: Colors.white,
                               eyeStyle: const QrEyeStyle(
                                 eyeShape: QrEyeShape.square,
-                                color: Color(0xFF141210),
+                                color: Color(0xFF2D2926),
                               ),
                               dataModuleStyle: const QrDataModuleStyle(
                                 dataModuleShape: QrDataModuleShape.square,
-                                color: Color(0xFF141210),
+                                color: Color(0xFF2D2926),
                               ),
                             ),
                           ),
@@ -435,8 +458,8 @@ class InstagramStoryCard extends StatelessWidget {
                                         style: const TextStyle(
                                           fontFamily: 'Inter',
                                           fontSize: 11.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.white,
+                                          fontWeight: FontWeight.w900,
+                                          color: AppColors.textPrimary,
                                         ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -444,8 +467,8 @@ class InstagramStoryCard extends StatelessWidget {
                                     const SizedBox(width: 4),
                                     const Icon(
                                       Icons.arrow_forward_rounded,
-                                      size: 12,
-                                      color: AppColors.primary,
+                                      size: 13,
+                                      color: AppColors.primaryDark,
                                     ),
                                   ],
                                 ),
@@ -455,20 +478,20 @@ class InstagramStoryCard extends StatelessWidget {
                                   style: const TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primaryDark,
                                     letterSpacing: 0.2,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 2),
-                                Text(
+                                const Text(
                                   'Scan QR to view & track',
                                   style: TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 9,
                                     fontWeight: FontWeight.w500,
-                                    color: Colors.white.withValues(alpha: 0.55),
+                                    color: AppColors.textMuted,
                                   ),
                                 ),
                               ],
@@ -497,21 +520,21 @@ class InstagramStoryCard extends StatelessWidget {
     switch (shareMode) {
       case StoryShareMode.logged:
         label = '🍿 JUST WATCHED';
-        bg = AppColors.primary.withValues(alpha: 0.15);
-        border = AppColors.primary.withValues(alpha: 0.5);
-        text = AppColors.primary;
+        bg = const Color(0xFFFFF3D6);
+        border = const Color(0xFFE59700);
+        text = const Color(0xFF995700);
         break;
       case StoryShareMode.watching:
         label = '📺 WATCHING';
-        bg = const Color(0xFFF59E0B).withValues(alpha: 0.18);
-        border = const Color(0xFFF59E0B).withValues(alpha: 0.6);
-        text = const Color(0xFFFBBF24);
+        bg = const Color(0xFFFEF3C7);
+        border = const Color(0xFFF59E0B);
+        text = const Color(0xFFB45309);
         break;
       case StoryShareMode.general:
         label = '🎬 DISCOVER';
-        bg = Colors.white.withValues(alpha: 0.10);
-        border = Colors.white.withValues(alpha: 0.3);
-        text = Colors.white;
+        bg = Colors.white;
+        border = AppColors.border;
+        text = AppColors.textSecondary;
         break;
     }
 
@@ -520,7 +543,14 @@ class InstagramStoryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: border, width: 1),
+        border: Border.all(color: border, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Text(
         label,
@@ -583,12 +613,19 @@ class InstagramStoryCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1914),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.4),
-              width: 1,
+              color: AppColors.primary.withValues(alpha: 0.6),
+              width: 1.2,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: const Row(
             mainAxisSize: MainAxisSize.min,
@@ -602,7 +639,7 @@ class InstagramStoryCard extends StatelessWidget {
                     fontFamily: 'Inter',
                     fontSize: 10.5,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     letterSpacing: 0.3,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -617,12 +654,19 @@ class InstagramStoryCard extends StatelessWidget {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFF1C1914),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2),
-                width: 1,
+                color: AppColors.border,
+                width: 1.2,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -634,8 +678,8 @@ class InstagramStoryCard extends StatelessWidget {
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
                     letterSpacing: 0.2,
                   ),
                 ),
@@ -655,12 +699,19 @@ class InstagramStoryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1914),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.4),
-          width: 1,
+          color: AppColors.primary.withValues(alpha: 0.55),
+          width: 1.2,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -706,7 +757,7 @@ class InstagramStoryCard extends StatelessWidget {
                 fontFamily: 'Inter',
                 fontSize: 10.5,
                 fontWeight: FontWeight.w900,
-                color: Color(0xFF141210),
+                color: AppColors.textPrimary,
               ),
             ),
           ),

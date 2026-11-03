@@ -616,34 +616,35 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                             ),
                             onPressed: _handleQuickSuggest,
                           ),
-                        IconButton(
-                          tooltip: 'Share Watch',
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          splashRadius: 18,
-                          icon: const Icon(
-                            Icons.share_outlined,
-                            size: 18,
-                            color: AppColors.textMuted,
+                        if (widget.isOwnEntry)
+                          IconButton(
+                            tooltip: 'Share Watch',
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                            splashRadius: 18,
+                            icon: const Icon(
+                              Icons.share_outlined,
+                              size: 18,
+                              color: AppColors.textMuted,
+                            ),
+                            onPressed: () {
+                              ShareHelper.shareCompletedWatch(
+                                context: context,
+                                title: entry.title,
+                                posterPath: entry.posterPath,
+                                backdropPath: entry.backdropPath,
+                                rating: entry.isWatching ? null : entry.rating,
+                                review: entry.isWatching ? null : entry.review,
+                                tmdbId: entry.tmdbId > 0 ? entry.tmdbId : null,
+                                mediaType: (entry.type == 'TV_SHOW' || entry.type == 'EPISODE') ? 'tv' : 'movie',
+                                userDisplayName: entry.user?.displayName ?? entry.user?.username,
+                                username: entry.user?.username,
+                                userAvatarUrl: entry.user?.profilePictureUrl,
+                                shareMode: entry.isWatching ? StoryShareMode.watching : StoryShareMode.logged,
+                              );
+                            },
                           ),
-                          onPressed: () {
-                            ShareHelper.shareCompletedWatch(
-                              context: context,
-                              title: entry.title,
-                              posterPath: entry.posterPath,
-                              backdropPath: entry.backdropPath,
-                              rating: entry.isWatching ? null : entry.rating,
-                              review: entry.isWatching ? null : entry.review,
-                              tmdbId: entry.tmdbId > 0 ? entry.tmdbId : null,
-                              mediaType: (entry.type == 'TV_SHOW' || entry.type == 'EPISODE') ? 'tv' : 'movie',
-                              userDisplayName: entry.user?.displayName ?? entry.user?.username,
-                              username: entry.user?.username,
-                              userAvatarUrl: entry.user?.profilePictureUrl,
-                              shareMode: entry.isWatching ? StoryShareMode.watching : StoryShareMode.logged,
-                            );
-                          },
-                        ),
                       ],
                     ),
                   ),

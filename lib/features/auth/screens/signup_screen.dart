@@ -27,6 +27,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _isHandlingPostAuth = false;
 
   @override
   void dispose() {
@@ -37,7 +38,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _register() async {
-
+    if (_isLoading || _isHandlingPostAuth) return;
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
@@ -81,16 +82,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _handlePostAuthFlow() async {
-    final user = ref.read(authStateProvider).value?.user;
-    if (user != null) {
-      final onboardingService = ref.read(onboardingServiceProvider);
-      final shouldPrompt = await onboardingService.shouldPromptUser(user);
-      if (shouldPrompt && mounted) {
-        onboardingService.markPrompted();
-        await WatchPreferencesOnboardingDialog.show(context);
-        await onboardingService.markPreferencesCompleted(user.id);
+    if (_isHandlingPostAuth) return;
+    _isHandlingPostAuth = true;
+
+    try {
+      final user = ref.read(authStateProvider).value?.user;
+      if (user != null) {
+        final onboardingService = ref.read(onboardingServiceProvider);
+        final shouldPrompt = await onboardingService.shouldPromptUser(user);
+        if (shouldPrompt && mounted) {
+          onboardingService.markPrompted(user.id);
+          await WatchPreferencesOnboardingDialog.show(context);
+          await onboardingService.markPreferencesCompleted(user.id);
+        }
       }
+    } catch (e) {
+      debugPrint('[SignupScreen] Post-auth preferences check error: $e');
     }
+
     if (mounted) {
       context.go('/feed');
       WHAlert.showSuccess(context, 'Welcome to WatchersHive!');
@@ -98,6 +107,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _googleSignIn() async {
+    if (_isLoading || _isHandlingPostAuth) return;
     setState(() => _isLoading = true);
     try {
       final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
@@ -162,6 +172,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _appleSignIn() async {
+    if (_isLoading || _isHandlingPostAuth) return;
     setState(() => _isLoading = true);
     try {
       final credential = await SignInWithApple.getAppleIDCredential(

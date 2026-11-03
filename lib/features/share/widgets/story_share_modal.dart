@@ -195,7 +195,7 @@ class _StoryShareModalState extends State<StoryShareModal> {
     return Container(
       constraints: BoxConstraints(maxHeight: screenHeight * 0.92),
       decoration: const BoxDecoration(
-        color: Color(0xFF141210),
+        color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
@@ -208,7 +208,7 @@ class _StoryShareModalState extends State<StoryShareModal> {
               width: 44,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: AppColors.textPrimary.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -222,7 +222,7 @@ class _StoryShareModalState extends State<StoryShareModal> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.auto_awesome_rounded, color: AppColors.primary, size: 20),
+                    Icon(Icons.auto_awesome_rounded, color: AppColors.primaryDark, size: 20),
                     SizedBox(width: 8),
                     Text(
                       'Share to Story',
@@ -230,20 +230,20 @@ class _StoryShareModalState extends State<StoryShareModal> {
                         fontFamily: 'Inter',
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ],
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
           ),
 
-          const Divider(height: 1, color: Colors.white12),
+          const Divider(height: 1, color: AppColors.border),
 
           // Story Card Live Preview (9:16 aspect ratio preview)
           Flexible(
@@ -298,21 +298,23 @@ class _StoryShareModalState extends State<StoryShareModal> {
                       Expanded(
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white24),
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppColors.textPrimary,
+                            side: const BorderSide(color: AppColors.border, width: 1.2),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                           onPressed: _copyLink,
-                          icon: const Icon(Icons.link_rounded, size: 18, color: AppColors.primary),
+                          icon: const Icon(Icons.link_rounded, size: 18, color: AppColors.primaryDark),
                           label: const Text(
                             'Copy Link',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ),
@@ -321,8 +323,9 @@ class _StoryShareModalState extends State<StoryShareModal> {
                       Expanded(
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white24),
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppColors.textPrimary,
+                            side: const BorderSide(color: AppColors.border, width: 1.2),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
@@ -332,13 +335,14 @@ class _StoryShareModalState extends State<StoryShareModal> {
                             HapticFeedback.lightImpact();
                             Share.share(_shareText, subject: 'WatchersHive: ${widget.title}');
                           },
-                          icon: const Icon(Icons.text_fields_rounded, size: 18, color: AppColors.primary),
+                          icon: const Icon(Icons.text_fields_rounded, size: 18, color: AppColors.primaryDark),
                           label: const Text(
                             'Share Text',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ),
