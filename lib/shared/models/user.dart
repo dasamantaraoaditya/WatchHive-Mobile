@@ -33,6 +33,8 @@ class User {
   final String? incomingRequestId;
   final bool hasGoogleLinked;
   final bool hasPassword;
+  final String? suggestionReason;
+  final int mutualFriendsCount;
   final DateTime createdAt;
 
   const User({
@@ -69,6 +71,8 @@ class User {
     this.incomingRequestId,
     this.hasGoogleLinked = false,
     this.hasPassword = true,
+    this.suggestionReason,
+    this.mutualFriendsCount = 0,
     required this.createdAt,
   });
 
@@ -169,6 +173,8 @@ class User {
       incomingRequestId: json['incomingRequestId']?.toString(),
       hasGoogleLinked: json['hasGoogleLinked'] as bool? ?? false,
       hasPassword: json['hasPassword'] as bool? ?? true,
+      suggestionReason: json['suggestionReason'] as String?,
+      mutualFriendsCount: _parseInt(json['mutualFriendsCount']),
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
           : DateTime.now(),
@@ -204,6 +210,8 @@ class User {
         'followingCount': followingCount,
         'isFollowing': isFollowing,
         'isFollower': isFollower,
+        if (suggestionReason != null) 'suggestionReason': suggestionReason,
+        if (mutualFriendsCount > 0) 'mutualFriendsCount': mutualFriendsCount,
         'createdAt': createdAt.toIso8601String(),
       };
 
@@ -242,6 +250,8 @@ class User {
     String? incomingRequestId,
     bool? hasGoogleLinked,
     bool? hasPassword,
+    String? suggestionReason,
+    int? mutualFriendsCount,
     DateTime? createdAt,
   }) {
     return User(
@@ -278,6 +288,8 @@ class User {
       incomingRequestId: incomingRequestId ?? this.incomingRequestId,
       hasGoogleLinked: hasGoogleLinked ?? this.hasGoogleLinked,
       hasPassword: hasPassword ?? this.hasPassword,
+      suggestionReason: suggestionReason ?? this.suggestionReason,
+      mutualFriendsCount: mutualFriendsCount ?? this.mutualFriendsCount,
       createdAt: createdAt ?? this.createdAt,
     );
   }
