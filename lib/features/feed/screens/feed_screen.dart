@@ -19,6 +19,8 @@ import '../widgets/feed_add_friends_card.dart';
 import '../../onboarding/widgets/screen_guide_dialog.dart';
 import '../../profile/widgets/add_friends_sheet.dart';
 import '../../profile/repositories/user_repository.dart';
+import '../../search/repositories/search_repository.dart';
+import '../../../shared/models/user.dart';
 
 export '../providers/feed_provider.dart';
 
@@ -37,6 +39,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
   bool _hasCheckedTour = false;
   bool _hasSyncedPush = false;
   bool _isFriendsBannerDismissed = false;
+  List<User> _suggestedUsers = [];
+  final Map<String, bool> _followingMap = {};
+  final Map<String, bool> _loadingFollowMap = {};
+  bool _isLoadingSuggested = false;
 
   @override
   void initState() {
@@ -60,6 +66,78 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
       final dismissed = await FeedAddFriendsCard.isDismissed(user.id);
       if (dismissed && mounted) {
         setState(() => _isFriendsBannerDismissed = true);
+      } else if (!dismissed && user.followingCount == 0) {
+        _fetchSuggestedFriends();
+      }
+    }
+  }
+
+  Future<void> _fetchSuggestedFriends() async {
+    if (_isLoadingSuggested) return;
+    _isLoadingSuggested = true;
+    try {
+      final results = await ref.read(searchRepositoryProvider).getSuggestedUsers();
+      if (mounted) {
+        setState(() {
+          _suggestedUsers = results;
+          _isLoadingSuggested = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingSuggested = false);
+      }
+    }
+  }
+
+  Future<void> _handleInlineFollowUser(User target) async {
+    if (_loadingFollowMap[target.id] == true) return;
+    final isCurrentlyFollowing = _followingMap[target.id] ?? target.isFollowing;
+
+    setState(() => _loadingFollowMap[target.id] = true);
+    HapticFeedback.lightImpact();
+
+    try {
+      if (isCurrentlyFollowing) {
+        await ref.read(userRepositoryProvider).unfollowUser(target.id);
+        if (mounted) {
+          setState(() => _followingMap[target.id] = false);
+        }
+        final currentUser = ref.read(authStateProvider).value?.user;
+        if (currentUser != null && mounted) {
+          ref.read(authStateProvider.notifier).updateUser(
+            currentUser.copyWith(
+              followingCount: currentUser.followingCount > 0 ? currentUser.followingCount - 1 : 0,
+            ),
+          );
+        }
+      } else {
+        await ref.read(userRepositoryProvider).followUser(target.id);
+        if (mounted) {
+          setState(() => _followingMap[target.id] = true);
+        }
+        final currentUser = ref.read(authStateProvider).value?.user;
+        if (currentUser != null && mounted) {
+          ref.read(authStateProvider.notifier).updateUser(
+            currentUser.copyWith(
+              followingCount: currentUser.followingCount + 1,
+            ),
+          );
+        }
+        ref.read(feedProvider.notifier).loadFeed(isRefresh: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update follow: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingFollowMap[target.id] = false);
       }
     }
   }
@@ -291,6 +369,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                       child: FeedAddFriendsCard(
                         onAddFriends: _openAddFriends,
                         onDismiss: _dismissFriendsBanner,
+                        suggestedUsers: _suggestedUsers,
+                        onFollowUser: _handleInlineFollowUser,
+                        onUserTap: (target) => context.push('/profile/${target.id}'),
+                        followingMap: _followingMap,
+                        loadingFollowMap: _loadingFollowMap,
                       ),
                     ),
                   ),

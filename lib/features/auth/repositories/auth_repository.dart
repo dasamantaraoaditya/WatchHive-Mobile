@@ -30,7 +30,7 @@ class AuthRepository {
     return user;
   }
 
-  Future<User> register({
+  Future<Map<String, dynamic>> register({
     required String username,
     required String email,
     required String password,
@@ -38,6 +38,20 @@ class AuthRepository {
     final response = await _api.post(
       ApiEndpoints.register,
       data: {'username': username, 'email': email, 'password': password},
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<User> verifyEmail({
+    required String token,
+    String? email,
+  }) async {
+    final response = await _api.post(
+      ApiEndpoints.verifyEmail,
+      data: {
+        'token': token.trim(),
+        if (email != null && email.isNotEmpty) 'email': email.trim().toLowerCase(),
+      },
     );
     final data = response.data as Map<String, dynamic>;
     await _authManager.saveTokens(
@@ -47,6 +61,14 @@ class AuthRepository {
     final user = User.fromJson(data['user'] as Map<String, dynamic>);
     await _authManager.saveUser(user);
     return user;
+  }
+
+  Future<Map<String, dynamic>> resendVerification(String email) async {
+    final response = await _api.post(
+      ApiEndpoints.resendVerification,
+      data: {'email': email.trim().toLowerCase()},
+    );
+    return response.data as Map<String, dynamic>;
   }
 
   Future<User> googleSignIn(String idToken) async {

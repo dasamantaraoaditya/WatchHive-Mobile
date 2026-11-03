@@ -159,17 +159,33 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     }
   }
 
-  Future<void> register({
+  Future<Map<String, dynamic>> register({
     required String username,
     required String email,
     required String password,
   }) async {
-    state = const AsyncLoading();
     try {
-      final rawUser = await ref.read(authRepositoryProvider).register(
+      final res = await ref.read(authRepositoryProvider).register(
             username: username,
             email: email,
             password: password,
+          );
+      return res;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
+  }
+
+  Future<void> verifyEmail({
+    required String token,
+    String? email,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      final rawUser = await ref.read(authRepositoryProvider).verifyEmail(
+            token: token,
+            email: email,
           );
       final user = await ref
           .read(onboardingServiceProvider)
@@ -181,6 +197,10 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       state = AsyncError(e, st);
       rethrow;
     }
+  }
+
+  Future<void> resendVerification(String email) async {
+    await ref.read(authRepositoryProvider).resendVerification(email);
   }
 
   Future<void> googleSignIn(String idToken) async {

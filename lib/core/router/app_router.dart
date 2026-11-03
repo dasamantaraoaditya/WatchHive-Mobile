@@ -8,6 +8,7 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
 import '../../features/auth/screens/reset_password_screen.dart';
+import '../../features/auth/screens/verify_email_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_shell.dart';
 import '../../features/feed/screens/feed_screen.dart';
@@ -75,7 +76,8 @@ String? normalizeIncomingRoute(Uri uri) {
         host == 'search' ||
         host == 'notifications' ||
         host == 'forgot-password' ||
-        host == 'reset-password') {
+        host == 'reset-password' ||
+        host == 'verify-email') {
       return '/$host$path$query';
     }
   }
@@ -127,7 +129,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isAuthPage = state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/signup') ||
           state.matchedLocation.startsWith('/forgot-password') ||
-          state.matchedLocation.startsWith('/reset-password');
+          state.matchedLocation.startsWith('/reset-password') ||
+          state.matchedLocation.startsWith('/verify-email');
       final isPublicPage = isAuthPage ||
           state.matchedLocation.startsWith('/privacy-policy') ||
           state.matchedLocation.startsWith('/support');
@@ -209,6 +212,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final token = state.uri.queryParameters['token'];
           final email = state.uri.queryParameters['email'];
           return ResetPasswordScreen(initialToken: token, initialEmail: email);
+        },
+      ),
+      GoRoute(
+        path: '/verify-email',
+        builder: (context, state) {
+          final token = state.uri.queryParameters['token'];
+          final email = state.uri.queryParameters['email'] ??
+              (state.extra is Map ? (state.extra as Map)['email']?.toString() : null);
+          return VerifyEmailScreen(initialToken: token, initialEmail: email);
         },
       ),
       // Shell route with bottom nav matching Web App (Home, MindLens, Entries, Search, Profile)
