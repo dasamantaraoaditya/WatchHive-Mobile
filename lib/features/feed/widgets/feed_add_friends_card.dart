@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/models/user.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 
-/// An interactive panel shown in the Feed when a user has 0 friends,
-/// encouraging them to add friends to diversify their feed and suggestions.
-///
-/// Features a clear "Add Friends" action and can be dismissed/cancelled by the user.
+/// An interactive panel shown in the Feed when a user has 0 friends/followers,
+/// encouraging them to add friends to diversify their feed and suggestions,
+/// alongside inline suggested friends to follow immediately.
 class FeedAddFriendsCard extends StatelessWidget {
   final VoidCallback onAddFriends;
   final VoidCallback onDismiss;
+  final List<User> suggestedUsers;
+  final Function(User)? onFollowUser;
+  final Map<String, bool>? followingMap;
 
   static const String _storagePrefix = 'wh_dismissed_feed_add_friends_banner_';
 
@@ -52,6 +56,9 @@ class FeedAddFriendsCard extends StatelessWidget {
     super.key,
     required this.onAddFriends,
     required this.onDismiss,
+    this.suggestedUsers = const [],
+    this.onFollowUser,
+    this.followingMap,
   });
 
   @override
@@ -128,7 +135,7 @@ class FeedAddFriendsCard extends StatelessWidget {
 
           // Message Body
           const Text(
-            'You haven’t added any friends yet! Connect with friends to see what your swarm is watching, share movie picks, and discover diverse suggestions tailored to your taste.',
+            'You haven’t added any friends yet! Connect with fellow cinephiles to populate your swarm feed with varied ratings, reviews, and diverse recommendations.',
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 13,
@@ -136,9 +143,191 @@ class FeedAddFriendsCard extends StatelessWidget {
               height: 1.45,
             ),
           ),
+
+          // Inline Suggested Friends Horizontal Carousel
+          if (suggestedUsers.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                const Icon(
+                  Icons.auto_awesome,
+                  size: 14,
+                  color: AppColors.primaryDark,
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  'SUGGESTED FRIENDS TO FOLLOW',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${suggestedUsers.length} cinephiles',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 168,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: suggestedUsers.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final user = suggestedUsers[index];
+                  final isFollowing = followingMap?[user.id] ?? user.isFollowing;
+                  final reason = user.suggestionReason?.isNotEmpty == true
+                      ? user.suggestionReason!
+                      : (user.bio?.isNotEmpty == true ? user.bio! : 'Active Cinephile');
+
+                  return Container(
+                    width: 140,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          children: [
+                            WHAvatar(
+                              imageUrl: user.profilePictureUrl,
+                              name: user.displayName ?? user.username,
+                              radius: 20,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              user.displayName ?? user.username,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              '@${user.username}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 10.5,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                reason,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 28,
+                          child: isFollowing
+                              ? OutlinedButton(
+                                  onPressed: null,
+                                  style: OutlinedButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    side: BorderSide(
+                                      color: Colors.green.withValues(alpha: 0.5),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.check, size: 12, color: Colors.green),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Following',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : ElevatedButton(
+                                  onPressed: () {
+                                    HapticFeedback.lightImpact();
+                                    onFollowUser?.call(user);
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.black,
+                                    padding: EdgeInsets.zero,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.person_add_rounded, size: 12),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Follow',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+
           const SizedBox(height: 14),
 
-          // Actions Row: "Add Friends" Primary + "Cancel" Secondary
+          // Actions Row: "Find More Friends" Primary + "Maybe Later" Secondary
           Row(
             children: [
               ElevatedButton.icon(
@@ -146,9 +335,9 @@ class FeedAddFriendsCard extends StatelessWidget {
                   HapticFeedback.lightImpact();
                   onAddFriends();
                 },
-                icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+                icon: const Icon(Icons.person_search_rounded, size: 16),
                 label: const Text(
-                  'Add Friends',
+                  'Find More Friends',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 13,
@@ -176,7 +365,7 @@ class FeedAddFriendsCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
                 child: const Text(
-                  'Cancel',
+                  'Maybe Later',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 13,
