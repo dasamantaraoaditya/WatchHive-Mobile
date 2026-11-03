@@ -337,7 +337,7 @@ class FeedAddFriendsCard extends StatelessWidget {
                 },
                 icon: const Icon(Icons.person_search_rounded, size: 16),
                 label: const Text(
-                  'Find More Friends',
+                  'Add Friends',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 13,
@@ -365,7 +365,7 @@ class FeedAddFriendsCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
                 child: const Text(
-                  'Maybe Later',
+                  'Cancel',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 13,

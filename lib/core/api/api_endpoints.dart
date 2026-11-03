@@ -66,6 +66,8 @@ class ApiEndpoints {
   // Auth
   static const String login = '/auth/login';
   static const String register = '/auth/register';
+  static const String verifyEmail = '/auth/verify-email';
+  static const String resendVerification = '/auth/resend-verification';
   static const String googleAuth = '/auth/google';
   static const String appleAuth = '/auth/apple';
   static const String refreshToken = '/auth/refresh';

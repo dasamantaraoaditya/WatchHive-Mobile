@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,16 +44,31 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(authStateProvider.notifier).register(
+      final email = _emailController.text.trim();
+      final res = await ref.read(authStateProvider.notifier).register(
             username: _usernameController.text.trim(),
-            email: _emailController.text.trim(),
+            email: email,
             password: _passwordController.text,
           );
-      if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
-        await _handlePostAuthFlow();
+      if (mounted) {
+        WHAlert.showSuccess(
+          context,
+          res['message']?.toString() ?? 'Please enter the 6-digit code sent to your email.',
+        );
+        context.push('/verify-email', extra: {'email': email});
       }
     } catch (e) {
       if (mounted) {
+        if (e is DioException && e.response?.data is Map) {
+          final data = e.response!.data as Map;
+          if (data['code'] == 'email_already_registered') {
+            WHAlert.showWarning(
+              context,
+              'This email is already registered. Please sign in.',
+            );
+            return;
+          }
+        }
         WHAlert.showError(context, _parseError(e));
       }
     } finally {

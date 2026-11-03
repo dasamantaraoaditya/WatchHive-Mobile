@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,6 +71,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
+        if (e is DioException && e.response?.data is Map) {
+          final data = e.response!.data as Map;
+          if (data['code'] == 'email_not_verified') {
+            final unverifiedEmail = (data['email'] ?? _emailController.text.trim()).toString();
+            WHAlert.showWarning(
+              context,
+              'Your email is not verified yet. Please enter the 6-digit verification code.',
+            );
+            context.push('/verify-email', extra: {'email': unverifiedEmail});
+            return;
+          }
+        }
         WHAlert.showError(context, _parseError(e));
       }
     } finally {

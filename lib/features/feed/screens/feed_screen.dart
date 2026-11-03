@@ -65,7 +65,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
       final dismissed = await FeedAddFriendsCard.isDismissed(user.id);
       if (dismissed && mounted) {
         setState(() => _isFriendsBannerDismissed = true);
-      } else if (!dismissed && (user.followingCount == 0 || user.followersCount == 0)) {
+      } else if (!dismissed && user.followingCount == 0) {
         _fetchSuggestedFriends();
       }
     }
@@ -339,7 +339,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                   child: SmartSuggestHeroCard(),
                 ),
                 if (currentUser != null &&
-                    (currentUser.followingCount == 0 || currentUser.followersCount == 0) &&
+                    currentUser.followingCount == 0 &&
                     !_isFriendsBannerDismissed)
                   SliverToBoxAdapter(
                     child: Padding(
