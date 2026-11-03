@@ -28,6 +28,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _isHandlingPostAuth = false;
 
   @override
   void initState() {
@@ -51,6 +52,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
+    if (_isLoading || _isHandlingPostAuth) return;
     if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
       WHAlert.showWarning(context, 'Please enter both your email and password');
       return;
@@ -76,7 +78,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _googleSignIn() async {
-    if (_isLoading) return;
+    if (_isLoading || _isHandlingPostAuth) return;
     setState(() => _isLoading = true);
     try {
       final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
@@ -144,6 +146,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _appleSignIn() async {
+    if (_isLoading || _isHandlingPostAuth) return;
     setState(() => _isLoading = true);
     try {
       final credential = await SignInWithApple.getAppleIDCredential(
@@ -205,16 +208,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handlePostAuthFlow() async {
-    final user = ref.read(authStateProvider).value?.user;
-    if (user != null) {
-      final onboardingService = ref.read(onboardingServiceProvider);
-      final shouldPrompt = await onboardingService.shouldPromptUser(user);
-      if (shouldPrompt && mounted) {
-        onboardingService.markPrompted();
-        await WatchPreferencesOnboardingDialog.show(context);
-        await onboardingService.markPreferencesCompleted(user.id);
+    if (_isHandlingPostAuth) return;
+    _isHandlingPostAuth = true;
+
+    try {
+      final user = ref.read(authStateProvider).value?.user;
+      if (user != null) {
+        final onboardingService = ref.read(onboardingServiceProvider);
+        final shouldPrompt = await onboardingService.shouldPromptUser(user);
+        if (shouldPrompt && mounted) {
+          onboardingService.markPrompted(user.id);
+          await WatchPreferencesOnboardingDialog.show(context);
+          await onboardingService.markPreferencesCompleted(user.id);
+        }
       }
+    } catch (e) {
+      debugPrint('[LoginScreen] Post-auth preferences check error: $e');
     }
+
     if (mounted) {
       context.go('/feed');
     }

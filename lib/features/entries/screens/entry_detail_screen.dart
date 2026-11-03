@@ -162,6 +162,10 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(authStateProvider).value?.user;
+    final isOwnPost = currentUser != null &&
+        _entry != null &&
+        ((_entry!.user?.id != null && _entry!.user!.id == currentUser.id) ||
+            _entry!.userId == currentUser.id);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -182,7 +186,7 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
           ),
         ),
         actions: [
-          if (_entry != null)
+          if (_entry != null && isOwnPost)
             IconButton(
               icon: const Icon(Icons.share_outlined, color: AppColors.textPrimary),
               tooltip: 'Share Watch',

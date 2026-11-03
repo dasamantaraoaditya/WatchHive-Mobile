@@ -6,6 +6,7 @@ class WHBrandLogo extends StatelessWidget {
   final double fontSize;
   final bool showText;
   final MainAxisSize mainAxisSize;
+  final Color? textColor;
 
   const WHBrandLogo({
     super.key,
@@ -13,6 +14,7 @@ class WHBrandLogo extends StatelessWidget {
     this.fontSize = 20,
     this.showText = true,
     this.mainAxisSize = MainAxisSize.min,
+    this.textColor,
   });
 
   @override
@@ -49,7 +51,7 @@ class WHBrandLogo extends StatelessWidget {
                       fontFamily: 'Inter',
                       fontSize: fontSize,
                       fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary,
+                      color: textColor ?? AppColors.textPrimary,
                       letterSpacing: -0.5,
                     ),
                   ),

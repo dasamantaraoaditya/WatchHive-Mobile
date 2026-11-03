@@ -22,7 +22,8 @@ class OnboardingService {
   final ApiClient _apiClient;
   final FlutterSecureStorage _storage;
   final OfflineStorageService _offlineStorage;
-  bool _hasPromptedThisLaunch = false;
+  static bool _hasPromptedThisLaunch = false;
+  static final Set<String> _promptedUserIds = {};
 
   static final Map<String, bool> _onboardingCompletedCache = {};
   static final Map<String, Map<String, dynamic>> _preferencesCache = {};
@@ -41,8 +42,20 @@ class OnboardingService {
 
   bool get hasPromptedThisLaunch => _hasPromptedThisLaunch;
 
-  void markPrompted() {
+  void markPrompted([String? userId]) {
     _hasPromptedThisLaunch = true;
+    if (userId != null && userId.trim().isNotEmpty) {
+      _promptedUserIds.add(userId.trim());
+      _onboardingCompletedCache[userId.trim()] = true;
+    }
+  }
+
+  @visibleForTesting
+  static void resetTrackingForTesting() {
+    _hasPromptedThisLaunch = false;
+    _promptedUserIds.clear();
+    _onboardingCompletedCache.clear();
+    _preferencesCache.clear();
   }
 
   static String _prefKey(String userId) => 'wh_user_preferences_${userId.trim()}';
@@ -111,6 +124,7 @@ class OnboardingService {
     final cleanId = userId.trim();
     _onboardingCompletedCache[cleanId] = true;
     _hasPromptedThisLaunch = true;
+    _promptedUserIds.add(cleanId);
     try {
       await _storage.write(key: _completedKey(cleanId), value: 'true');
     } catch (_) {}
@@ -145,9 +159,11 @@ class OnboardingService {
   /// Strictly checks persistent storage so it is NEVER shown on app restarts or twice in one session.
   Future<bool> shouldPromptUser(User? user) async {
     if (user == null || user.id.isEmpty) return false;
-    if (_hasPromptedThisLaunch) return false;
-
     final userId = user.id.trim();
+
+    if (_hasPromptedThisLaunch) return false;
+    if (_promptedUserIds.contains(userId)) return false;
+
     if (_onboardingCompletedCache[userId] == true) return false;
     if (user.hasCompletedOnboarding) return false;
     if (user.hasSubstantivePreferences) {
@@ -161,15 +177,22 @@ class OnboardingService {
       return false;
     }
 
+    final local = await loadLocalPreferences(userId);
+    if (local != null && local.isNotEmpty) {
+      _onboardingCompletedCache[userId] = true;
+      return false;
+    }
+
     return true;
   }
 
   /// Determines if the first-time watch preferences dialog should be shown synchronously.
   bool shouldShowPreferences(User? user) {
     if (user == null || user.id.isEmpty) return false;
-    if (_hasPromptedThisLaunch) return false;
-
     final userId = user.id.trim();
+
+    if (_hasPromptedThisLaunch) return false;
+    if (_promptedUserIds.contains(userId)) return false;
 
     // 1. If in-memory cache or user object says completed, do not show
     if (_onboardingCompletedCache[userId] == true) return false;
@@ -195,7 +218,8 @@ class OnboardingService {
     return true;
   }
 
-  /// Merges locally cached preferences into a user object if missing from backend
+  /// Merges locally cached preferences into a user object if missing from backend,
+  /// or queries the server to retrieve already-persisted preferences.
   Future<User> resolveUserWithPreferences(User user) async {
     if (user.id.isEmpty) return user;
     final userId = user.id.trim();
@@ -203,18 +227,58 @@ class OnboardingService {
     Map<String, dynamic>? effectivePrefs = user.preferences;
     bool effectiveCompleted = user.hasCompletedOnboarding;
 
-    if (!user.hasSubstantivePreferences) {
-      final local = await loadLocalPreferences(userId);
-      if (local != null && local.isNotEmpty) {
-        effectivePrefs = local;
-        effectiveCompleted = true;
-      }
+    // 1. If user object from auth endpoint already has substantive preferences, cache & complete
+    if (user.hasSubstantivePreferences) {
+      _preferencesCache[userId] = user.preferences!;
+      _onboardingCompletedCache[userId] = true;
+      unawaited(_offlineStorage.saveUserPreferences(userId, user.preferences!));
+      unawaited(_storage.write(key: _prefKey(userId), value: jsonEncode(user.preferences!)));
+      unawaited(_storage.write(key: _completedKey(userId), value: 'true'));
+      return user.copyWith(hasCompletedOnboarding: true);
     }
 
+    // 2. Check local persistent storage (SQLite & SecureStorage)
+    final local = await loadLocalPreferences(userId);
+    if (local != null && local.isNotEmpty) {
+      effectivePrefs = local;
+      effectiveCompleted = true;
+      _preferencesCache[userId] = local;
+      _onboardingCompletedCache[userId] = true;
+      return user.copyWith(
+        preferences: effectivePrefs,
+        hasCompletedOnboarding: true,
+      );
+    }
+
+    // 3. If missing locally, query the backend GET /users/me
+    try {
+      final response = await _apiClient.get(ApiEndpoints.me);
+      final data = response.data as Map<String, dynamic>;
+      final userJson = data.containsKey('user') ? data['user'] as Map<String, dynamic> : data;
+      final serverUser = User.fromJson(userJson);
+      if (serverUser.hasSubstantivePreferences || serverUser.hasCompletedOnboarding) {
+        effectivePrefs = serverUser.preferences;
+        effectiveCompleted = true;
+        if (effectivePrefs != null && effectivePrefs.isNotEmpty) {
+          _preferencesCache[userId] = effectivePrefs;
+          unawaited(_offlineStorage.saveUserPreferences(userId, effectivePrefs));
+          unawaited(_storage.write(key: _prefKey(userId), value: jsonEncode(effectivePrefs)));
+        }
+        _onboardingCompletedCache[userId] = true;
+        unawaited(_storage.write(key: _completedKey(userId), value: 'true'));
+        return user.copyWith(
+          preferences: effectivePrefs,
+          hasCompletedOnboarding: true,
+        );
+      }
+    } catch (_) {}
+
+    // 4. Fallback check for completion flag
     if (!effectiveCompleted) {
       final isCompleted = await isPreferencesCompleted(userId);
       if (isCompleted) {
         effectiveCompleted = true;
+        _onboardingCompletedCache[userId] = true;
       }
     }
 
