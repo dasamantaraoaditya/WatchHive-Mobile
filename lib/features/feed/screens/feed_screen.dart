@@ -41,6 +41,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
   bool _isFriendsBannerDismissed = false;
   List<User> _suggestedUsers = [];
   final Map<String, bool> _followingMap = {};
+  final Map<String, bool> _loadingFollowMap = {};
   bool _isLoadingSuggested = false;
 
   @override
@@ -90,32 +91,53 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
   }
 
   Future<void> _handleInlineFollowUser(User target) async {
+    if (_loadingFollowMap[target.id] == true) return;
     final isCurrentlyFollowing = _followingMap[target.id] ?? target.isFollowing;
-    if (isCurrentlyFollowing) return;
 
-    setState(() => _followingMap[target.id] = true);
+    setState(() => _loadingFollowMap[target.id] = true);
     HapticFeedback.lightImpact();
 
     try {
-      await ref.read(userRepositoryProvider).followUser(target.id);
-      final currentUser = ref.read(authStateProvider).value?.user;
-      if (currentUser != null && mounted) {
-        ref.read(authStateProvider.notifier).updateUser(
-          currentUser.copyWith(
-            followingCount: currentUser.followingCount + 1,
-          ),
-        );
+      if (isCurrentlyFollowing) {
+        await ref.read(userRepositoryProvider).unfollowUser(target.id);
+        if (mounted) {
+          setState(() => _followingMap[target.id] = false);
+        }
+        final currentUser = ref.read(authStateProvider).value?.user;
+        if (currentUser != null && mounted) {
+          ref.read(authStateProvider.notifier).updateUser(
+            currentUser.copyWith(
+              followingCount: currentUser.followingCount > 0 ? currentUser.followingCount - 1 : 0,
+            ),
+          );
+        }
+      } else {
+        await ref.read(userRepositoryProvider).followUser(target.id);
+        if (mounted) {
+          setState(() => _followingMap[target.id] = true);
+        }
+        final currentUser = ref.read(authStateProvider).value?.user;
+        if (currentUser != null && mounted) {
+          ref.read(authStateProvider.notifier).updateUser(
+            currentUser.copyWith(
+              followingCount: currentUser.followingCount + 1,
+            ),
+          );
+        }
+        ref.read(feedProvider.notifier).loadFeed(isRefresh: true);
       }
-      ref.read(feedProvider.notifier).loadFeed(isRefresh: true);
     } catch (e) {
       if (mounted) {
-        setState(() => _followingMap[target.id] = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to follow: $e'),
+            content: Text('Failed to update follow: $e'),
             backgroundColor: AppColors.error,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingFollowMap[target.id] = false);
       }
     }
   }
@@ -349,7 +371,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                         onDismiss: _dismissFriendsBanner,
                         suggestedUsers: _suggestedUsers,
                         onFollowUser: _handleInlineFollowUser,
+                        onUserTap: (target) => context.push('/profile/${target.id}'),
                         followingMap: _followingMap,
+                        loadingFollowMap: _loadingFollowMap,
                       ),
                     ),
                   ),

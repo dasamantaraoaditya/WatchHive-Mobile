@@ -60,8 +60,8 @@ void main() {
       expect(find.text('Follows you'), findsOneWidget);
 
       // Verify buttons
-      expect(find.text('Find More Friends'), findsOneWidget);
-      expect(find.text('Maybe Later'), findsOneWidget);
+      expect(find.text('Add Friends'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
 
       // Tap follow on first user
       final followButtons = find.text('Follow');
@@ -71,18 +71,65 @@ void main() {
 
       expect(followedUser?.id, 'u1');
 
-      // Tap Find More Friends
-      await tester.tap(find.text('Find More Friends'));
+      // Tap Add Friends
+      await tester.tap(find.text('Add Friends'));
       await tester.pump();
       expect(addFriendsTapped, isTrue);
 
-      // Tap Maybe Later
-      await tester.tap(find.text('Maybe Later'));
+      // Tap Cancel
+      await tester.tap(find.text('Cancel'));
       await tester.pump();
       expect(dismissedTapped, isTrue);
     });
 
-    testWidgets('shows Following state when user is in followingMap', (tester) async {
+    testWidgets('tapping user profile header invokes onUserTap', (tester) async {
+      User? tappedUser;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: FeedAddFriendsCard(
+                onAddFriends: () {},
+                onDismiss: () {},
+                suggestedUsers: testUsers,
+                onUserTap: (u) => tappedUser = u,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Tap Jane Doe's profile header
+      await tester.tap(find.text('Jane Doe'));
+      await tester.pump();
+
+      expect(tappedUser?.id, equals('u1'));
+      expect(tappedUser?.username, equals('cinephile_jane'));
+    });
+
+    testWidgets('shows loading spinner when user is in loadingFollowMap', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: FeedAddFriendsCard(
+                onAddFriends: () {},
+                onDismiss: () {},
+                suggestedUsers: testUsers,
+                loadingFollowMap: const {'u1': true},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets('shows Following state when user is in followingMap and handles toggle tap', (tester) async {
+      User? toggledUser;
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -92,6 +139,7 @@ void main() {
                 onDismiss: () {},
                 suggestedUsers: testUsers,
                 followingMap: const {'u1': true},
+                onFollowUser: (u) => toggledUser = u,
               ),
             ),
           ),
@@ -100,6 +148,88 @@ void main() {
 
       expect(find.text('Following'), findsOneWidget);
       expect(find.text('Follow'), findsOneWidget);
+
+      // Tap on 'Following' button to trigger toggle
+      await tester.tap(find.text('Following'));
+      await tester.pump();
+
+      expect(toggledUser?.id, equals('u1'));
+    });
+
+    testWidgets('renders cleanly on web viewport with scroll arrow navigation for >2 users', (tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final threeUsers = [
+        ...testUsers,
+        User(
+          id: 'u3',
+          username: 'cinephile_chris',
+          displayName: 'Chris Nolan Fan',
+          bio: 'IMAX lover',
+          suggestionReason: 'Shares your genres',
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: FeedAddFriendsCard(
+                onAddFriends: () {},
+                onDismiss: () {},
+                suggestedUsers: threeUsers,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Check chevron buttons exist for >2 users
+      expect(find.byIcon(Icons.chevron_left_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.chevron_right_rounded), findsOneWidget);
+
+      // Tap right arrow
+      await tester.tap(find.byIcon(Icons.chevron_right_rounded));
+      await tester.pumpAndSettle();
+
+      // Tap left arrow
+      await tester.tap(find.byIcon(Icons.chevron_left_rounded));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('renders cleanly on standard mobile viewport (390x844)', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: FeedAddFriendsCard(
+                onAddFriends: () {},
+                onDismiss: () {},
+                suggestedUsers: testUsers,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Diversify Your Feed & Suggestions'), findsOneWidget);
+      expect(find.text('Add Friends'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Jane Doe'), findsOneWidget);
+      expect(find.text('Bob Smith'), findsOneWidget);
     });
   });
 }
