@@ -800,14 +800,37 @@ class _UserTile extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      '@${user.username}',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.primary,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          '@${user.username}',
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        if (user.isFollower) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Follows you',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     if (user.bio != null && user.bio!.isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -971,7 +994,7 @@ class _DiscoveryView extends StatelessWidget {
           else
             SliverToBoxAdapter(
               child: SizedBox(
-                height: 156,
+                height: 178,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1335,7 +1358,47 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
+            if (widget.user.suggestionReason != null && widget.user.suggestionReason!.isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      widget.user.suggestionReason!.contains('mutual')
+                          ? Icons.group_outlined
+                          : widget.user.suggestionReason!.contains('Follows')
+                              ? Icons.how_to_reg_outlined
+                              : widget.user.suggestionReason!.contains('movie') || widget.user.suggestionReason!.contains('taste')
+                                  ? Icons.movie_outlined
+                                  : Icons.stars_rounded,
+                      size: 10,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 3),
+                    Flexible(
+                      child: Text(
+                        widget.user.suggestionReason!,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 6),
             SizedBox(
               width: double.infinity,
               height: 26,
