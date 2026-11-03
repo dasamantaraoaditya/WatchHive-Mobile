@@ -121,3 +121,16 @@ jobs:
             exit 1
           fi
           echo "✅ Secure hardware storage verified (Keychain / KeyStore)."
+
+      - name: Verify No Live Secrets or Private Keys Tracked in Git
+        run: |
+          echo "Verifying no live .env or private backend secrets are committed..."
+          if git ls-files | grep -E "^\.env$|\.env\.local$|\.env\.production$"; then
+            echo "❌ CRITICAL SECURITY ERROR: Live .env file is tracked in git!"
+            exit 1
+          fi
+          if git grep -EI "(GOCSPX|JWT_SECRET|POSTGRES_PASSWORD|AWS_SECRET_ACCESS_KEY)" lib/ 2>/dev/null; then
+            echo "❌ CRITICAL SECURITY ERROR: Backend private secret detected in mobile codebase!"
+            exit 1
+          fi
+          echo "✅ Mobile repository clean of private backend secrets."

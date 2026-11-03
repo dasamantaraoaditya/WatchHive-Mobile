@@ -11,9 +11,9 @@ WatchHive Mobile provides a native smartphone experience for cinema enthusiasts:
 - **Ranking Stacks & Curations**: View, organize, and drag-and-drop movie stacks that represent your personal cinematic report card.
 - **Movie Suggestions & Impact**: Recommend movies to friends, see whose recommendations you watched, and check your suggester impact.
 - **SmartSuggest AI Recommendations**: Hybrid algorithmic recommendation engine balancing friend recommendations, public ratings, user preferences, and diversity nudges.
-- **MindLens 2.0 Behavioral Intelligence**: Native telemetry visualization of Shannon Information Entropy ($H(G)$) for taste breadth, Russell's Circumplex Affective State, and Bayesian Recommender Trust. Documented in [MINDLENS_SPECIFICATION.md](docs/MINDLENS_SPECIFICATION.md).
-- **Master Features & Logic Wiki**: Complete architectural documentation of all 14 core features, mathematical models, and edge cases in [FEATURES_AND_LOGIC_WIKI.md](docs/FEATURES_AND_LOGIC_WIKI.md).
+- **Mobile Architecture & Layered Blueprint**: Clean Riverpod state graph, offline-first SQLite sync engine, GoRouter deep links, and network resilience in [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - **UI/UX Design Standards & Design System**: Definitive specification of WatchersHive brand colors, typography scales, contrast rules, component blueprints, and haptic feedback standards in [UI_UX_DESIGN_STANDARDS.md](docs/UI_UX_DESIGN_STANDARDS.md).
+- **Backend Business Logic & MindLens Specifications**: For complete algorithmic specifications, mathematical formulations ($H(G)$ Shannon Entropy, Bayesian Trust), and database schemas, refer to the [WatchHive Backend Repository](https://github.com/dasamantaraoaditya/WatchHive-Backend).
 - **Offline-First Resilience**: Log watches and browse your catalog without an active internet connection; changes automatically queue and sync via local SQLite.
 - **Real-Time Push Notifications**: Firebase Cloud Messaging (FCM) alerts when friends suggest movies, comment on your reviews, or follow your activity.
 
