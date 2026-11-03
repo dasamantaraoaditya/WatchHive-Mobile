@@ -7,9 +7,19 @@ import '../../../core/config/web_urls.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/wh_brand_logo.dart';
 
-/// A presentation-ready 9:16 Instagram Story card for sharing a watched or logged film/show.
+/// Contextual modes for generating Instagram Story cards:
+/// - [logged]: User completed/logged a watch (shows '🍿 JUST WATCHED', user rating, review)
+/// - [watching]: User currently watching (shows '📺 CURRENTLY WATCHING', in progress pill, NO rating)
+/// - [general]: Unlogged/movie share (shows '🎬 DISCOVER', TMDB community rating, clean recommendation)
+enum StoryShareMode {
+  logged,
+  watching,
+  general,
+}
+
+/// A presentation-ready 9:16 Instagram Story card for sharing films and shows.
 /// Designed with minimal text, high visual contrast, cinematic poster, pictorial star rating,
-/// WatchersHive logo, and a scannable Hive QR link to view details or join.
+/// WatchersHive brand aesthetic, and a scannable Hive QR link.
 class InstagramStoryCard extends StatelessWidget {
   final String title;
   final String? posterPath;
@@ -23,6 +33,7 @@ class InstagramStoryCard extends StatelessWidget {
   final String? username;
   final String? userAvatarUrl;
   final bool isCompleted;
+  final StoryShareMode shareMode;
 
   const InstagramStoryCard({
     super.key,
@@ -38,7 +49,8 @@ class InstagramStoryCard extends StatelessWidget {
     this.username,
     this.userAvatarUrl,
     this.isCompleted = true,
-  });
+    StoryShareMode? shareMode,
+  }) : shareMode = shareMode ?? (isCompleted ? StoryShareMode.logged : StoryShareMode.watching);
 
   String get _movieUrl {
     if (tmdbId != null && tmdbId! > 0) {
@@ -52,13 +64,8 @@ class InstagramStoryCard extends StatelessWidget {
     return WebUrls.baseUrl;
   }
 
-  String get _shortDisplayUrl {
-    if (tmdbId != null && tmdbId! > 0) {
-      final type = mediaType.toLowerCase() == 'tv' ? 'tv' : 'm';
-      return 'watchershive.com/$type/$tmdbId';
-    }
-    return 'watchershive.com';
-  }
+  /// Clean branded URL without ugly internal numeric IDs
+  String get _shortDisplayUrl => 'watchershive.com';
 
   String? get _resolvedPosterUrl {
     if (posterPath == null || posterPath!.trim().isEmpty) return null;
@@ -172,7 +179,7 @@ class InstagramStoryCard extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Top Bar: WatchersHive Logo & Status Badge
+                    // Top Bar: WatchersHive Logo & Context-Aware Status Badge
                     Column(
                       children: [
                         Row(
@@ -188,34 +195,13 @@ class InstagramStoryCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 8),
 
-                            // Status Pill: Just Watched / Watching
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: AppColors.primary.withValues(alpha: 0.5),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Text(
-                                isCompleted ? '🍿 JUST WATCHED' : '📺 WATCHING',
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.6,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
+                            // Context-Specific Status Pill
+                            _buildStatusPill(),
                           ],
                         ),
 
-                        // User attribution if present
-                        if ((userDisplayName != null && userDisplayName!.trim().isNotEmpty) ||
-                            (username != null && username!.trim().isNotEmpty)) ...[
+                        // User attribution if relevant to mode
+                        if (_shouldShowAttribution) ...[
                           const SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -231,7 +217,7 @@ class InstagramStoryCard extends StatelessWidget {
                                 const SizedBox(width: 6),
                               ],
                               Text(
-                                'Logged by ${userDisplayName ?? username}',
+                                _attributionText,
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 11.5,
@@ -245,7 +231,7 @@ class InstagramStoryCard extends StatelessWidget {
                       ],
                     ),
 
-                    // Center Hero: Movie Poster + Title + Pictorial Rating
+                    // Center Hero: Movie Poster + Title + Rating / In-Progress Pill
                     Flexible(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -357,13 +343,13 @@ class InstagramStoryCard extends StatelessWidget {
 
                           const SizedBox(height: 10),
 
-                          // Pictorial Rating Section
-                          if (rating != null && rating! > 0) ...[
-                            _buildPictorialRating(rating!),
-                          ],
+                          // Context-Aware Middle Content
+                          _buildCenterDetails(),
 
-                          // Short Review Quote (compact, max 2 lines)
-                          if (review != null && review!.trim().isNotEmpty) ...[
+                          // Short Review Quote (compact, only for logged watches)
+                          if (shareMode == StoryShareMode.logged &&
+                              review != null &&
+                              review!.trim().isNotEmpty) ...[
                             const SizedBox(height: 10),
                             Container(
                               margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -396,7 +382,7 @@ class InstagramStoryCard extends StatelessWidget {
                       ),
                     ),
 
-                    // Bottom Link & QR Card ("link to join or view movie details")
+                    // Bottom Link & QR Card (Clean URL without ugly numeric IDs)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
@@ -434,19 +420,19 @@ class InstagramStoryCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 12),
 
-                          // Text & Link CTA
+                          // Text & Link CTA (clean watchershive.com domain)
                           Flexible(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Row(
+                                Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Flexible(
                                       child: Text(
-                                        'View on WatchersHive',
-                                        style: TextStyle(
+                                        _bottomCtaHeading,
+                                        style: const TextStyle(
                                           fontFamily: 'Inter',
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w800,
@@ -455,8 +441,8 @@ class InstagramStoryCard extends StatelessWidget {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    SizedBox(width: 4),
-                                    Icon(
+                                    const SizedBox(width: 4),
+                                    const Icon(
                                       Icons.arrow_forward_rounded,
                                       size: 12,
                                       color: AppColors.primary,
@@ -468,15 +454,16 @@ class InstagramStoryCard extends StatelessWidget {
                                   _shortDisplayUrl,
                                   style: const TextStyle(
                                     fontFamily: 'Inter',
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
                                     color: AppColors.primary,
+                                    letterSpacing: 0.2,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Scan or tap to view reviews & track together',
+                                  'Scan QR to view & track',
                                   style: TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 9,
@@ -498,6 +485,166 @@ class InstagramStoryCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Builds the top-right contextual pill depending on shareMode
+  Widget _buildStatusPill() {
+    final String label;
+    final Color bg;
+    final Color border;
+    final Color text;
+
+    switch (shareMode) {
+      case StoryShareMode.logged:
+        label = '🍿 JUST WATCHED';
+        bg = AppColors.primary.withValues(alpha: 0.15);
+        border = AppColors.primary.withValues(alpha: 0.5);
+        text = AppColors.primary;
+        break;
+      case StoryShareMode.watching:
+        label = '📺 WATCHING';
+        bg = const Color(0xFFF59E0B).withValues(alpha: 0.18);
+        border = const Color(0xFFF59E0B).withValues(alpha: 0.6);
+        text = const Color(0xFFFBBF24);
+        break;
+      case StoryShareMode.general:
+        label = '🎬 DISCOVER';
+        bg = Colors.white.withValues(alpha: 0.10);
+        border = Colors.white.withValues(alpha: 0.3);
+        text = Colors.white;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: border, width: 1),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 9.5,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.6,
+          color: text,
+        ),
+      ),
+    );
+  }
+
+  bool get _shouldShowAttribution {
+    if (shareMode == StoryShareMode.general) {
+      return (userDisplayName != null && userDisplayName!.trim().isNotEmpty) ||
+          (username != null && username!.trim().isNotEmpty);
+    }
+    return (userDisplayName != null && userDisplayName!.trim().isNotEmpty) ||
+        (username != null && username!.trim().isNotEmpty);
+  }
+
+  String get _attributionText {
+    final name = userDisplayName ?? username;
+    switch (shareMode) {
+      case StoryShareMode.logged:
+        return 'Logged by $name';
+      case StoryShareMode.watching:
+        return 'Watching now: $name';
+      case StoryShareMode.general:
+        return 'Shared via WatchersHive';
+    }
+  }
+
+  String get _bottomCtaHeading {
+    switch (shareMode) {
+      case StoryShareMode.logged:
+        return 'View on WatchersHive';
+      case StoryShareMode.watching:
+        return 'Join on WatchersHive';
+      case StoryShareMode.general:
+        return 'Check out on WatchersHive';
+    }
+  }
+
+  /// Builds context-aware center detail widget:
+  /// - Logged: Pictorial 5-star rating with personal score
+  /// - Watching: In-progress status pill (NO personal rating)
+  /// - General: TMDB community score pill (clearly labeled as community score)
+  Widget _buildCenterDetails() {
+    switch (shareMode) {
+      case StoryShareMode.logged:
+        if (rating != null && rating! > 0) {
+          return _buildPictorialRating(rating!);
+        }
+        return const SizedBox.shrink();
+
+      case StoryShareMode.watching:
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1C1914),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.4),
+              width: 1,
+            ),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.play_circle_fill_rounded, color: AppColors.primary, size: 16),
+              SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  'Started Watching',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 0.3,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        );
+
+      case StoryShareMode.general:
+        if (rating != null && rating! > 0) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1914),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.2),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.star_rounded, color: AppColors.primary, size: 16),
+                const SizedBox(width: 5),
+                Text(
+                  '${rating!.toStringAsFixed(1)} TMDB Rating',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+    }
   }
 
   /// Builds the pictorial star rating with honey-gold glowing stars and score chip.

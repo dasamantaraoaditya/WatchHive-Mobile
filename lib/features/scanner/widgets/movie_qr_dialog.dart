@@ -97,7 +97,7 @@ class MovieQrDialog extends StatelessWidget {
       userDisplayName: suggestedByUser?.displayName ?? suggestedByUser?.username,
       username: suggestedByUser?.username,
       userAvatarUrl: suggestedByUser?.profilePictureUrl,
-      isCompleted: true,
+      shareMode: StoryShareMode.general,
     );
   }
 

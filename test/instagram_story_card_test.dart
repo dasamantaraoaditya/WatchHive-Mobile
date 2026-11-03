@@ -8,7 +8,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('InstagramStoryCard Widget Tests', () {
-    testWidgets('renders title, pictorial stars, rating, review snippet, and QR link', (tester) async {
+    testWidgets('renders logged watch with title, pictorial stars, rating, review snippet, and clean QR link without ugly numbers', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -25,7 +25,7 @@ void main() {
                   releaseYear: '2014',
                   userDisplayName: 'Cooper',
                   username: 'cooper_pilot',
-                  isCompleted: true,
+                  shareMode: StoryShareMode.logged,
                 ),
               ),
             ),
@@ -49,12 +49,12 @@ void main() {
       // Verify review snippet
       expect(find.textContaining('breathtaking journey'), findsOneWidget);
 
-      // Verify WatchersHive link and QR code CTA
+      // Verify WatchersHive link and QR code CTA with clean domain (NO ugly numbers!)
       expect(find.text('View on WatchersHive'), findsOneWidget);
-      expect(find.text('watchershive.com/m/157336'), findsOneWidget);
+      expect(find.text('watchershive.com'), findsOneWidget);
     });
 
-    testWidgets('renders TV series badge and Watching status correctly', (tester) async {
+    testWidgets('renders currently watching status without personal rating', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -64,12 +64,11 @@ void main() {
                 height: 640,
                 child: InstagramStoryCard(
                   title: 'Severance',
-                  rating: 8.5,
                   tmdbId: 97546,
                   mediaType: 'tv',
                   releaseYear: '2022',
                   username: 'mark_s',
-                  isCompleted: false,
+                  shareMode: StoryShareMode.watching,
                 ),
               ),
             ),
@@ -78,9 +77,44 @@ void main() {
       );
 
       expect(find.text('Severance'), findsOneWidget);
+      expect(find.text('Watching now: mark_s'), findsOneWidget);
       expect(find.text('📺 WATCHING'), findsOneWidget);
       expect(find.text('SERIES • 2022'), findsOneWidget);
-      expect(find.text('watchershive.com/tv/97546'), findsOneWidget);
+      expect(find.text('Started Watching'), findsOneWidget);
+      // Ensure no star rating is shown for currently watching
+      expect(find.byIcon(Icons.star_rounded), findsNothing);
+      expect(find.text('watchershive.com'), findsOneWidget);
+    });
+
+    testWidgets('renders general movie share without logged or watching claims', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 360,
+                height: 640,
+                child: InstagramStoryCard(
+                  title: 'Dune: Part Two',
+                  rating: 8.6,
+                  tmdbId: 693134,
+                  mediaType: 'movie',
+                  releaseYear: '2024',
+                  username: 'aditya',
+                  shareMode: StoryShareMode.general,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Dune: Part Two'), findsOneWidget);
+      expect(find.text('Shared via WatchersHive'), findsOneWidget);
+      expect(find.text('🎬 DISCOVER'), findsOneWidget);
+      expect(find.text('8.6 TMDB Rating'), findsOneWidget);
+      expect(find.text('Check out on WatchersHive'), findsOneWidget);
+      expect(find.text('watchershive.com'), findsOneWidget);
     });
   });
 

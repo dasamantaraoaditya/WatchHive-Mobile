@@ -26,6 +26,7 @@ class StoryShareModal extends StatefulWidget {
   final String? username;
   final String? userAvatarUrl;
   final bool isCompleted;
+  final StoryShareMode shareMode;
 
   const StoryShareModal({
     super.key,
@@ -41,7 +42,8 @@ class StoryShareModal extends StatefulWidget {
     this.username,
     this.userAvatarUrl,
     this.isCompleted = true,
-  });
+    StoryShareMode? shareMode,
+  }) : shareMode = shareMode ?? (isCompleted ? StoryShareMode.logged : StoryShareMode.watching);
 
   /// Displays the StoryShareModal as a responsive modal bottom sheet.
   static Future<void> show(
@@ -58,6 +60,7 @@ class StoryShareModal extends StatefulWidget {
     String? username,
     String? userAvatarUrl,
     bool isCompleted = true,
+    StoryShareMode? shareMode,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -76,6 +79,7 @@ class StoryShareModal extends StatefulWidget {
         username: username,
         userAvatarUrl: userAvatarUrl,
         isCompleted: isCompleted,
+        shareMode: shareMode,
       ),
     );
   }
@@ -101,13 +105,26 @@ class _StoryShareModalState extends State<StoryShareModal> {
   }
 
   String get _shareText {
-    final namePrefix = (widget.userDisplayName != null && widget.userDisplayName!.trim().isNotEmpty)
-        ? '${widget.userDisplayName} watched'
-        : 'Watched';
-    final ratingPart = (widget.rating != null && widget.rating! > 0)
-        ? ' (⭐️ ${widget.rating!.toStringAsFixed(1)}/10)'
-        : '';
-    return '🍿 $namePrefix "${widget.title}"$ratingPart on WatchersHive! 🐝\n\nView details: $_movieUrl';
+    final name = widget.userDisplayName ?? widget.username;
+    switch (widget.shareMode) {
+      case StoryShareMode.logged:
+        final namePrefix = (name != null && name.trim().isNotEmpty)
+            ? '$name watched'
+            : 'Watched';
+        final ratingPart = (widget.rating != null && widget.rating! > 0)
+            ? ' (⭐️ ${widget.rating!.toStringAsFixed(1)}/10)'
+            : '';
+        return '🍿 $namePrefix "${widget.title}"$ratingPart on WatchersHive! 🐝\n\nView details: $_movieUrl';
+
+      case StoryShareMode.watching:
+        final namePrefix = (name != null && name.trim().isNotEmpty)
+            ? '$name is currently watching'
+            : 'Currently watching';
+        return '📺 $namePrefix "${widget.title}" on WatchersHive! 🐝\n\nJoin the watch: $_movieUrl';
+
+      case StoryShareMode.general:
+        return '🎬 Check out "${widget.title}" on WatchersHive! 🐝\n\nDiscover movies, rate & track together: $_movieUrl';
+    }
   }
 
   Future<void> _shareToStory() async {
@@ -251,6 +268,7 @@ class _StoryShareModalState extends State<StoryShareModal> {
                       username: widget.username,
                       userAvatarUrl: widget.userAvatarUrl,
                       isCompleted: widget.isCompleted,
+                      shareMode: widget.shareMode,
                     ),
                   ),
                 ),
