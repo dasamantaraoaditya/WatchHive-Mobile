@@ -883,14 +883,32 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                 userDisplayName: currentUser?.displayName ?? currentUser?.username,
                 username: currentUser?.username,
                 userAvatarUrl: currentUser?.profilePictureUrl,
-                isCompleted: true,
+                shareMode: StoryShareMode.logged,
               );
             },
           );
         } else {
-          WHAlert.showSuccess(
+          WHAlert.showSuccessWithAction(
             context,
-            isEditing ? 'Updated "$savedTitle".' : 'Started watching "$savedTitle".',
+            message: isEditing ? 'Updated "$savedTitle".' : 'Started watching "$savedTitle".',
+            actionLabel: 'Share Story',
+            onAction: () {
+              ShareHelper.shareCompletedWatch(
+                context: context,
+                title: savedTitle,
+                posterPath: savedPoster,
+                backdropPath: savedBackdrop,
+                rating: null,
+                review: null,
+                tmdbId: savedTmdbId,
+                mediaType: savedMediaType,
+                releaseYear: savedYear,
+                userDisplayName: currentUser?.displayName ?? currentUser?.username,
+                username: currentUser?.username,
+                userAvatarUrl: currentUser?.profilePictureUrl,
+                shareMode: StoryShareMode.watching,
+              );
+            },
           );
         }
       }

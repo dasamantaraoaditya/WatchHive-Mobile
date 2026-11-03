@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import '../config/web_urls.dart';
+import '../../features/share/widgets/instagram_story_card.dart';
 import '../../features/share/widgets/story_share_modal.dart';
+
+export '../../features/share/widgets/instagram_story_card.dart' show StoryShareMode;
 
 /// Helper utility for generating formatted social sharing content for WatchersHive entries.
 class ShareHelper {
@@ -23,6 +26,7 @@ class ShareHelper {
     String? username,
     String? userAvatarUrl,
     bool isCompleted = true,
+    StoryShareMode? shareMode,
   }) {
     return StoryShareModal.show(
       context,
@@ -38,10 +42,11 @@ class ShareHelper {
       username: username,
       userAvatarUrl: userAvatarUrl,
       isCompleted: isCompleted,
+      shareMode: shareMode,
     );
   }
 
-  /// Shares a completed watch post. If a [context] is provided, opens the visual
+  /// Shares a watch post. If a [context] is provided, opens the visual
   /// 9:16 Instagram Story modal with live card preview, pictorial rating, and image generation.
   /// Otherwise, falls back to text sharing with deep link.
   static Future<void> shareCompletedWatch({
@@ -58,7 +63,10 @@ class ShareHelper {
     String? username,
     String? userAvatarUrl,
     bool isCompleted = true,
+    StoryShareMode? shareMode,
   }) async {
+    final effectiveMode = shareMode ?? (isCompleted ? StoryShareMode.logged : StoryShareMode.watching);
+
     if (context != null && context.mounted) {
       await showStoryShareModal(
         context,
@@ -74,6 +82,7 @@ class ShareHelper {
         username: username,
         userAvatarUrl: userAvatarUrl,
         isCompleted: isCompleted,
+        shareMode: effectiveMode,
       );
       return;
     }
@@ -81,20 +90,37 @@ class ShareHelper {
     HapticFeedback.lightImpact();
 
     final buffer = StringBuffer();
-    final namePrefix = (userDisplayName != null && userDisplayName.trim().isNotEmpty)
-        ? '$userDisplayName finished'
-        : 'Finished';
+    final name = userDisplayName ?? username;
 
-    buffer.writeln('🍿 $namePrefix watching "$title" on WatchersHive! 🐝');
+    switch (effectiveMode) {
+      case StoryShareMode.logged:
+        final namePrefix = (name != null && name.trim().isNotEmpty)
+            ? '$name finished'
+            : 'Finished';
+        buffer.writeln('🍿 $namePrefix watching "$title" on WatchersHive! 🐝');
+        if (rating != null && rating > 0) {
+          buffer.writeln('⭐️ Rating: ${rating.toStringAsFixed(1)}/10');
+        }
+        if (review != null && review.trim().isNotEmpty) {
+          final clean = review.trim();
+          final snippet = clean.length > 140 ? '${clean.substring(0, 137)}...' : clean;
+          buffer.writeln('"$snippet"');
+        }
+        break;
 
-    if (rating != null && rating > 0) {
-      buffer.writeln('⭐️ Rating: ${rating.toStringAsFixed(1)}/10');
-    }
+      case StoryShareMode.watching:
+        final namePrefix = (name != null && name.trim().isNotEmpty)
+            ? '$name is currently watching'
+            : 'Currently watching';
+        buffer.writeln('📺 $namePrefix "$title" on WatchersHive! 🐝');
+        break;
 
-    if (review != null && review.trim().isNotEmpty) {
-      final clean = review.trim();
-      final snippet = clean.length > 140 ? '${clean.substring(0, 137)}...' : clean;
-      buffer.writeln('"$snippet"');
+      case StoryShareMode.general:
+        buffer.writeln('🎬 Check out "$title" on WatchersHive! 🐝');
+        if (rating != null && rating > 0) {
+          buffer.writeln('★ TMDB Rating: ${rating.toStringAsFixed(1)}/10');
+        }
+        break;
     }
 
     buffer.writeln();

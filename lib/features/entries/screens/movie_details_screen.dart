@@ -568,19 +568,43 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         : null;
     final voteAverage = (_details?['vote_average'] as num?)?.toDouble();
 
+    // Check if the current user has logged or is currently watching this title
+    final activeEntry = _isMyEntry ? _loggedEntry : _myOwnEntry;
+
+    final StoryShareMode shareMode;
+    final double? rating;
+    final String? review;
+
+    if (activeEntry != null) {
+      if (activeEntry.isWatching) {
+        shareMode = StoryShareMode.watching;
+        rating = null;
+        review = null;
+      } else {
+        shareMode = StoryShareMode.logged;
+        rating = activeEntry.rating;
+        review = activeEntry.review;
+      }
+    } else {
+      shareMode = StoryShareMode.general;
+      rating = voteAverage;
+      review = null;
+    }
+
     ShareHelper.showStoryShareModal(
       context,
       title: title,
       posterPath: posterPath,
       backdropPath: backdropPath,
-      rating: voteAverage,
+      rating: rating,
+      review: review,
       tmdbId: widget.tmdbId,
       mediaType: _effectiveIsTv ? 'tv' : 'movie',
       releaseYear: releaseYear,
       userDisplayName: currentUser?.displayName ?? currentUser?.username,
       username: currentUser?.username,
       userAvatarUrl: currentUser?.profilePictureUrl,
-      isCompleted: true,
+      shareMode: shareMode,
     );
   }
 
