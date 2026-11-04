@@ -39,6 +39,7 @@ class RouterNotifier extends ChangeNotifier {
 final routerNotifierProvider = Provider<RouterNotifier>((ref) => RouterNotifier(ref));
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
+final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 /// Tracks a pending deep link received during cold startup or before auth resolution.
 String? _pendingDeepLink;

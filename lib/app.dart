@@ -14,6 +14,7 @@ class WatchHiveApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       title: 'WatchersHive',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
