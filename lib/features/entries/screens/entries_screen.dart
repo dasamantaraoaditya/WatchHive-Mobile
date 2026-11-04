@@ -520,7 +520,7 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
                                             ? WHEntryCardMode.watching
                                             : WHEntryCardMode.history,
                                         rating: entry.rating,
-                                        watchedAt: entry.watchedAt,
+                                        watchedAt: entry.hasExactWatchDate ? entry.watchedAt : null,
                                         startedAt: entry.startedAt ?? entry.createdAt,
                                         watchLocation: entry.watchLocation,
                                         tags: entry.tags,

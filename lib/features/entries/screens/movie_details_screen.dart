@@ -446,7 +446,33 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
 
 
       if (mounted) {
-        WHAlert.showSuccess(context, 'Moved "$title" to Currently Watching.');
+        final currentUser = ref.read(authStateProvider).value?.user;
+        final posterPath = _details?['poster_path']?.toString();
+        final backdropPath = _details?['backdrop_path']?.toString();
+        final relDate = (_details?['release_date'] ?? _details?['first_air_date'])?.toString();
+        final year = (relDate != null && relDate.length >= 4) ? relDate.substring(0, 4) : null;
+
+        WHAlert.showSuccessWithAction(
+          context,
+          message: 'Moved "$title" to Currently Watching.',
+          actionLabel: 'Share',
+          actionIcon: Icons.share_rounded,
+          onAction: () {
+            ShareHelper.shareCompletedWatch(
+              context: context,
+              title: title,
+              posterPath: posterPath,
+              backdropPath: backdropPath,
+              tmdbId: widget.tmdbId,
+              mediaType: _effectiveIsTv ? 'tv' : 'movie',
+              releaseYear: year,
+              userDisplayName: currentUser?.displayName ?? currentUser?.username,
+              username: currentUser?.username,
+              userAvatarUrl: currentUser?.profilePictureUrl,
+              shareMode: StoryShareMode.watching,
+            );
+          },
+        );
       }
     } catch (e) {
       if (mounted) WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to update watching status'));

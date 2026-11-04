@@ -565,9 +565,11 @@ class WHEntryGridCard extends ConsumerWidget {
                     break;
                 }
 
-                final dateText = effectiveDate != null
-                    ? DateFormat('MMM d, yyyy').format(effectiveDate)
-                    : (year ?? '');
+                final dateText = (mode == WHEntryCardMode.history && watchedAt == null)
+                    ? 'Watched'
+                    : (effectiveDate != null
+                        ? DateFormat('MMM d, yyyy').format(effectiveDate)
+                        : (year ?? 'Watched'));
 
                 return Padding(
                   padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),
