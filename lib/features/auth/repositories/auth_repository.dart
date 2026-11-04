@@ -126,7 +126,13 @@ class AuthRepository {
       data: {'email': email.trim().toLowerCase()},
     );
     if (response.data is Map<String, dynamic>) {
-      return response.data as Map<String, dynamic>;
+      final data = response.data as Map<String, dynamic>;
+      if (data['emailSent'] == false) {
+        throw Exception(
+          data['message'] as String? ?? 'Failed to send password reset email. The email service could not dispatch the message.',
+        );
+      }
+      return data;
     }
     return {'message': 'If that email is registered, a reset link has been sent.'};
   }
