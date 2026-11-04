@@ -8,10 +8,12 @@
 
 WatchHive Mobile provides a native smartphone experience for cinema enthusiasts:
 - **Instant Watch Logging**: Log movies, anime, and series on the go with tactile haptic feedback, custom ratings, and reviews.
+- **Friends Watched Activity**: See which friends have watched a movie with interactive stacked avatar pills (max 3 profiles + remaining count) and a bottom sheet displaying detailed friend reviews.
 - **Ranking Stacks & Curations**: View, organize, and drag-and-drop movie stacks that represent your personal cinematic report card.
-- **Movie Suggestions & Impact**: Recommend movies to friends, see whose recommendations you watched, and check your suggester impact.
-- **SmartSuggest AI Recommendations**: Hybrid algorithmic recommendation engine balancing friend recommendations, public ratings, user preferences, and diversity nudges.
-- **Mobile Architecture & Layered Blueprint**: Clean Riverpod state graph, offline-first SQLite sync engine, GoRouter deep links, and network resilience in [ARCHITECTURE.md](docs/ARCHITECTURE.md).
+- **SmartSuggest AI Recommendations**: Hybrid algorithmic recommendation engine with 3-mode horizontal swiping (`Social`, `Critic`, `Explore`) balancing friend suggestions, public ratings, user preferences, and diversity nudges.
+- **Diversify Your Feed**: Suggested friends discovery carousel with mouse-drag scrolling and 1-tap follow toggles to enrich feeds for new users.
+- **Visual Share Generator**: High-fidelity 9:16 Instagram Story visual cards for watch logs and milestone sharing.
+- **Mobile Architecture & Layered Blueprint**: Clean Riverpod state graph, offline-first SQLite sync engine, GoRouter deep links, 6-digit OTP verification & password reset flows, and network resilience in [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - **UI/UX Design Standards & Design System**: Definitive specification of WatchersHive brand colors, typography scales, contrast rules, component blueprints, and haptic feedback standards in [UI_UX_DESIGN_STANDARDS.md](docs/UI_UX_DESIGN_STANDARDS.md).
 - **Backend Business Logic & MindLens Specifications**: For complete algorithmic specifications, mathematical formulations ($H(G)$ Shannon Entropy, Bayesian Trust), and database schemas, refer to the [WatchHive Backend Repository](https://github.com/dasamantaraoaditya/WatchHive-Backend).
 - **Offline-First Resilience**: Log watches and browse your catalog without an active internet connection; changes automatically queue and sync via local SQLite.
@@ -122,17 +124,26 @@ flowchart TD
 lib/
 ├── core/                 # App-wide foundational modules
 │   ├── api/              # Dio client, API endpoints, token interceptors
-│   ├── database/         # Local sqflite database & migration helpers
-│   ├── storage/          # Secure storage wrapper for credentials
-│   └── theme/            # Theme constants, Honey Cream colors, typography
+│   ├── auth/             # Token storage & persistent auth credentials
+│   ├── config/           # Environment config & dynamic web URL builders
+│   ├── notifications/    # Firebase FCM service & local notifications handler
+│   ├── router/           # GoRouter declarations, auth guards & deep links
+│   ├── services/         # Offline SQLite database & sync services
+│   ├── theme/            # Theme constants, Honey Cream colors, typography
+│   └── utils/            # Date formatters, platform utilities, share helpers
 ├── features/             # Modular feature packages
-│   ├── auth/             # Login, register, and splash screens
-│   ├── entries/          # Watch log entries, review dialogs, details
-│   ├── feed/             # Friend activity feed, likes, and comments
-│   ├── profile/          # User stats, avatar uploads, settings
+│   ├── auth/             # Login, signup, 6-digit OTP verification, forgot/reset password
+│   ├── entries/          # Watch log entries, review modals, details, friends watched
+│   ├── feed/             # Social swarm feed, SmartSuggest carousel, add friends cards
+│   ├── mindlens/         # Shannon entropy visualization & cognitive archetypes
+│   ├── notifications/    # Notification inbox & push opt-in banners
+│   ├── onboarding/       # Interactive tour & preferences questionnaire
+│   ├── profile/          # User stats, friend management, avatar uploads, settings
+│   ├── rankings/         # Ranking stacks & reorderable lists
+│   ├── scanner/          # QR code scanner for instant profile & stack discovery
 │   ├── search/           # TMDb search, trending movies, filters
-│   ├── stacks/           # Ranking stacks, list reordering
-│   └── suggestions/      # Movie recommendations & impact tracking
+│   ├── share/            # Instagram Story 9:16 export card generator
+│   └── support/          # Privacy policy, terms, and support screens
 ├── shared/               # Reusable widgets (cards, buttons, shimmer loaders)
 └── main.dart             # App entry point, Firebase init, Riverpod Scope
 ```

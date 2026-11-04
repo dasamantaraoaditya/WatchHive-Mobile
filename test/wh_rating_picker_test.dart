@@ -15,8 +15,8 @@ void main() {
       expect(WHRatingPicker.getMoodInfo(10.0).text, contains('Masterpiece'));
     });
 
-    testWidgets('renders score and reacts to preset chips', (tester) async {
-      double currentRating = 0.0;
+    testWidgets('renders score and handles rating updates and reset', (tester) async {
+      double currentRating = 8.5;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -35,27 +35,10 @@ void main() {
         ),
       );
 
-      expect(find.text('—.—'), findsOneWidget);
+      expect(find.text('8.5'), findsOneWidget);
       expect(find.text('/ 10'), findsOneWidget);
-
-      // Tap preset chip '8.5 Great'
-      final greatPreset = find.text('Great');
-      expect(greatPreset, findsOneWidget);
-      await tester.tap(greatPreset);
-      await tester.pumpAndSettle();
-
-      expect(currentRating, 8.5);
-      expect(find.text('8.5'), findsNWidgets(2));
       expect(find.text('Excellent / Highly Recommended'), findsOneWidget);
-
-      // Tap preset chip '10.0 Epic'
-      final epicPreset = find.text('Epic');
-      expect(epicPreset, findsOneWidget);
-      await tester.tap(epicPreset);
-      await tester.pumpAndSettle();
-
-      expect(currentRating, 10.0);
-      expect(find.text('10.0'), findsNWidgets(2));
+      expect(find.text('QUICK SNAP PRESETS'), findsNothing);
 
       // Tap Reset button
       final resetBtn = find.text('Reset');
