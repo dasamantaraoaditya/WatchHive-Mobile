@@ -197,11 +197,11 @@ class WHAlert {
         ),
     };
 
-    final safeContext = (context.mounted ? context : null) ??
-        (rootNavigatorKey.currentContext?.mounted == true ? rootNavigatorKey.currentContext : null);
-    if (safeContext == null) return;
-
-    final messenger = ScaffoldMessenger.maybeOf(safeContext);
+    final messenger = rootScaffoldMessengerKey.currentState ??
+        (context.mounted ? ScaffoldMessenger.maybeOf(context) : null) ??
+        (rootNavigatorKey.currentContext?.mounted == true
+            ? ScaffoldMessenger.maybeOf(rootNavigatorKey.currentContext!)
+            : null);
     if (messenger == null) return;
 
     messenger.hideCurrentSnackBar();

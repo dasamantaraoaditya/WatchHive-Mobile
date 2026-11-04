@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/app_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/api_endpoints.dart';
@@ -849,20 +850,22 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
 
         widget.onSuccess?.call();
         Navigator.of(context).pop();
+        final targetContext = rootNavigatorKey.currentContext;
+        if (targetContext == null || !targetContext.mounted) return;
         if (isPendingSync) {
           WHAlert.showInfo(
-            context,
+            targetContext,
             'Saved offline. Will sync automatically when reconnected.',
           );
         } else if (wasCompleted) {
           WHAlert.showSuccessWithAction(
-            context,
+            targetContext,
             message: isEditing ? 'Completed "$savedTitle".' : 'Logged "$savedTitle".',
             actionLabel: 'Share Story',
             actionIcon: Icons.share_rounded,
             onAction: () {
               ShareHelper.shareCompletedWatch(
-                context: context,
+                context: rootNavigatorKey.currentContext,
                 title: savedTitle,
                 posterPath: savedPoster,
                 backdropPath: savedBackdrop,
@@ -880,13 +883,13 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
           );
         } else {
           WHAlert.showSuccessWithAction(
-            context,
+            targetContext,
             message: isEditing ? 'Updated "$savedTitle".' : 'Started watching "$savedTitle".',
             actionLabel: 'Share Story',
             actionIcon: Icons.share_rounded,
             onAction: () {
               ShareHelper.shareCompletedWatch(
-                context: context,
+                context: rootNavigatorKey.currentContext,
                 title: savedTitle,
                 posterPath: savedPoster,
                 backdropPath: savedBackdrop,
