@@ -119,6 +119,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
       } catch (_) {}
 
       if (mounted) {
+        final parentContext = rootNavigatorKey.currentContext ?? context;
         Navigator.of(context).pop();
         final currentUser = ref.read(authStateProvider).value?.user;
         final year = (media.releaseDate != null && media.releaseDate!.length >= 4)
@@ -126,13 +127,13 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
             : null;
 
         WHAlert.showSuccessWithAction(
-          context,
+          parentContext,
           message: 'Added "$cleanTitle" to Currently Watching.',
           actionLabel: 'Share',
           actionIcon: Icons.share_rounded,
           onAction: () {
             ShareHelper.shareCompletedWatch(
-              context: context,
+              context: parentContext,
               title: cleanTitle,
               posterPath: media.posterPath,
               backdropPath: media.backdropPath,
