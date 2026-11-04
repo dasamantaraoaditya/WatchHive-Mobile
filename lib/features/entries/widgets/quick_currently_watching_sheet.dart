@@ -11,6 +11,7 @@ import '../repositories/watchlist_repository.dart';
 import '../screens/entries_screen.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/utils/share_helper.dart';
 
 class QuickCurrentlyWatchingSheet extends ConsumerStatefulWidget {

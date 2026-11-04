@@ -253,7 +253,7 @@ class WHAlert {
                   ),
                 ),
                 onPressed: () {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  messenger.hideCurrentSnackBar();
                   onAction();
                 },
                 child: Row(
@@ -273,6 +273,19 @@ class WHAlert {
                       ),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => messenger.hideCurrentSnackBar(),
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: textColor.withValues(alpha: 0.6),
+                  ),
                 ),
               ),
             ],
