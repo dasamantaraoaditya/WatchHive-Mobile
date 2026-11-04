@@ -31,6 +31,7 @@ class Entry {
   final bool isImported;
   final bool isPendingSync;
   final bool postToFeed;
+  final bool hasExactWatchDate;
 
   const Entry({
     required this.id,
@@ -54,6 +55,7 @@ class Entry {
     this.isImported = false,
     this.isPendingSync = false,
     this.postToFeed = true,
+    this.hasExactWatchDate = true,
     this.user,
     this.likesCount = 0,
     this.commentsCount = 0,
@@ -152,6 +154,7 @@ class Entry {
       watchedAt: dataMap['watchedAt'] != null
           ? (DateTime.tryParse(dataMap['watchedAt'].toString())?.toLocal() ?? DateTime.now())
           : (json['timestamp'] != null ? (DateTime.tryParse(json['timestamp'].toString())?.toLocal() ?? DateTime.now()) : DateTime.now()),
+      hasExactWatchDate: dataMap['watchedAt'] != null && dataMap['watchedAt'].toString().isNotEmpty,
       rating: dataMap['rating'] != null
           ? double.tryParse(dataMap['rating'].toString())
           : (isSuggestion && dataMap['vote_average'] != null ? double.tryParse(dataMap['vote_average'].toString()) : null),
@@ -241,6 +244,7 @@ class Entry {
     bool? isSuggestion,
     String? suggestionReason,
     bool? postToFeed,
+    bool? hasExactWatchDate,
   }) {
     return Entry(
       id: id ?? this.id,
@@ -264,6 +268,7 @@ class Entry {
       isImported: isImported ?? this.isImported,
       isPendingSync: isPendingSync ?? this.isPendingSync,
       postToFeed: postToFeed ?? this.postToFeed,
+      hasExactWatchDate: hasExactWatchDate ?? this.hasExactWatchDate,
       user: user ?? this.user,
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,
@@ -280,7 +285,7 @@ class Entry {
         'tmdbId': tmdbId,
         'title': title,
         'type': type,
-        'watchedAt': watchedAt.toUtc().toIso8601String(),
+        'watchedAt': hasExactWatchDate ? watchedAt.toUtc().toIso8601String() : null,
         if (rating != null) 'rating': rating,
         if (review != null) 'review': review,
         'tags': tags,
@@ -301,7 +306,7 @@ class Entry {
         'tmdbId': tmdbId,
         'title': title,
         'type': type,
-        'watchedAt': watchedAt.toUtc().toIso8601String(),
+        'watchedAt': hasExactWatchDate ? watchedAt.toUtc().toIso8601String() : null,
         if (rating != null) 'rating': rating,
         if (review != null) 'review': review,
         'tags': tags,

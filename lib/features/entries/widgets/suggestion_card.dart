@@ -13,6 +13,7 @@ import 'suggestion_details_modal.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../profile/services/honey_badge_service.dart';
+import '../../../core/utils/share_helper.dart';
 
 
 class SuggestionCard extends ConsumerStatefulWidget {
@@ -35,7 +36,7 @@ class SuggestionCard extends ConsumerStatefulWidget {
 
 class _SuggestionCardState extends ConsumerState<SuggestionCard> {
 
-  Future<void> _handleAddToWatching(String title) async {
+  Future<void> _handleAddToWatching(String title, [String? posterPath]) async {
     final firstSuggestor = widget.group.suggestors.isNotEmpty ? widget.group.suggestors.first : null;
     final isTv = widget.group.mediaType == 'tv';
     String effectiveTitle = title.trim();
@@ -52,6 +53,9 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
             (details['original_name'] as String?);
         if (realTitle != null && realTitle.trim().isNotEmpty) {
           effectiveTitle = realTitle.trim();
+        }
+        if (posterPath == null || posterPath.isEmpty) {
+          posterPath = details['poster_path'] as String?;
         }
       } catch (_) {}
     }
@@ -93,7 +97,26 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
 
       await Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)));
       if (mounted) {
-        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching.');
+        final currentUser = ref.read(authStateProvider).value?.user;
+        WHAlert.showSuccessWithAction(
+          context,
+          message: 'Moved "$cleanTitle" to Currently Watching.',
+          actionLabel: 'Share',
+          actionIcon: Icons.share_rounded,
+          onAction: () {
+            ShareHelper.shareCompletedWatch(
+              context: context,
+              title: cleanTitle,
+              posterPath: posterPath,
+              tmdbId: widget.group.tmdbId,
+              mediaType: isTv ? 'tv' : 'movie',
+              userDisplayName: currentUser?.displayName ?? currentUser?.username,
+              username: currentUser?.username,
+              userAvatarUrl: currentUser?.profilePictureUrl,
+              shareMode: StoryShareMode.watching,
+            );
+          },
+        );
         widget.onRefresh();
       }
     } catch (e) {
@@ -287,7 +310,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
         isSent: widget.isSent,
         title: title,
         posterPath: posterPath,
-        onMoveToWatching: () => _handleAddToWatching(title),
+        onMoveToWatching: () => _handleAddToWatching(title, posterPath),
         onMarkWatched: () => _handleMarkAsWatched(title, posterPath),
         onDelete: () => _handleDelete(title),
         onViewDetails: () => widget.onTapMedia?.call(tmdbId, mediaType, widget.isSent ? null : displayUser),
@@ -310,8 +333,9 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       onTap: () => widget.onTapMedia?.call(tmdbId, mediaType, widget.isSent ? null : displayUser),
       onMoveToWatchingWithTitle: (resolvedTitle) => _handleAddToWatching(
         resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+        posterPath,
       ),
-      onMoveToWatching: () => _handleAddToWatching(title),
+      onMoveToWatching: () => _handleAddToWatching(title, posterPath),
       onMarkWatchedWithTitle: (resolvedTitle) => _handleMarkAsWatched(
         resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
         posterPath,

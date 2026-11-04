@@ -13,6 +13,8 @@ import 'wh_entry_grid_card.dart';
 
 
 import '../../search/repositories/search_repository.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../../core/utils/share_helper.dart';
 import '../../feed/providers/feed_provider.dart';
 
 class WatchlistTab extends ConsumerStatefulWidget {
@@ -344,7 +346,27 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
               (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
               (itemId != null && it['id'] == itemId));
         });
-        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching.');
+        final currentUser = ref.read(authStateProvider).value?.user;
+        final posterPath = (item['poster_path'] ?? item['posterPath'])?.toString();
+        WHAlert.showSuccessWithAction(
+          context,
+          message: 'Moved "$cleanTitle" to Currently Watching.',
+          actionLabel: 'Share',
+          actionIcon: Icons.share_rounded,
+          onAction: () {
+            ShareHelper.shareCompletedWatch(
+              context: context,
+              title: cleanTitle,
+              posterPath: posterPath,
+              tmdbId: tmdbId > 0 ? tmdbId : null,
+              mediaType: isTv ? 'tv' : 'movie',
+              userDisplayName: currentUser?.displayName ?? currentUser?.username,
+              username: currentUser?.username,
+              userAvatarUrl: currentUser?.profilePictureUrl,
+              shareMode: StoryShareMode.watching,
+            );
+          },
+        );
       }
     } catch (e) {
       if (mounted) {

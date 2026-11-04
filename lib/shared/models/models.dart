@@ -29,6 +29,7 @@ class MediaResult {
   final int id;
   final String title;
   final String? posterPath;
+  final String? backdropPath;
   final String? releaseDate;
   final String? overview;
   final String mediaType; // movie | tv
@@ -40,6 +41,7 @@ class MediaResult {
     required this.id,
     required this.title,
     this.posterPath,
+    this.backdropPath,
     this.releaseDate,
     this.overview,
     required this.mediaType,
@@ -72,6 +74,7 @@ class MediaResult {
           .toString(),
       posterPath: (json['poster_path'] as String?) ??
           (json['backdrop_path'] as String?),
+      backdropPath: (json['backdrop_path'] as String?),
       releaseDate:
           (json['release_date'] ?? json['first_air_date']) as String?,
       overview: json['overview'] as String?,

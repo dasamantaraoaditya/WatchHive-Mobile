@@ -275,21 +275,20 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
   // ─── Sub-Tab Selector ──────────────────────────────────────────────────────
 
   Widget _buildSubTabSelector() {
-    return Center(
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-        ),
-        padding: const EdgeInsets.all(4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildTabPill('highlights', 'Psych Highlights'),
-            _buildTabPill('analytics', 'Detailed Analytics'),
-          ],
-        ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          Expanded(child: _buildTabPill('highlights', 'Psych Highlights')),
+          const SizedBox(width: 4),
+          Expanded(child: _buildTabPill('analytics', 'Detailed Analytics')),
+        ],
       ),
     );
   }
@@ -300,7 +299,8 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
       onTap: () => setState(() => _activeSubTab = tabKey),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -316,11 +316,14 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
         ),
         child: Text(
           label.toUpperCase(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: 'Inter',
             fontWeight: FontWeight.w900,
-            fontSize: 11,
-            letterSpacing: 0.8,
+            fontSize: 10,
+            letterSpacing: 0.5,
             color: isSelected ? Colors.black : AppColors.textMuted,
           ),
         ),
@@ -521,9 +524,11 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Badges Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Top Badges Wrap
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -550,61 +555,54 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                   ],
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (quadrant != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.indigo.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
-                      ),
-                      child: Text(
-                        quadrant,
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w800,
-                          fontSize: 9,
-                          color: Colors.indigoAccent,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF10B981),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          '$confidence% Confidence',
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w800,
-                            fontSize: 10,
-                            color: Color(0xFF10B981),
-                          ),
-                        ),
-                      ],
+              if (quadrant != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    quadrant,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 9,
+                      color: Colors.indigoAccent,
                     ),
                   ),
-                ],
+                ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      '$confidence% Confidence',
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w800,
+                        fontSize: 10,
+                        color: Color(0xFF10B981),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -653,8 +651,11 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
             const SizedBox(height: 16),
             const Divider(height: 1, color: AppColors.border),
             const SizedBox(height: 12),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            const Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
               children: [
                 Text(
                   'RECENT AFFECTIVE DRIVERS',
@@ -909,10 +910,14 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               const Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.all_inclusive_rounded, color: AppColors.primary, size: 22),
                   SizedBox(width: 8),
@@ -1112,19 +1117,23 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                         ),
                       ),
                       if (subtitle.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            subtitle,
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.w800,
-                              fontSize: 9,
-                              color: color,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 9,
+                                color: color,
+                              ),
                             ),
                           ),
                         ),
@@ -1250,56 +1259,65 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
               border: Border.all(color: AppColors.border),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Column(
-                  children: [
-                    const Text(
-                      'CONVERSION RATE',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w900,
-                        fontSize: 8,
-                        letterSpacing: 0.5,
-                        color: AppColors.textMuted,
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Text(
+                        'CONVERSION RATE',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w900,
+                          fontSize: 8,
+                          letterSpacing: 0.5,
+                          color: AppColors.textMuted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$overallConversion%',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w900,
-                        fontSize: 15,
-                        color: AppColors.textPrimary,
+                      const SizedBox(height: 2),
+                      Text(
+                        '$overallConversion%',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 Container(width: 1, height: 24, color: AppColors.border),
-                Column(
-                  children: [
-                    const Text(
-                      'WATCHED / SUGGESTED',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w900,
-                        fontSize: 8,
-                        letterSpacing: 0.5,
-                        color: AppColors.textMuted,
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Text(
+                        'WATCHED / SUGGESTED',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w900,
+                          fontSize: 8,
+                          letterSpacing: 0.5,
+                          color: AppColors.textMuted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$watched / $received',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w900,
-                        fontSize: 15,
-                        color: AppColors.primary,
+                      const SizedBox(height: 2),
+                      Text(
+                        '$watched / $received',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -1388,59 +1406,67 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () {
-                              if (userId.isNotEmpty) {
-                                context.push('/profile/$userId');
-                              }
-                            },
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 14,
-                                  backgroundColor: AppColors.primary,
-                                  backgroundImage: (avatar != null && avatar.isNotEmpty)
-                                      ? CachedNetworkImageProvider(ApiEndpoints.resolveAvatarUrl(avatar))
-                                      : null,
-                                  child: (avatar == null || avatar.isEmpty)
-                                      ? Text(
-                                          displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                if (userId.isNotEmpty) {
+                                  context.push('/profile/$userId');
+                                }
+                              },
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor: AppColors.primary,
+                                    backgroundImage: (avatar != null && avatar.isNotEmpty)
+                                        ? CachedNetworkImageProvider(ApiEndpoints.resolveAvatarUrl(avatar))
+                                        : null,
+                                    child: (avatar == null || avatar.isEmpty)
+                                        ? Text(
+                                            displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 10,
+                                              color: Colors.black,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          displayName,
                                           style: const TextStyle(
                                             fontFamily: 'Inter',
-                                            fontWeight: FontWeight.w900,
-                                            fontSize: 10,
-                                            color: Colors.black,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 12,
+                                            color: AppColors.textPrimary,
                                           ),
-                                        )
-                                      : null,
-                                ),
-                                const SizedBox(width: 8),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      displayName,
-                                      style: const TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 12,
-                                        color: AppColors.textPrimary,
-                                      ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          '@$username',
+                                          style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 10,
+                                            color: AppColors.textMuted,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
                                     ),
-                                    Text(
-                                      '@$username',
-                                      style: const TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 10,
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
@@ -1469,73 +1495,78 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            Column(
-                              children: [
-                                const Text(
-                                  'TRUST SCORE',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 8,
-                                    color: AppColors.textMuted,
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  const Text(
+                                    'TRUST SCORE',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 8,
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  '${rec['trustScore'] ?? rec['influenceScore'] ?? '-'}',
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
-                                    color: AppColors.primary,
+                                  Text(
+                                    '${rec['trustScore'] ?? rec['influenceScore'] ?? '-'}',
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                      color: AppColors.primary,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            Column(
-                              children: [
-                                const Text(
-                                  'WATCHED',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 8,
-                                    color: AppColors.textMuted,
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  const Text(
+                                    'WATCHED',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 8,
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  '$watchedCount / $totalSuggested',
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
-                                    color: Color(0xFF22C55E),
+                                  Text(
+                                    '$watchedCount / $totalSuggested',
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                      color: Color(0xFF22C55E),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            Column(
-                              children: [
-                                const Text(
-                                  'AVG RATING',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 8,
-                                    color: AppColors.textMuted,
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  const Text(
+                                    'AVG RATING',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 8,
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  avgRating != null && avgRating.isNotEmpty ? '★ $avgRating' : '-',
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
-                                    color: AppColors.textPrimary,
+                                  Text(
+                                    avgRating != null && avgRating.isNotEmpty ? '★ $avgRating' : '-',
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                      color: AppColors.textPrimary,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ],
                         ),

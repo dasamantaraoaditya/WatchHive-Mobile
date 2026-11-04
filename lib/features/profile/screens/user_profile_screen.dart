@@ -13,6 +13,7 @@ import '../../entries/repositories/watchlist_repository.dart';
 import '../../entries/screens/add_entry_sheet.dart';
 import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../entries/widgets/wh_entry_grid_card.dart';
+import '../../../core/utils/share_helper.dart';
 import '../../search/repositories/search_repository.dart';
 import '../repositories/user_repository.dart';
 import '../widgets/follow_list_sheet.dart';
@@ -78,6 +79,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     super.initState();
     if (widget.initialUser != null) {
       _user = widget.initialUser;
+      _isLoading = false;
       _isFollowing = widget.initialUser!.isFollowing;
       _isRequested = widget.initialUser!.isRequested;
       _isIncomingRequest = widget.initialUser!.isIncomingRequest;
@@ -568,7 +570,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       return const WHSkeletonProfile();
     }
 
-    if (_error != null || _user == null) {
+    if (_user == null) {
       return PopScope(
         canPop: context.safeCanPop,
         onPopInvokedWithResult: (didPop, _) {
@@ -847,117 +849,58 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Persona Badge
+          // Top Row: Persona (Left) & Level Progression (Right)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.stars_rounded, size: 14, color: AppColors.primaryDark),
-                    SizedBox(width: 4),
-                    Text(
-                      'SOUL PERSONA',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
-                        color: AppColors.primaryDark,
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.stars_rounded, size: 14, color: AppColors.primaryDark),
+                      SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'CINEPHILE',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                            color: AppColors.primaryDark,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (user.watchStreak > 0) ...[
-                    GestureDetector(
-                      onTap: () => HoneyBadgesDialog.show(context, user, entries: _historyEntries),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('🔥', style: TextStyle(fontSize: 10)),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${user.watchStreak}d',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF2D2926),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                  ],
-                  GestureDetector(
-                    onTap: () => HoneyBadgesDialog.show(context, user, entries: _historyEntries),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceHighest,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.military_tech_rounded, size: 12, color: AppColors.primary),
-                          const SizedBox(width: 2),
-                          Builder(
-                            builder: (context) {
-                              final count = HoneyBadgesDialog.getEarnedBadgesCount(user, entries: _historyEntries);
-                              return Text(
-                                '$count ${count == 1 ? "Badge" : "Badges"}',
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.textPrimary,
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceHighest,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  'LVL ${user.level} · ${user.xp} XP',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textSecondary,
                   ),
-                  const SizedBox(width: 5),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceHighest,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      'LVL ${user.level} · ${user.xp} XP',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
@@ -1057,6 +1000,89 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
             ),
             const SizedBox(height: 14),
           ],
+
+          // Cinephile Progression & Badges Tray (Responsive Wrap — zero overflow risk)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              // Honey Badges Earned Pill
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => HoneyBadgesDialog.show(context, user, entries: _historyEntries),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.military_tech_rounded, size: 15, color: AppColors.primaryDark),
+                        const SizedBox(width: 4),
+                        Builder(
+                          builder: (context) {
+                            final count = HoneyBadgesDialog.getEarnedBadgesCount(user, entries: _historyEntries);
+                            return Text(
+                              '$count ${count == 1 ? "Badge" : "Badges"} Unlocked',
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF2D2926),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 3),
+                        const Icon(Icons.chevron_right_rounded, size: 14, color: AppColors.primaryDark),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Streak Pill
+              if (user.watchStreak > 0)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => HoneyBadgesDialog.show(context, user, entries: _historyEntries),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFDBA74)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('🔥', style: TextStyle(fontSize: 11)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${user.watchStreak}-Day Streak',
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF9A3412),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
 
           // Followers & Following Counters (Clickable)
           Row(
@@ -1309,58 +1335,61 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
   Widget _buildNoPublicSectionsView() {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceHighest,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.visibility_off_outlined, size: 30, color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              _isMe ? 'No Public Sections Enabled' : 'No Public Activity',
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _isMe
-                  ? 'You have disabled all individual tabs (Watches, Watching, Watchlist, Rankings) in your privacy settings. Other users will only see your basic profile and bio.'
-                  : 'This user has kept their watch history, lists, and rankings private.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-            ),
-            if (_isMe && _user != null) ...[
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: const BoxDecoration(
+                  color: AppColors.surfaceHighest,
+                  shape: BoxShape.circle,
                 ),
-                onPressed: () {
-                  EditProfileDialog.show(
-                    context,
-                    user: _user!,
-                    onSaved: _fetchProfile,
-                  );
-                },
-                icon: const Icon(Icons.tune_rounded, size: 16),
-                label: const Text('Enable Sections in Privacy Settings'),
+                child: const Icon(Icons.visibility_off_outlined, size: 30, color: AppColors.textMuted),
               ),
+              const SizedBox(height: 14),
+              Text(
+                _isMe ? 'No Public Sections Enabled' : 'No Public Activity',
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _isMe
+                    ? 'You have disabled all individual tabs (Watches, Watching, Watchlist, Rankings) in your privacy settings. Other users will only see your basic profile and bio.'
+                    : 'This user has kept their watch history, lists, and rankings private.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              ),
+              if (_isMe && _user != null) ...[
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    EditProfileDialog.show(
+                      context,
+                      user: _user!,
+                      onSaved: _fetchProfile,
+                    );
+                  },
+                  icon: const Icon(Icons.tune_rounded, size: 16),
+                  label: const Text('Enable Sections in Privacy Settings'),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -1500,7 +1529,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           mediaType: entry.type,
           mode: WHEntryCardMode.history,
           rating: entry.rating,
-          watchedAt: entry.watchedAt,
+          watchedAt: entry.hasExactWatchDate ? entry.watchedAt : null,
           watchLocation: entry.watchLocation,
           tags: entry.tags,
           onTap: () {
@@ -1715,7 +1744,27 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
               (itemId != null && it['id'] == itemId));
           _watchingEntries.insert(0, entry);
         });
-        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching.');
+        final currentUser = ref.read(authStateProvider).value?.user;
+        final posterPath = (item['poster_path'] ?? item['posterPath'])?.toString();
+        WHAlert.showSuccessWithAction(
+          context,
+          message: 'Moved "$cleanTitle" to Currently Watching.',
+          actionLabel: 'Share',
+          actionIcon: Icons.share_rounded,
+          onAction: () {
+            ShareHelper.shareCompletedWatch(
+              context: context,
+              title: cleanTitle,
+              posterPath: posterPath,
+              tmdbId: tmdbId > 0 ? tmdbId : null,
+              mediaType: isTv ? 'tv' : 'movie',
+              userDisplayName: currentUser?.displayName ?? currentUser?.username,
+              username: currentUser?.username,
+              userAvatarUrl: currentUser?.profilePictureUrl,
+              shareMode: StoryShareMode.watching,
+            );
+          },
+        );
       }
     } catch (e) {
       if (mounted) {

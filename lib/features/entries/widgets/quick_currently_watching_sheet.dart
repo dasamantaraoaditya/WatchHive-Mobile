@@ -10,6 +10,8 @@ import '../repositories/entries_repository.dart';
 import '../repositories/watchlist_repository.dart';
 import '../screens/entries_screen.dart';
 import '../../feed/providers/feed_provider.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../../core/utils/share_helper.dart';
 
 class QuickCurrentlyWatchingSheet extends ConsumerStatefulWidget {
   const QuickCurrentlyWatchingSheet({super.key});
@@ -117,9 +119,31 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
 
       if (mounted) {
         Navigator.of(context).pop();
-        WHAlert.showSuccess(
+        final currentUser = ref.read(authStateProvider).value?.user;
+        final year = (media.releaseDate != null && media.releaseDate!.length >= 4)
+            ? media.releaseDate!.substring(0, 4)
+            : null;
+
+        WHAlert.showSuccessWithAction(
           context,
-          'Added "$cleanTitle" to Currently Watching.',
+          message: 'Added "$cleanTitle" to Currently Watching.',
+          actionLabel: 'Share',
+          actionIcon: Icons.share_rounded,
+          onAction: () {
+            ShareHelper.shareCompletedWatch(
+              context: context,
+              title: cleanTitle,
+              posterPath: media.posterPath,
+              backdropPath: media.backdropPath,
+              tmdbId: media.id,
+              mediaType: media.mediaType,
+              releaseYear: year,
+              userDisplayName: currentUser?.displayName ?? currentUser?.username,
+              username: currentUser?.username,
+              userAvatarUrl: currentUser?.profilePictureUrl,
+              shareMode: StoryShareMode.watching,
+            );
+          },
         );
       }
     } catch (e) {
