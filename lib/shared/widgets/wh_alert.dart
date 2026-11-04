@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/error_handler.dart';
 
@@ -196,8 +197,15 @@ class WHAlert {
         ),
     };
 
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
+    final safeContext = (context.mounted ? context : null) ??
+        (rootNavigatorKey.currentContext?.mounted == true ? rootNavigatorKey.currentContext : null);
+    if (safeContext == null) return;
+
+    final messenger = ScaffoldMessenger.maybeOf(safeContext);
+    if (messenger == null) return;
+
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
         elevation: 6,

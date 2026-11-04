@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import '../config/web_urls.dart';
+import '../router/app_router.dart';
 import '../../features/share/widgets/instagram_story_card.dart';
 import '../../features/share/widgets/story_share_modal.dart';
 
@@ -67,9 +68,15 @@ class ShareHelper {
   }) async {
     final effectiveMode = shareMode ?? (isCompleted ? StoryShareMode.logged : StoryShareMode.watching);
 
-    if (context != null && context.mounted) {
+    final safeContext = (context != null && context.mounted)
+        ? context
+        : (rootNavigatorKey.currentContext?.mounted == true
+            ? rootNavigatorKey.currentContext
+            : null);
+
+    if (safeContext != null) {
       await showStoryShareModal(
-        context,
+        safeContext,
         title: title,
         posterPath: posterPath,
         backdropPath: backdropPath,
