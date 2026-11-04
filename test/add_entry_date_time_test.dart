@@ -129,7 +129,8 @@ void main() {
 
       // Tap the friendly Close button
       await tester.tap(find.text('Close'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       // Verify the sheet closed
       expect(sheetDismissed, isTrue);

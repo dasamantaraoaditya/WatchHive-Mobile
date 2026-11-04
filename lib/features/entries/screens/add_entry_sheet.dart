@@ -268,13 +268,16 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     void executeScroll() {
       if (!mounted) return;
       final keyContext = key.currentContext;
-      if (keyContext != null) {
-        Scrollable.ensureVisible(
-          keyContext,
-          alignment: alignment,
-          duration: const Duration(milliseconds: 320),
-          curve: Curves.easeOutCubic,
-        );
+      if (keyContext != null && keyContext.mounted && _scrollController.hasClients) {
+        final renderObj = keyContext.findRenderObject();
+        if (renderObj != null && renderObj.attached) {
+          Scrollable.ensureVisible(
+            keyContext,
+            alignment: alignment,
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+          );
+        }
       }
     }
 
@@ -1312,9 +1315,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                _SectionHeader(
-                                  title: _isWatching ? 'Started Watching' : 'When Did You Watch?',
-                                  subtitle: _hasWatchedDate ? 'Date and time of your screening' : 'No screening date recorded',
+                                Expanded(
+                                  child: _SectionHeader(
+                                    title: _isWatching ? 'Started Watching' : 'When Did You Watch?',
+                                    subtitle: _hasWatchedDate ? 'Date and time of your screening' : 'No screening date recorded',
+                                  ),
                                 ),
                                 if (!_isWatching)
                                   Row(
