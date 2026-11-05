@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/connectivity_service.dart';
 import '../../core/services/offline_sync_manager.dart';
+import 'wh_bee_loader.dart';
 
 /// Wraps the root Navigator to display a smooth, non-intrusive status bar
 /// whenever the user is offline, syncing changes, or when sync completes.
@@ -106,14 +107,7 @@ class OfflineStatusBar extends StatelessWidget {
         message = 'You are offline — viewing cached library & feed';
       }
     } else if (isSyncing) {
-      leadingIcon = const SizedBox(
-        width: 12,
-        height: 12,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-        ),
-      );
+      leadingIcon = const WHBeeSpinner(size: 14);
       message = syncState.message ?? 'Syncing offline changes...';
     } else if (isCompleted) {
       leadingIcon = const Icon(

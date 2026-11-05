@@ -533,14 +533,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                       if (_isSearching)
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 8),
-                          child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.primary,
-                            ),
-                          ),
+                          child: WHBeeSpinner(size: 16),
                         ),
                       if (_query.isNotEmpty)
                         IconButton(
@@ -1421,11 +1414,7 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
                 ),
                 onPressed: _isLoading ? null : _toggleFollow,
                 child: _isLoading
-                    ? const SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.black))
+                    ? const WHBeeSpinner(size: 12)
                     : Text(
                         _isFollowing
                             ? 'Following'

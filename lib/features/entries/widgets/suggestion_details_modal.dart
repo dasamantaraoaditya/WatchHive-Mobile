@@ -254,15 +254,10 @@ class SuggestionDetailsModal extends StatelessWidget {
                                     width: 52,
                                     height: 76,
                                     fit: BoxFit.cover,
-                                    placeholder: (ctx, url) => Container(
-                                      color: AppColors.surfaceHighest,
-                                      child: const Center(
-                                        child: SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                                        ),
-                                      ),
+                                    placeholder: (ctx, url) => const WHSkeletonBox(
+                                      width: 52,
+                                      height: 76,
+                                      borderRadius: 10,
                                     ),
                                     errorWidget: (ctx, url, err) => Container(
                                       width: 52,

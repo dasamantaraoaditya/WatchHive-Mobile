@@ -10,6 +10,7 @@ import '../../../shared/widgets/wh_alert.dart';
 import '../../../shared/widgets/wh_button.dart';
 import '../../../shared/widgets/wh_logo_header.dart';
 import '../../../shared/widgets/wh_text_field.dart';
+import '../../../shared/widgets/wh_bee_loader.dart';
 import '../../onboarding/services/onboarding_service.dart';
 import '../../onboarding/widgets/watch_preferences_onboarding_dialog.dart';
 import '../providers/auth_provider.dart';
@@ -474,11 +475,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                       ? null
                       : _resendCode,
                   icon: _isResending
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const WHBeeSpinner(size: 14)
                       : const Icon(Icons.refresh_rounded, size: 16),
                   label: Text(
                     _resendCooldownSeconds > 0

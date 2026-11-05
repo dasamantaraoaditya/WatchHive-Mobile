@@ -338,11 +338,7 @@ class _AddFriendsSheetState extends ConsumerState<AddFriendsSheet> {
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),
                     child: Center(
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                      ),
+                      child: WHBeeSpinner(size: 24),
                     ),
                   )
                 else if (_suggestedUsers == null || _suggestedUsers!.isEmpty)
@@ -463,11 +459,7 @@ class _AddFriendsSheetState extends ConsumerState<AddFriendsSheet> {
                               ),
                               onPressed: isLoadingFollow ? null : () => _toggleFollow(u),
                               icon: isLoadingFollow
-                                  ? const SizedBox(
-                                      width: 12,
-                                      height: 12,
-                                      child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.primary),
-                                    )
+                                  ? const WHBeeSpinner(size: 12)
                                   : Icon(
                                       isFollowing ? Icons.check_rounded : Icons.person_add_rounded,
                                       size: 14,

@@ -269,7 +269,8 @@ class _WHAppLogoLoaderState extends State<WHAppLogoLoader>
               height: 24,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                color: AppColors.primary,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                backgroundColor: Color(0x33FFB700),
               ),
             ),
           ],

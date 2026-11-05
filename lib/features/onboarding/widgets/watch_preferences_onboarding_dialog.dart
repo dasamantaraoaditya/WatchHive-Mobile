@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/user_preferences.dart';
 import '../services/onboarding_service.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 
 class WatchPreferencesOnboardingDialog extends ConsumerStatefulWidget {
   final bool isEditing;
@@ -536,11 +537,7 @@ class _WatchPreferencesOnboardingDialogState
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: _isSubmitting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.textPrimary),
-                  )
+                ? const WHBeeSpinner(size: 18)
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

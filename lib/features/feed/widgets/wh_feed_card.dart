@@ -574,14 +574,7 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                             constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                             splashRadius: 18,
                             icon: _isWatchlistLoading
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                                    ),
-                                  )
+                                ? const WHBeeSpinner(size: 14)
                                 : Icon(
                                     inWatchlist ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
                                     size: 19,

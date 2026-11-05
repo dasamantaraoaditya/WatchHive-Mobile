@@ -279,11 +279,7 @@ class _BlockedUsersSheetState extends ConsumerState<BlockedUsersSheet> {
                                 ),
                                 onPressed: isUnblocking ? null : () => _handleUnblock(userId, username),
                                 child: isUnblocking
-                                    ? const SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
+                                    ? const WHBeeSpinner(size: 14)
                                     : const Text(
                                         'Unblock',
                                         style: TextStyle(

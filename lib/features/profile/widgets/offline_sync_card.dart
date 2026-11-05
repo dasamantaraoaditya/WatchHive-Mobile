@@ -5,6 +5,7 @@ import '../../../core/services/offline_sync_manager.dart';
 import '../../../core/services/offline_storage_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/wh_alert.dart';
+import '../../../shared/widgets/wh_bee_loader.dart';
 import '../../entries/screens/entries_screen.dart';
 
 class OfflineSyncCard extends ConsumerStatefulWidget {
@@ -307,14 +308,7 @@ class _OfflineSyncCardState extends ConsumerState<OfflineSyncCard> {
                           }
                         },
                   icon: isSyncing
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.black,
-                          ),
-                        )
+                      ? const WHBeeSpinner(size: 16)
                       : const Icon(Icons.sync_rounded, size: 18),
                   label: Text(
                     isSyncing ? 'Syncing...' : 'Sync Now',
@@ -460,7 +454,7 @@ class _OfflineQueueSheetState extends State<_OfflineQueueSheet> {
           ),
           const SizedBox(height: 12),
           if (_isLoading)
-            const Center(child: CircularProgressIndicator())
+            const Center(child: WHBeeLoader(size: WHBeeLoaderSize.small, message: 'Checking sync queue...'))
           else if (_items.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 32),

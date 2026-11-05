@@ -152,6 +152,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
           .resolveUserWithPreferences(rawUser);
       await ref.read(authManagerProvider).saveUser(user);
       unawaited(syncDeviceToken());
+      unawaited(_refreshUserInBackground());
       state = AsyncData(AuthState(user: user, isAuthenticated: true));
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -202,6 +203,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
           .resolveUserWithPreferences(rawUser);
       await ref.read(authManagerProvider).saveUser(user);
       unawaited(syncDeviceToken());
+      unawaited(_refreshUserInBackground());
       state = AsyncData(AuthState(user: user, isAuthenticated: true));
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -224,6 +226,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
           .resolveUserWithPreferences(rawUser);
       await ref.read(authManagerProvider).saveUser(user);
       unawaited(syncDeviceToken());
+      unawaited(_refreshUserInBackground());
       state = AsyncData(AuthState(user: user, isAuthenticated: true));
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -244,6 +247,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
           .resolveUserWithPreferences(rawUser);
       await ref.read(authManagerProvider).saveUser(user);
       unawaited(syncDeviceToken());
+      unawaited(_refreshUserInBackground());
       state = AsyncData(AuthState(user: user, isAuthenticated: true));
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -272,6 +276,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
           .resolveUserWithPreferences(rawUser);
       await ref.read(authManagerProvider).saveUser(user);
       unawaited(syncDeviceToken());
+      unawaited(_refreshUserInBackground());
       state = AsyncData(AuthState(user: user, isAuthenticated: true));
     } catch (e, st) {
       state = AsyncError(e, st);

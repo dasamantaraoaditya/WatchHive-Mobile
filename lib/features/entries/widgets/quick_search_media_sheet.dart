@@ -206,13 +206,9 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
                 hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
                 prefixIcon: Icon(Icons.search_rounded, color: headerColor),
                 suffixIcon: _isSearching
-                    ? Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: headerColor),
-                        ),
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: WHBeeSpinner(size: 16),
                       )
                     : _searchController.text.isNotEmpty
                         ? IconButton(
