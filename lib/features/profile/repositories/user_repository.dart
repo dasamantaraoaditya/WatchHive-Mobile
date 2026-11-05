@@ -444,11 +444,38 @@ class UserRepository {
     return jsonEncode(raw);
   }
 
+  /// Call preview import endpoint to match entries against TMDb and detect duplicates
+  Future<Map<String, dynamic>> previewImport(Map<String, dynamic> payload) async {
+    final body = <String, dynamic>{};
+    if (payload['entries'] is List) body['entries'] = payload['entries'];
+    if (payload['lists'] is List) body['lists'] = payload['lists'];
+    if (payload.containsKey('defaultToCurrentYear')) {
+      body['defaultToCurrentYear'] = payload['defaultToCurrentYear'];
+    }
+
+    if (!body.containsKey('entries') && !body.containsKey('lists')) {
+      throw Exception('File must contain an "entries" and/or "lists" array.');
+    }
+
+    final response = await _api.post(
+      ApiEndpoints.dataImportPreview,
+      data: body,
+    );
+
+    if (response.data is Map<String, dynamic>) {
+      return response.data as Map<String, dynamic>;
+    }
+    return <String, dynamic>{'total': 0, 'matchedCount': 0, 'unmatchedCount': 0, 'entries': []};
+  }
+
   /// Import user data payload { "entries": [...], "lists": [...] }
   Future<Map<String, dynamic>> importData(Map<String, dynamic> payload) async {
     final body = <String, dynamic>{};
     if (payload['entries'] is List) body['entries'] = payload['entries'];
     if (payload['lists'] is List) body['lists'] = payload['lists'];
+    if (payload.containsKey('defaultToCurrentYear')) {
+      body['defaultToCurrentYear'] = payload['defaultToCurrentYear'];
+    }
 
     if (!body.containsKey('entries') && !body.containsKey('lists')) {
       throw Exception('File must contain an "entries" and/or "lists" array.');

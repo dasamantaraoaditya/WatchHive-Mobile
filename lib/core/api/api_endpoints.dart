@@ -116,6 +116,7 @@ class ApiEndpoints {
   // Data management
   static const String dataExport = '/data/export';
   static const String dataImport = '/data/import';
+  static const String dataImportPreview = '/data/import/preview';
 
   // Push Notifications
   static const String pushSubscribe = '/push/subscribe';
