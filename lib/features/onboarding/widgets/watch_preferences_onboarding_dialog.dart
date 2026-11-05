@@ -184,7 +184,7 @@ class _WatchPreferencesOnboardingDialogState
                 child: Text(
                   widget.isEditing
                       ? 'Preferences updated! Your feed is re-customized.'
-                      : 'Feed personalized! Enjoy trending & curated picks.',
+                      : 'Watch preferences saved! Your feed is now personalized.',
                   style: const TextStyle(
                     color: Colors.white,
                     fontFamily: 'Inter',
@@ -259,9 +259,9 @@ class _WatchPreferencesOnboardingDialogState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                widget.isEditing ? 'Watch Preferences' : 'Personalize Your Feed',
-                style: const TextStyle(
+              const Text(
+                'Watch Preferences',
+                style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
@@ -269,7 +269,7 @@ class _WatchPreferencesOnboardingDialogState
                 ),
               ),
               Text(
-                'Question ${_currentStep + 1} of 3',
+                'Personalize Your Feed (${_currentStep + 1} of 3)',
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -546,7 +546,7 @@ class _WatchPreferencesOnboardingDialogState
                     children: [
                       Text(
                         isLastStep
-                            ? (widget.isEditing ? 'Save Preferences' : 'Personalize My Feed 🚀')
+                            ? (widget.isEditing ? 'Save Preferences' : 'Save & Personalize Feed 🚀')
                             : 'Next ➜',
                         style: const TextStyle(
                           fontSize: 14,
