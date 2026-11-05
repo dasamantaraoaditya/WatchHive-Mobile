@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/navigation_extensions.dart';
 import '../../../shared/widgets/wh_alert.dart';
+import '../../../shared/widgets/wh_bee_loader.dart';
 import '../../auth/providers/auth_provider.dart';
 
 enum SupportCategory {
@@ -682,11 +683,7 @@ App Diagnostics:
           child: ElevatedButton.icon(
             onPressed: _isSending ? null : _sendViaEmail,
             icon: _isSending
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                  )
+                ? const WHBeeSpinner(size: 20)
                 : const Icon(Icons.send_rounded, color: Colors.black, size: 20),
             label: Text(
               _isSending ? 'Opening Email...' : 'Send via Email App ✉️',

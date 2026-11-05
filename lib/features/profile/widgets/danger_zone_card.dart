@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../shared/widgets/wh_alert.dart';
+import '../../../shared/widgets/wh_bee_loader.dart';
 
 /// Danger Zone Card adhering to the highest safety, UI, and UX standards
 /// for account deletion and data migration guidance.
@@ -644,14 +645,7 @@ class _AccountDeletionSafetySheetState
                       ),
                       onPressed: _canDelete ? _handleDelete : null,
                       child: _isDeleting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
+                          ? const WHBeeSpinner(size: 18, color: Colors.white)
                           : const Text(
                               'Permanently Delete Account',
                               style: TextStyle(

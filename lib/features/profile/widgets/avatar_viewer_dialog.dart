@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/api/api_endpoints.dart';
+import '../../../../shared/widgets/shared_widgets.dart';
 
 /// Interactive modal dialog displaying a magnified, zoomable view of a user's profile picture.
 class AvatarViewerDialog extends StatelessWidget {
@@ -154,11 +155,8 @@ class AvatarViewerDialog extends StatelessWidget {
                               fit: BoxFit.cover,
                               width: maxDimension,
                               height: maxDimension,
-                              placeholder: (context, url) => Container(
-                                color: AppColors.surfaceHighest,
-                                child: const Center(
-                                  child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2.5),
-                                ),
+                              placeholder: (context, url) => const Center(
+                                child: WHBeeSpinner(size: 24),
                               ),
                               errorWidget: (context, url, error) => _buildFallback(maxDimension),
                             )

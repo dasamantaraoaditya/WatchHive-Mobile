@@ -260,11 +260,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       const SnackBar(
         content: Row(
           children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-            ),
+            WHBeeSpinner(size: 16),
             SizedBox(width: 12),
             Text('Checking for app updates...', style: TextStyle(color: Colors.white, fontFamily: 'Inter')),
           ],
@@ -667,7 +663,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               }
                             },
                       icon: isSending
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                          ? const WHBeeSpinner(size: 16)
                           : const Icon(Icons.send_to_mobile_rounded, size: 18),
                       label: Text(
                         isSending ? 'Sending...' : 'Send Test Notification',
@@ -943,7 +939,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       onPressed: _isSavingBio ? null : _saveQuickBio,
                       child: _isSavingBio
-                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                          ? const WHBeeSpinner(size: 14)
                           : const Text('Save Bio', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
                   ],

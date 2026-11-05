@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wh_alert.dart';
+import '../../../shared/widgets/wh_bee_loader.dart';
 import '../repositories/user_repository.dart';
 
 class DataManagementCard extends ConsumerStatefulWidget {
@@ -491,11 +492,7 @@ class DataManagementCardState extends ConsumerState<DataManagementCard> {
                         ),
                         onPressed: _isExporting || _isImporting ? null : _handleExport,
                         icon: _isExporting
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                              )
+                            ? const WHBeeSpinner(size: 16)
                             : const Icon(Icons.download_rounded, size: 18),
                         label: Text(
                           _isExporting ? 'Exporting...' : 'Export Data',
@@ -519,11 +516,7 @@ class DataManagementCardState extends ConsumerState<DataManagementCard> {
                         ),
                         onPressed: _isExporting || _isImporting ? null : _handleImport,
                         icon: _isImporting
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                              )
+                            ? const WHBeeSpinner(size: 16)
                             : const Icon(Icons.upload_rounded, size: 18),
                         label: Text(
                           _isImporting ? 'Importing...' : 'Import Data',

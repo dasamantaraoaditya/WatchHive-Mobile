@@ -215,7 +215,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                       child: isSubmitting
-                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
+                          ? const WHBeeSpinner(size: 20)
                           : Text(
                               isEditing ? 'Save Changes' : 'Create Stack',
                               style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black),
@@ -1018,7 +1018,7 @@ class _SearchAddModalState extends ConsumerState<_SearchAddModal> {
                 suffixIcon: _isSearching
                     ? const Padding(
                         padding: EdgeInsets.all(12),
-                        child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                        child: WHBeeSpinner(size: 16),
                       )
                     : null,
                 border: InputBorder.none,
@@ -1086,7 +1086,7 @@ class _SearchAddModalState extends ConsumerState<_SearchAddModal> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           child: isAdding
-                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                              ? const WHBeeSpinner(size: 14)
                               : const Text('+ Add', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black)),
                         ),
                       ],
