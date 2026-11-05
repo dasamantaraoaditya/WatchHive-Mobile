@@ -14,6 +14,7 @@ import '../models/ranking_stack.dart';
 import '../providers/rankings_provider.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 class RankingsScreen extends ConsumerStatefulWidget {
   final String? initialStackId;
@@ -83,7 +84,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        isEditing ? 'Edit Ranking Stack ✏️' : 'Create New Stack 🏆',
+                        isEditing ? 'Edit Ranking Stack' : 'Create New Stack',
                         style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 18,
@@ -192,7 +193,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                                   }
                                   if (mounted && newStack != null) {
                                     _onStackSelected(newStack.id);
-                                    WHAlert.showSuccess(context, 'Created "${newStack.name}"! 🏆');
+                                    WHAlert.showSuccess(context, 'Created "${newStack.name}".');
                                   }
                                 }
                               } catch (e) {
@@ -214,9 +215,9 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                       child: isSubmitting
-                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
+                          ? const WHBeeSpinner(size: 20)
                           : Text(
-                              isEditing ? 'Save Changes' : 'Create Stack 🏆',
+                              isEditing ? 'Save Changes' : 'Create Stack',
                               style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black),
                             ),
                     ),
@@ -301,7 +302,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Rankings & Stacks 📚',
+              'Rankings & Lists',
               style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
             ),
             Text(
@@ -312,14 +313,14 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.only(right: 4),
             child: ElevatedButton.icon(
               onPressed: _openCreateStackModal,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.black,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               icon: const Icon(Icons.add_rounded, size: 16),
@@ -329,6 +330,12 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
               ),
             ),
           ),
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+            tooltip: 'About Rankings & Stacks',
+            onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.rankings),
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: myRankingsState.isLoading
@@ -528,7 +535,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Create Your First Stack 🏆', style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w800)),
+              label: const Text('Create Your First Stack', style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w800)),
             ),
           ],
         ),
@@ -545,9 +552,9 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -565,13 +572,13 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: stack.isPublic ? Colors.green.withValues(alpha: 0.15) : AppColors.surfaceHighest,
+                  color: stack.isPublic ? AppColors.success.withValues(alpha: 0.12) : AppColors.surfaceHighest,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: stack.isPublic ? Colors.green.withValues(alpha: 0.4) : AppColors.border),
+                  border: Border.all(color: stack.isPublic ? AppColors.success.withValues(alpha: 0.3) : AppColors.border),
                 ),
                 child: Text(
-                  stack.isPublic ? '🌐 Public' : '🔒 Private',
-                  style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: stack.isPublic ? Colors.greenAccent : AppColors.textMuted),
+                  stack.isPublic ? 'Public' : 'Private',
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: stack.isPublic ? const Color(0xFF15803D) : AppColors.textMuted),
                 ),
               ),
             ],
@@ -595,7 +602,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   icon: const Icon(Icons.add_circle_outline_rounded, size: 16),
-                  label: const Text('Add Title 🎬', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w800)),
+                  label: const Text('Add Title', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w800)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -619,7 +626,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                   final url = stack.userId.isNotEmpty
                       ? WebUrls.userRankings(stack.userId)
                       : WebUrls.rankings();
-                  final text = 'Check out my "${stack.name}" ranked stack on WatchersHive! 🐝🎬\n\n$url';
+                  final text = 'Check out my "${stack.name}" ranked list on WatchersHive:\n\n$url';
                   Share.share(text, subject: 'WatchersHive: ${stack.name}');
                 },
                 tooltip: 'Share Stack',
@@ -684,23 +691,28 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
 
     Color badgeBgColor;
     Color badgeTextColor;
+    Border? badgeBorder;
     String medalEmoji = '';
 
     if (rankNumber == 1) {
-      badgeBgColor = const Color(0xFFFFD700);
-      badgeTextColor = Colors.black;
+      badgeBgColor = const Color(0xFFFFB700);
+      badgeTextColor = const Color(0xFF2D2926);
+      badgeBorder = Border.all(color: const Color(0xFFE59700), width: 1.2);
       medalEmoji = ' 🥇';
     } else if (rankNumber == 2) {
-      badgeBgColor = const Color(0xFFE0E0E0);
-      badgeTextColor = Colors.black;
+      badgeBgColor = const Color(0xFFE2E8F0);
+      badgeTextColor = const Color(0xFF2D2926);
+      badgeBorder = Border.all(color: const Color(0xFFCBD5E1), width: 1.2);
       medalEmoji = ' 🥈';
     } else if (rankNumber == 3) {
-      badgeBgColor = const Color(0xFFCD7F32);
+      badgeBgColor = const Color(0xFFD97706);
       badgeTextColor = Colors.white;
+      badgeBorder = Border.all(color: const Color(0xFFB45309), width: 1.2);
       medalEmoji = ' 🥉';
     } else {
-      badgeBgColor = AppColors.surfaceHighest;
-      badgeTextColor = AppColors.primary;
+      badgeBgColor = AppColors.surface;
+      badgeTextColor = AppColors.textPrimary;
+      badgeBorder = Border.all(color: AppColors.border, width: 1.0);
     }
 
     return Container(
@@ -729,6 +741,14 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                 decoration: BoxDecoration(
                   color: badgeBgColor,
                   borderRadius: BorderRadius.circular(10),
+                  border: badgeBorder,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Center(
                   child: Text(
@@ -738,6 +758,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                       fontSize: 13,
                       fontWeight: FontWeight.w900,
                       color: badgeTextColor,
+                      letterSpacing: -0.5,
                     ),
                   ),
                 ),
@@ -798,21 +819,21 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                           const SizedBox(width: 6),
                           const Text('•', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                           const SizedBox(width: 4),
-                          Icon(Icons.star_rounded, size: 12, color: Colors.amber[400]),
+                          const Icon(Icons.star_rounded, size: 12, color: AppColors.primaryDark),
                           const SizedBox(width: 2),
                           Text(
                             item.localRating!.toStringAsFixed(1),
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber[400]),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
                           ),
                         ] else if (item.voteAverage != null && item.voteAverage! > 0) ...[
                           const SizedBox(width: 6),
                           const Text('•', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                           const SizedBox(width: 4),
-                          const Icon(Icons.star_rounded, size: 12, color: AppColors.primary),
+                          const Icon(Icons.star_rounded, size: 12, color: AppColors.primaryDark),
                           const SizedBox(width: 2),
                           Text(
                             item.voteAverage!.toStringAsFixed(1),
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
                           ),
                         ],
                       ],
@@ -827,7 +848,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_upward_rounded, size: 18),
-                    color: index > 0 ? AppColors.primary : AppColors.textMuted.withValues(alpha: 0.2),
+                    color: index > 0 ? AppColors.textPrimary : AppColors.textMuted.withValues(alpha: 0.25),
                     tooltip: 'Move Up',
                     onPressed: index > 0
                         ? () {
@@ -838,7 +859,7 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.arrow_downward_rounded, size: 18),
-                    color: index < totalCount - 1 ? AppColors.primary : AppColors.textMuted.withValues(alpha: 0.2),
+                    color: index < totalCount - 1 ? AppColors.textPrimary : AppColors.textMuted.withValues(alpha: 0.25),
                     tooltip: 'Move Down',
                     onPressed: index < totalCount - 1
                         ? () {
@@ -935,7 +956,7 @@ class _SearchAddModalState extends ConsumerState<_SearchAddModal> {
       widget.onAdded();
       if (mounted) {
         Navigator.pop(context);
-        WHAlert.showSuccess(context, 'Added "${media.title}" to stack! 🎬');
+        WHAlert.showSuccess(context, 'Added "${media.title}" to stack.');
       }
     } catch (e) {
       if (mounted) {
@@ -969,7 +990,7 @@ class _SearchAddModalState extends ConsumerState<_SearchAddModal> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Add Title to Stack 🎬',
+                'Add Title to Stack',
                 style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
               ),
               IconButton(
@@ -997,7 +1018,7 @@ class _SearchAddModalState extends ConsumerState<_SearchAddModal> {
                 suffixIcon: _isSearching
                     ? const Padding(
                         padding: EdgeInsets.all(12),
-                        child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                        child: WHBeeSpinner(size: 16),
                       )
                     : null,
                 border: InputBorder.none,
@@ -1065,7 +1086,7 @@ class _SearchAddModalState extends ConsumerState<_SearchAddModal> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           child: isAdding
-                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                              ? const WHBeeSpinner(size: 14)
                               : const Text('+ Add', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black)),
                         ),
                       ],

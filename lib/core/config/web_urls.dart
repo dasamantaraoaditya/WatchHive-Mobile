@@ -6,19 +6,42 @@ class WebUrls {
   static const String baseUrl = 'https://watchershive.com';
 
   /// Deep link URL for a movie or TV show details page.
-  /// Example: https://watchhive-web.vercel.app/watch-hive/details/movie/550
-  static String movieDetails(String mediaType, int tmdbId) {
+  /// Supports optional referrer / suggested by attribution.
+  /// Example: https://watchhive-web.vercel.app/watch-hive/details/movie/550?suggestedByUserId=123
+  static String movieDetails(
+    String mediaType,
+    int tmdbId, {
+    String? suggestedByUserId,
+    String? suggestedByUsername,
+    String? source,
+  }) {
     final cleanMediaType = mediaType.toLowerCase().trim();
-    return '$baseUrl/watch-hive/details/$cleanMediaType/$tmdbId';
+    final params = <String>[];
+    if (suggestedByUserId != null && suggestedByUserId.trim().isNotEmpty) {
+      params.add('suggestedByUserId=${Uri.encodeComponent(suggestedByUserId.trim())}');
+    }
+    if (suggestedByUsername != null && suggestedByUsername.trim().isNotEmpty) {
+      params.add('suggestedByUsername=${Uri.encodeComponent(suggestedByUsername.trim())}');
+    }
+    if (source != null && source.trim().isNotEmpty) {
+      params.add('source=${Uri.encodeComponent(source.trim())}');
+    }
+    final query = params.isNotEmpty ? '?${params.join('&')}' : '';
+    return '$baseUrl/watch-hive/details/$cleanMediaType/$tmdbId$query';
   }
 
   /// Deep link URL for a user profile.
   /// Supports optional referral query parameter.
   /// Example: https://watchhive-web.vercel.app/watch-hive/profile/user-id-123
-  static String userProfile(String userId, {String? refUsername}) {
-    final query = (refUsername != null && refUsername.trim().isNotEmpty)
-        ? '?ref=${Uri.encodeComponent(refUsername.trim())}'
-        : '';
+  static String userProfile(String userId, {String? refUsername, String? source}) {
+    final params = <String>[];
+    if (refUsername != null && refUsername.trim().isNotEmpty) {
+      params.add('ref=${Uri.encodeComponent(refUsername.trim())}');
+    }
+    if (source != null && source.trim().isNotEmpty) {
+      params.add('source=${Uri.encodeComponent(source.trim())}');
+    }
+    final query = params.isNotEmpty ? '?${params.join('&')}' : '';
     return '$baseUrl/watch-hive/profile/$userId$query';
   }
 

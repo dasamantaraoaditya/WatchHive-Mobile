@@ -2,16 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/app_route_observer.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/feed_provider.dart';
 import '../widgets/comments_sheet.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../onboarding/services/tour_service.dart';
-import '../../onboarding/widgets/quick_guide_tour_dialog.dart';
+import '../../onboarding/providers/onboarding_guide_provider.dart';
 import '../../notifications/providers/notifications_provider.dart';
 import '../../../core/notifications/push_notification_service.dart';
+import '../../entries/screens/add_entry_sheet.dart';
 import '../widgets/wh_feed_card.dart';
+import '../widgets/smart_suggest_hero_card.dart';
+import '../widgets/feed_add_friends_card.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
+import '../../profile/widgets/add_friends_sheet.dart';
+import '../../profile/repositories/user_repository.dart';
+import '../../search/repositories/search_repository.dart';
+import '../../../shared/models/user.dart';
 
 export '../providers/feed_provider.dart';
 
@@ -24,10 +33,16 @@ class FeedScreen extends ConsumerStatefulWidget {
   ConsumerState<FeedScreen> createState() => _FeedScreenState();
 }
 
-class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObserver {
+class _FeedScreenState extends ConsumerState<FeedScreen>
+    with WidgetsBindingObserver, RouteAware {
   final _scrollController = ScrollController();
   bool _hasCheckedTour = false;
   bool _hasSyncedPush = false;
+  bool _isFriendsBannerDismissed = false;
+  List<User> _suggestedUsers = [];
+  final Map<String, bool> _followingMap = {};
+  final Map<String, bool> _loadingFollowMap = {};
+  bool _isLoadingSuggested = false;
 
   @override
   void initState() {
@@ -39,8 +54,147 @@ class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObse
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(feedProvider.notifier).onArrivedAtFeed();
+        _checkFriendsBannerDismissed();
+        _refreshFollowStatsOnce();
       }
     });
+  }
+
+  Future<void> _checkFriendsBannerDismissed() async {
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null && mounted) {
+      final dismissed = await FeedAddFriendsCard.isDismissed(user.id);
+      if (dismissed && mounted) {
+        setState(() => _isFriendsBannerDismissed = true);
+      } else if (!dismissed && user.followingCount == 0) {
+        _fetchSuggestedFriends();
+      }
+    }
+  }
+
+  Future<void> _fetchSuggestedFriends() async {
+    if (_isLoadingSuggested) return;
+    _isLoadingSuggested = true;
+    try {
+      final results = await ref.read(searchRepositoryProvider).getSuggestedUsers();
+      if (mounted) {
+        setState(() {
+          _suggestedUsers = results;
+          _isLoadingSuggested = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingSuggested = false);
+      }
+    }
+  }
+
+  Future<void> _handleInlineFollowUser(User target) async {
+    if (_loadingFollowMap[target.id] == true) return;
+    final isCurrentlyFollowing = _followingMap[target.id] ?? target.isFollowing;
+
+    setState(() => _loadingFollowMap[target.id] = true);
+    HapticFeedback.lightImpact();
+
+    try {
+      if (isCurrentlyFollowing) {
+        await ref.read(userRepositoryProvider).unfollowUser(target.id);
+        if (mounted) {
+          setState(() => _followingMap[target.id] = false);
+        }
+        final currentUser = ref.read(authStateProvider).value?.user;
+        if (currentUser != null && mounted) {
+          ref.read(authStateProvider.notifier).updateUser(
+            currentUser.copyWith(
+              followingCount: currentUser.followingCount > 0 ? currentUser.followingCount - 1 : 0,
+            ),
+          );
+        }
+      } else {
+        await ref.read(userRepositoryProvider).followUser(target.id);
+        if (mounted) {
+          setState(() => _followingMap[target.id] = true);
+        }
+        final currentUser = ref.read(authStateProvider).value?.user;
+        if (currentUser != null && mounted) {
+          ref.read(authStateProvider.notifier).updateUser(
+            currentUser.copyWith(
+              followingCount: currentUser.followingCount + 1,
+            ),
+          );
+        }
+        ref.read(feedProvider.notifier).loadFeed(isRefresh: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update follow: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingFollowMap[target.id] = false);
+      }
+    }
+  }
+
+  Future<void> _refreshFollowStatsOnce() async {
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null && user.id.isNotEmpty) {
+      try {
+        final stats = await ref.read(userRepositoryProvider).getFollowStats(user.id);
+        final current = ref.read(authStateProvider).value?.user;
+        if (current != null && mounted) {
+          if (current.followingCount != stats.followingCount ||
+              current.followersCount != stats.followersCount) {
+            ref.read(authStateProvider.notifier).updateUser(
+              current.copyWith(
+                followingCount: stats.followingCount,
+                followersCount: stats.followersCount,
+              ),
+            );
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  void _dismissFriendsBanner() {
+    setState(() => _isFriendsBannerDismissed = true);
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null) {
+      FeedAddFriendsCard.setDismissed(user.id);
+    }
+  }
+
+  void _openAddFriends() {
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null) {
+      AddFriendsSheet.show(context, user: user);
+    } else {
+      context.push('/search');
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final modalRoute = ModalRoute.of(context);
+    if (modalRoute != null) {
+      appRouteObserver.subscribe(this, modalRoute);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // Top route was popped off (e.g. returning from details, profile, scanner)
+    if (mounted) {
+      ref.read(feedProvider.notifier).onArrivedAtFeed();
+    }
   }
 
   @override
@@ -81,16 +235,17 @@ class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObse
     await Future.delayed(const Duration(milliseconds: 550));
     if (!mounted) return;
 
+    // Check if quick guide tour is needed for first-time users
     final tourService = ref.read(tourServiceProvider);
     final shouldShow = await tourService.shouldShowTour(userId);
     debugPrint('QuickGuideTour: checking if tour should show for $userId: $shouldShow');
     if (shouldShow && mounted) {
-      QuickGuideTourDialog.show(context, userId: userId);
+      ref.read(onboardingGuideProvider.notifier).startTour(context, userId: userId);
     }
   }
 
   void _onScroll() {
-    final isNearTop = !_scrollController.hasClients || _scrollController.offset <= 80;
+    final isNearTop = !_scrollController.hasClients || _scrollController.offset <= 250;
     ref.read(feedProvider.notifier).setNearTop(isNearTop);
 
     if (_scrollController.position.pixels >=
@@ -101,6 +256,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObse
 
   @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     super.dispose();
@@ -159,22 +315,17 @@ class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObse
                   floating: true,
                   title: const WHBrandLogo(logoSize: 30, fontSize: 21),
                   actions: [
+                    if (feedState.isRefreshing || (feedState.isLoading && feedState.entries.isNotEmpty))
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Center(
+                          child: WHBeeSpinner(size: 18),
+                        ),
+                      ),
                     IconButton(
-                      icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
-                      tooltip: 'Quick Guide Tour',
-                      onPressed: () {
-                        final user = ref.read(authStateProvider).value?.user;
-                        QuickGuideTourDialog.show(
-                          context,
-                          userId: user?.id ?? 'guest',
-                          isReplay: true,
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.psychology_outlined, color: AppColors.primary),
-                      tooltip: 'MindLens AI',
-                      onPressed: () => context.push('/mindlens'),
+                      icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.textPrimary),
+                      tooltip: 'Scan Hive Code / Movie',
+                      onPressed: () => context.push('/scanner'),
                     ),
                     IconButton(
                       icon: Consumer(
@@ -199,8 +350,33 @@ class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObse
                       tooltip: 'Notifications',
                       onPressed: () => context.push('/notifications'),
                     ),
+                    IconButton(
+                      icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+                      tooltip: 'About Community Feed',
+                      onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.feed),
+                    ),
                   ],
                 ),
+                const SliverToBoxAdapter(
+                  child: SmartSuggestHeroCard(),
+                ),
+                if (currentUser != null &&
+                    currentUser.followingCount == 0 &&
+                    !_isFriendsBannerDismissed)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                      child: FeedAddFriendsCard(
+                        onAddFriends: _openAddFriends,
+                        onDismiss: _dismissFriendsBanner,
+                        suggestedUsers: _suggestedUsers,
+                        onFollowUser: _handleInlineFollowUser,
+                        onUserTap: (target) => context.push('/profile/${target.id}'),
+                        followingMap: _followingMap,
+                        loadingFollowMap: _loadingFollowMap,
+                      ),
+                    ),
+                  ),
                 if (feedState.isLoading && feedState.entries.isEmpty)
                   const SliverToBoxAdapter(child: WHSkeletonFeed(itemCount: 3))
                 else if (feedState.error != null && feedState.entries.isEmpty)
@@ -262,7 +438,60 @@ class _FeedScreenState extends ConsumerState<FeedScreen> with WidgetsBindingObse
               ],
             ),
           ),
-          if (feedState.newPostsCount > 0)
+          // Top Loading Bar & Floating Indicator when an API call is actively fetching updates
+          if (feedState.isRefreshing || (feedState.isLoading && feedState.entries.isNotEmpty)) ...[
+            Positioned(
+              top: topPadding + kToolbarHeight,
+              left: 0,
+              right: 0,
+              child: const LinearProgressIndicator(
+                minHeight: 2.5,
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+            Positioned(
+              top: topPadding + kToolbarHeight + 8,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.4),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      WHBeeSpinner(size: 16),
+                      SizedBox(width: 8),
+                      Text(
+                        'Updating feed...',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ] else if (feedState.newPostsCount > 0)
             Positioned(
               top: topPadding + kToolbarHeight + 8,
               left: 0,
@@ -393,38 +622,197 @@ class _ErrorFeed extends StatelessWidget {
   }
 }
 
-class _EmptyFeed extends StatelessWidget {
+class _EmptyFeed extends ConsumerWidget {
   final VoidCallback? onRefresh;
   const _EmptyFeed({this.onRefresh});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authStateProvider).value?.user;
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('🎬', style: TextStyle(fontSize: 56)),
-            const SizedBox(height: 20),
+            // Glowing Honey Emblem
+            Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withAlpha(45),
+                    AppColors.primary.withAlpha(15),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                border: Border.all(
+                  color: AppColors.primary.withAlpha(100),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withAlpha(50),
+                    blurRadius: 24,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Icon(Icons.movie_outlined, size: 44, color: AppColors.primary),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Badge Category
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withAlpha(30),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.primary.withAlpha(80),
+                  width: 0.8,
+                ),
+              ),
+              child: const Text(
+                'GET STARTED',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.8,
+                  color: AppColors.primaryDark,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Welcome Title
             const Text(
-              'Your feed is empty',
+              'Start Your Watch Journey',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Inter',
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary,
+                letterSpacing: -0.3,
               ),
             ),
             const SizedBox(height: 8),
+
+            // Warm Explanatory Subtitle
             const Text(
-              'Follow people to see what they\'re watching',
+              'Your feed is quiet right now. Log your first movie or show to begin tracking your taste, or discover friends to build your swarm!',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 13.5,
+                color: AppColors.textSecondary,
+                height: 1.45,
+              ),
             ),
+            const SizedBox(height: 24),
+
+            // Primary CTA: Log First Watch
+            Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(maxWidth: 320),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    useRootNavigator: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => const AddEntrySheet(),
+                  );
+                },
+                icon: const Icon(Icons.edit_note_rounded,
+                    color: Colors.black, size: 20),
+                label: const Text(
+                  'Log Your First Watch 🎬',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.black,
+                  elevation: 2,
+                  shadowColor: AppColors.primary.withAlpha(120),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Secondary CTA: Find Friends
+            Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(maxWidth: 320),
+              child: OutlinedButton.icon(
+                onPressed: () => context.push('/search'),
+                icon: const Icon(Icons.people_alt_outlined, size: 18),
+                label: const Text(
+                  'Find Friends to Follow',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: AppColors.border, width: 1.2),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Tertiary Guide Tour Revisit Button
+            TextButton.icon(
+              onPressed: () {
+                ref.read(onboardingGuideProvider.notifier).startTour(
+                  context,
+                  userId: user?.id ?? 'guest',
+                  isReplay: true,
+                );
+              },
+              icon: const Icon(Icons.help_outline_rounded,
+                  size: 16, color: AppColors.textMuted),
+              label: const Text(
+                'Revisit Quick Guide Tour',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ),
+
             if (onRefresh != null) ...[
-              const SizedBox(height: 24),
-              OutlinedButton(onPressed: onRefresh, child: const Text('Refresh')),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: onRefresh,
+                child: const Text('Refresh Feed',
+                    style: TextStyle(
+                        fontSize: 12, color: AppColors.textMuted)),
+              ),
             ],
           ],
         ),

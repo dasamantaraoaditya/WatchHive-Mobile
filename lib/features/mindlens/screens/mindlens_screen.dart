@@ -9,9 +9,65 @@ import '../../profile/widgets/profile_stats_view.dart';
 import '../repositories/mindlens_repository.dart';
 import '../widgets/watch_frequency_chart.dart';
 import '../../../shared/widgets/wh_skeleton.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 class MindLensScreen extends ConsumerStatefulWidget {
   const MindLensScreen({super.key});
+
+  static Widget formatInsightText(String text) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'\*\*(.*?)\*\*');
+    int lastIndex = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastIndex) {
+        spans.add(
+          TextSpan(
+            text: text.substring(lastIndex, match.start),
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+              height: 1.45,
+            ),
+          ),
+        );
+      }
+      final boldContent = match.group(1) ?? '';
+      spans.add(
+        TextSpan(
+          text: boldContent,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w900,
+            color: boldContent.startsWith('@') ? AppColors.primary : AppColors.textPrimary,
+          ),
+        ),
+      );
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < text.length) {
+      spans.add(
+        TextSpan(
+          text: text.substring(lastIndex),
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary,
+            height: 1.45,
+          ),
+        ),
+      );
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 13),
+        children: spans,
+      ),
+    );
+  }
 
   @override
   ConsumerState<MindLensScreen> createState() => _MindLensScreenState();
@@ -72,6 +128,13 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+            tooltip: 'About MindLens AI',
+            onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.mindlens),
+          ),
+        ],
       ),
       body: _isLoading
           ? const WHSkeletonMindLens()
@@ -163,34 +226,42 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                           if (_insights?['hasEnoughData'] == false)
                             _buildUnlockingState()
                           else ...[
-                            // 1. Mood Forecast Hero Card
+                            // 0. Milestone Calibration Banner
+                            _buildMilestoneBanner(),
+                            const SizedBox(height: 16),
+
+                            // 1. Affective State Card (Russell Circumplex)
                             _buildMoodForecastCard(),
                             const SizedBox(height: 16),
 
-                            // 2. Soul Persona Card
+                            // 2. Cognitive Archetype Card
                             _buildSoulPersonaCard(),
                             const SizedBox(height: 16),
 
-                            // 3. Interactive Watch Frequency Stream Chart
+                            // 3. Taste Breadth & Shannon Entropy Card
+                            _buildTasteBreadthCard(),
+                            const SizedBox(height: 16),
+
+                            // 4. Interactive Watch Frequency Stream Chart
                             if (_insights?['dailyTimeSeries'] is List)
                               WatchFrequencyChart(
                                 timeSeries: _insights!['dailyTimeSeries'] as List<dynamic>,
                               ),
                             const SizedBox(height: 16),
 
-                            // 4. Behavioral Trails Grid
+                            // 5. Behavioral Trails Grid
                             _buildBehavioralTrailsSection(),
                             const SizedBox(height: 16),
 
-                            // 5. Suggestion Influence & Network Impact
+                            // 6. Suggestion Influence & Network Impact
                             _buildSuggestionInfluenceSection(),
                             const SizedBox(height: 16),
 
-                            // 6. Psychological Insights (AI narrative)
+                            // 7. Psychological Insights (AI narrative)
                             _buildPsychologicalInsightsSection(),
                             const SizedBox(height: 16),
 
-                            // 7. Aesthetic Palette Grid
+                            // 8. Aesthetic Palette Grid
                             _buildAestheticPaletteSection(),
                           ],
                         ],
@@ -204,21 +275,20 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
   // ─── Sub-Tab Selector ──────────────────────────────────────────────────────
 
   Widget _buildSubTabSelector() {
-    return Center(
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-        ),
-        padding: const EdgeInsets.all(4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildTabPill('highlights', 'Psych Highlights'),
-            _buildTabPill('analytics', 'Detailed Analytics'),
-          ],
-        ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          Expanded(child: _buildTabPill('highlights', 'Psych Highlights')),
+          const SizedBox(width: 4),
+          Expanded(child: _buildTabPill('analytics', 'Detailed Analytics')),
+        ],
       ),
     );
   }
@@ -229,7 +299,8 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
       onTap: () => setState(() => _activeSubTab = tabKey),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -245,11 +316,14 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
         ),
         child: Text(
           label.toUpperCase(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: 'Inter',
             fontWeight: FontWeight.w900,
-            fontSize: 11,
-            letterSpacing: 0.8,
+            fontSize: 10,
+            letterSpacing: 0.5,
             color: isSelected ? Colors.black : AppColors.textMuted,
           ),
         ),
@@ -289,7 +363,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
               border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
             ),
             child: const Center(
-              child: Text('🌱', style: TextStyle(fontSize: 32)),
+              child: Icon(Icons.auto_awesome_rounded, size: 32, color: AppColors.primary),
             ),
           ),
           const SizedBox(height: 16),
@@ -351,10 +425,77 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
     );
   }
 
-  // ─── 1. Mood Forecast Hero Card ────────────────────────────────────────────
+  // ─── 0. Milestone Calibration Banner ────────────────────────────────────────
+
+  Widget _buildMilestoneBanner() {
+    final stage = _insights?['milestoneStage'] as String?;
+    if (stage == null || stage == 'FULL') return const SizedBox.shrink();
+
+    final progressMap = _insights?['calibrationProgress'] as Map<String, dynamic>?;
+    final current = (progressMap?['current'] as num?)?.toInt() ?? 0;
+    final target = (progressMap?['target'] as num?)?.toInt() ?? 15;
+    final fraction = (current / target).clamp(0.0, 1.0);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.psychology_outlined, size: 20, color: AppColors.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'STAGE: $stage CALIBRATION ($current/$target ENTRIES)',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w900,
+                    fontSize: 10,
+                    letterSpacing: 0.8,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'MindLens unlocks deeper circadian variance and Bayesian rigor as data matures.',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 48,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: fraction,
+                minHeight: 6,
+                backgroundColor: AppColors.surface,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── 1. Mood Forecast Hero Card (Affective State) ──────────────────────────
 
   Widget _buildMoodForecastCard() {
-    final moodData = _insights?['moodPrediction'] as Map<String, dynamic>?;
+    final moodData = (_insights?['affectiveState'] ?? _insights?['moodPrediction']) as Map<String, dynamic>?;
     if (moodData == null) return const SizedBox.shrink();
 
     final mood = moodData['mood'] as String? ?? 'Explorative & Cinematic';
@@ -362,6 +503,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
     final description = moodData['description'] as String? ?? '';
     final icon = moodData['icon'] as String? ?? '🎬';
     final confidence = (moodData['confidence'] as num?)?.toInt() ?? 88;
+    final quadrant = moodData['quadrant'] as String?;
     final recentTitles = (moodData['recentTitles'] as List<dynamic>?) ?? [];
 
     return Container(
@@ -382,9 +524,11 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Badges Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Top Badges Wrap
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -399,7 +543,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                     Text(icon, style: const TextStyle(fontSize: 14)),
                     const SizedBox(width: 6),
                     const Text(
-                      'PREDICTED MOOD STATE',
+                      'CURRENT AFFECTIVE STATE',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w900,
@@ -411,8 +555,26 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                   ],
                 ),
               ),
+              if (quadrant != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    quadrant,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 9,
+                      color: Colors.indigoAccent,
+                    ),
+                  ),
+                ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -489,15 +651,33 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
             const SizedBox(height: 16),
             const Divider(height: 1, color: AppColors.border),
             const SizedBox(height: 12),
-            const Text(
-              'RECENT TRIGGERS (LAST LOGGED)',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.w900,
-                fontSize: 9,
-                letterSpacing: 1.0,
-                color: AppColors.textMuted,
-              ),
+            const Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                Text(
+                  'RECENT AFFECTIVE DRIVERS',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w900,
+                    fontSize: 9,
+                    letterSpacing: 1.0,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                Text(
+                  'λ = 0.20 DECAY WEIGHT',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 8,
+                    letterSpacing: 0.5,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -529,25 +709,39 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
     );
   }
 
-  // ─── 2. Soul Persona Card ──────────────────────────────────────────────────
+  // ─── 2. Cognitive Archetype Card ───────────────────────────────────────────
 
   Widget _buildSoulPersonaCard() {
-    final persona = _insights?['persona'] as Map<String, dynamic>?;
+    final persona = (_insights?['archetype'] ?? _insights?['persona']) as Map<String, dynamic>?;
     if (persona == null) return const SizedBox.shrink();
 
-    final name = persona['name'] as String? ?? 'Cinematic Voyager';
+    final name = persona['name'] as String? ?? 'The Contemplative Eudaimonist';
+    final tagline = persona['tagline'] as String? ?? '';
     final desc = persona['description'] as String? ?? '';
-    final icon = persona['icon'] as String? ?? '🎬';
-    final imageUrl = persona['imageUrl'] as String?;
-    final colorHex = persona['color'] as String? ?? '#FFB700';
+    final iconName = persona['icon'] as String? ?? 'psychology';
+    final colorHex = persona['color'] as String? ?? '#8B5CF6';
+    final scientificBasis = persona['scientificBasis'] as String? ?? '';
+    final rawTraits = (persona['coreTraits'] ?? persona['traits']) as List<dynamic>?;
+    final traits = rawTraits?.map((e) => e.toString()).toList() ?? [];
 
-    Color themeColor = AppColors.primary;
+    Color themeColor = const Color(0xFF8B5CF6);
     try {
       final hex = colorHex.replaceAll('#', '');
       themeColor = Color(int.parse('FF$hex', radix: 16));
     } catch (_) {}
 
-    final primaryMood = _insights?['userProfile']?['primaryMood'] as String? ?? 'Balanced';
+    IconData archetypeIcon = Icons.psychology_rounded;
+    if (iconName == 'bolt') {
+      archetypeIcon = Icons.bolt_rounded;
+    } else if (iconName == 'spa') {
+      archetypeIcon = Icons.spa_rounded;
+    } else if (iconName == 'balance') {
+      archetypeIcon = Icons.balance_rounded;
+    } else if (iconName == 'public') {
+      archetypeIcon = Icons.public_rounded;
+    } else if (iconName == 'groups') {
+      archetypeIcon = Icons.groups_rounded;
+    }
 
     return Container(
       width: double.infinity,
@@ -555,7 +749,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: themeColor.withValues(alpha: 0.2)),
+        border: Border.all(color: themeColor.withValues(alpha: 0.25)),
         boxShadow: [
           BoxShadow(
             color: themeColor.withValues(alpha: 0.08),
@@ -566,13 +760,12 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
       ),
       child: Column(
         children: [
-          // Persona Avatar
+          // Archetype Emblem
           Container(
-            width: 76,
-            height: 76,
-            padding: const EdgeInsets.all(3),
+            width: 72,
+            height: 72,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(22),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -580,34 +773,21 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: themeColor.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  color: themeColor.withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: ClipOval(
-              child: Container(
-                color: AppColors.surfaceElevated,
-                child: imageUrl != null && imageUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Center(
-                          child: Text(icon, style: const TextStyle(fontSize: 32)),
-                        ),
-                      )
-                    : Center(
-                        child: Text(icon, style: const TextStyle(fontSize: 32)),
-                      ),
-              ),
+            child: Center(
+              child: Icon(archetypeIcon, size: 36, color: Colors.white),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // Persona Tag
+          // Tag
           Text(
-            'SOUL PERSONA',
+            'COGNITIVE ARCHETYPE',
             style: TextStyle(
               fontFamily: 'Inter',
               fontWeight: FontWeight.w900,
@@ -618,7 +798,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
           ),
           const SizedBox(height: 4),
 
-          // Persona Title
+          // Name
           Text(
             name,
             style: const TextStyle(
@@ -629,9 +809,23 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
             ),
             textAlign: TextAlign.center,
           ),
+
+          if (tagline.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              tagline,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                color: AppColors.primary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
           const SizedBox(height: 8),
 
-          // Persona Description
+          // Description
           Text(
             desc,
             style: const TextStyle(
@@ -642,35 +836,203 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-          const Divider(height: 1, color: AppColors.border),
-          const SizedBox(height: 12),
 
-          // Dominant Vibe Footer
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'DOMINANT VIBE',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w900,
-                  fontSize: 9,
-                  letterSpacing: 1.0,
-                  color: AppColors.textMuted,
-                ),
+          // Traits Wrap
+          if (traits.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              alignment: WrapAlignment.center,
+              children: traits.map((t) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Text(
+                    t.toUpperCase(),
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 9,
+                      letterSpacing: 0.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+
+          if (scientificBasis.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: 10),
+            Text(
+              scientificBasis,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 9,
+                fontStyle: FontStyle.italic,
+                color: AppColors.textMuted,
               ),
-              Text(
-                primaryMood,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
-                  color: AppColors.primary,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ─── 3. Taste Breadth & Shannon Entropy Card ────────────────────────────────
+
+  Widget _buildTasteBreadthCard() {
+    final breadthData = (_insights?['tasteBreadth'] ?? _insights?['userProfile']?['tasteBreadth']) as Map<String, dynamic>?;
+    if (breadthData == null) return const SizedBox.shrink();
+
+    final normalizedBreadth = (breadthData['normalizedBreadth'] as num?)?.toDouble() ?? 0.5;
+    final breadthPct = (normalizedBreadth * 100).round();
+    final label = breadthData['label'] as String? ?? 'Balanced Explorer';
+    final desc = breadthData['description'] as String? ?? '';
+    final genreDist = (breadthData['genreDistribution'] as List<dynamic>?) ?? [];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.all_inclusive_rounded, color: AppColors.primary, size: 22),
+                  SizedBox(width: 8),
+                  Text(
+                    'Taste Breadth (Entropy)',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$breadthPct% Breadth',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            desc,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          if (genreDist.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: 12),
+            Column(
+              children: genreDist.take(4).map((g) {
+                final genre = g['genre'] as String? ?? '';
+                final pct = (g['percentage'] as num?)?.toInt() ?? 0;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 90,
+                        child: Text(
+                          genre,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                            color: AppColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: (pct / 100).clamp(0.0, 1.0),
+                            minHeight: 6,
+                            backgroundColor: AppColors.surfaceElevated,
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        '$pct%',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 10,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Grounded in Shannon Information Entropy H(G) to measure genuine stylistic breadth.',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 9,
+                fontStyle: FontStyle.italic,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -755,19 +1117,23 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                         ),
                       ),
                       if (subtitle.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            subtitle,
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.w800,
-                              fontSize: 9,
-                              color: color,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 9,
+                                color: color,
+                              ),
                             ),
                           ),
                         ),
@@ -838,7 +1204,8 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
     if (analytics == null) return const SizedBox.shrink();
 
     final summary = analytics['summary'] as Map<String, dynamic>?;
-    final recommenders = (analytics['recommenders'] as List<dynamic>?) ?? [];
+    final rawRecommenders = (analytics['recommenders'] as List<dynamic>?) ?? [];
+    final recommenders = rawRecommenders.take(5).toList();
     final overallConversion = (summary?['overallConversionRate'] as num?)?.toInt() ?? 0;
     final watched = (summary?['totalSuggestionsWatched'] as num?)?.toInt() ?? 0;
     final received = (summary?['totalSuggestionsReceived'] as num?)?.toInt() ?? 0;
@@ -861,7 +1228,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Suggestion Influence & Network',
+                  'Top 5 Influencers & Network',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w900,
@@ -874,7 +1241,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Discover who recommended your favorite movies and how friends shape your watch history',
+            'Discover your top 5 friend influencers and how they shape your watch history',
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 12,
@@ -892,56 +1259,65 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
               border: Border.all(color: AppColors.border),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Column(
-                  children: [
-                    const Text(
-                      'CONVERSION RATE',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w900,
-                        fontSize: 8,
-                        letterSpacing: 0.5,
-                        color: AppColors.textMuted,
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Text(
+                        'CONVERSION RATE',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w900,
+                          fontSize: 8,
+                          letterSpacing: 0.5,
+                          color: AppColors.textMuted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$overallConversion%',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w900,
-                        fontSize: 15,
-                        color: AppColors.textPrimary,
+                      const SizedBox(height: 2),
+                      Text(
+                        '$overallConversion%',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 Container(width: 1, height: 24, color: AppColors.border),
-                Column(
-                  children: [
-                    const Text(
-                      'WATCHED / SUGGESTED',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w900,
-                        fontSize: 8,
-                        letterSpacing: 0.5,
-                        color: AppColors.textMuted,
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Text(
+                        'WATCHED / SUGGESTED',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w900,
+                          fontSize: 8,
+                          letterSpacing: 0.5,
+                          color: AppColors.textMuted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$watched / $received',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w900,
-                        fontSize: 15,
-                        color: AppColors.primary,
+                      const SizedBox(height: 2),
+                      Text(
+                        '$watched / $received',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -1030,59 +1406,67 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () {
-                              if (userId.isNotEmpty) {
-                                context.push('/profile/$userId');
-                              }
-                            },
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 14,
-                                  backgroundColor: AppColors.primary,
-                                  backgroundImage: (avatar != null && avatar.isNotEmpty)
-                                      ? CachedNetworkImageProvider(ApiEndpoints.resolveAvatarUrl(avatar))
-                                      : null,
-                                  child: (avatar == null || avatar.isEmpty)
-                                      ? Text(
-                                          displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                if (userId.isNotEmpty) {
+                                  context.push('/profile/$userId');
+                                }
+                              },
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor: AppColors.primary,
+                                    backgroundImage: (avatar != null && avatar.isNotEmpty)
+                                        ? CachedNetworkImageProvider(ApiEndpoints.resolveAvatarUrl(avatar))
+                                        : null,
+                                    child: (avatar == null || avatar.isEmpty)
+                                        ? Text(
+                                            displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 10,
+                                              color: Colors.black,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          displayName,
                                           style: const TextStyle(
                                             fontFamily: 'Inter',
-                                            fontWeight: FontWeight.w900,
-                                            fontSize: 10,
-                                            color: Colors.black,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 12,
+                                            color: AppColors.textPrimary,
                                           ),
-                                        )
-                                      : null,
-                                ),
-                                const SizedBox(width: 8),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      displayName,
-                                      style: const TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 12,
-                                        color: AppColors.textPrimary,
-                                      ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          '@$username',
+                                          style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 10,
+                                            color: AppColors.textMuted,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
                                     ),
-                                    Text(
-                                      '@$username',
-                                      style: const TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 10,
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
@@ -1103,7 +1487,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                       ),
                       const SizedBox(height: 10),
 
-                      // 3-Metric Stats Row
+                      // 3-Metric Stats Row (Bayesian Trust Score, Watched Ratio, Avg Rating)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
@@ -1111,73 +1495,78 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            Column(
-                              children: [
-                                const Text(
-                                  'SUGGESTED',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 8,
-                                    color: AppColors.textMuted,
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  const Text(
+                                    'TRUST SCORE',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 8,
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  '$totalSuggested',
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
-                                    color: AppColors.textPrimary,
+                                  Text(
+                                    '${rec['trustScore'] ?? rec['influenceScore'] ?? '-'}',
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                      color: AppColors.primary,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            Column(
-                              children: [
-                                const Text(
-                                  'WATCHED',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 8,
-                                    color: AppColors.textMuted,
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  const Text(
+                                    'WATCHED',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 8,
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  '$watchedCount',
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
-                                    color: Color(0xFF22C55E),
+                                  Text(
+                                    '$watchedCount / $totalSuggested',
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                      color: Color(0xFF22C55E),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            Column(
-                              children: [
-                                const Text(
-                                  'AVG RATING',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 8,
-                                    color: AppColors.textMuted,
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  const Text(
+                                    'AVG RATING',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 8,
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  avgRating != null && avgRating.isNotEmpty ? '★ $avgRating' : '-',
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
-                                    color: AppColors.primary,
+                                  Text(
+                                    avgRating != null && avgRating.isNotEmpty ? '★ $avgRating' : '-',
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                      color: AppColors.textPrimary,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -1188,7 +1577,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
                       Row(
                         children: [
                           const Text(
-                            'Conversion',
+                            'Conversion Velocity',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 10,
@@ -1272,42 +1661,7 @@ class _MindLensScreenState extends ConsumerState<MindLensScreen> {
   }
 
   Widget _buildFormattedInsightText(String text) {
-    final spans = <TextSpan>[];
-    final parts = text.split(RegExp(r'(\*\*.*?\*\*)'));
-
-    for (final part in parts) {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        spans.add(
-          TextSpan(
-            text: part.substring(2, part.length - 2),
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        );
-      } else {
-        spans.add(
-          TextSpan(
-            text: part,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-              height: 1.45,
-            ),
-          ),
-        );
-      }
-    }
-
-    return RichText(
-      text: TextSpan(
-        style: const TextStyle(fontSize: 13),
-        children: spans,
-      ),
-    );
+    return MindLensScreen.formatInsightText(text);
   }
 
   // ─── 7. Aesthetic Palette Section ──────────────────────────────────────────

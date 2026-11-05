@@ -1,12 +1,19 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/app_update_service.dart';
+import '../../../shared/widgets/app_update_dialog.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../onboarding/services/onboarding_service.dart';
+import '../../onboarding/widgets/watch_preferences_onboarding_dialog.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -18,32 +25,47 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _isHandlingPostAuth = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        final updateService = ref.read(appUpdateServiceProvider);
+        final info = await updateService.checkUpdate();
+        if (mounted && info != null && info.forceUpdate) {
+          AppUpdateDialog.show(context, info: info, updateService: updateService);
+        }
+      } catch (_) {}
+    });
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
-    if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
-      WHAlert.showWarning(context, 'Please enter both your email and password');
+  Future<void> _sendEmailCode() async {
+    if (_isLoading || _isHandlingPostAuth) return;
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+      WHAlert.showWarning(context, 'Please enter a valid email address');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(authStateProvider.notifier).login(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
-      if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
-        context.go('/feed');
+      await ref.read(authStateProvider.notifier).requestEmailOtp(email);
+      if (mounted) {
+        WHAlert.showSuccess(
+          context,
+          'A 6-digit login code has been sent to $email.',
+        );
+        context.push('/verify-email', extra: {'email': email});
       }
     } catch (e) {
       if (mounted) {
@@ -55,7 +77,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _googleSignIn() async {
-    if (_isLoading) return;
+    if (_isLoading || _isHandlingPostAuth) return;
     setState(() => _isLoading = true);
     try {
       final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
@@ -65,7 +87,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ? webClientId
           : '357857516251-f4gpp8f1j70lu1dcnh405ac0t6lch9tf.apps.googleusercontent.com';
 
+      final isApplePlatform = !kIsWeb && (Platform.isIOS || Platform.isMacOS);
+      final iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID']?.trim();
+      final effectiveIosClientId = (isApplePlatform &&
+              iosClientId != null &&
+              iosClientId.isNotEmpty &&
+              !iosClientId.contains('your_google_ios_client_id'))
+          ? iosClientId
+          : null;
+
+      debugPrint('[GoogleSignIn] Starting Google Sign-In with serverClientId=$effectiveClientId, clientId=$effectiveIosClientId');
+
       final googleSignIn = GoogleSignIn(
+        clientId: effectiveIosClientId,
         serverClientId: effectiveClientId,
         scopes: const ['email', 'profile'],
       );
@@ -74,27 +108,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await googleSignIn.signOut().catchError((_) => null);
 
       final account = await googleSignIn.signIn();
-      if (account == null) return; // User cancelled picker
+      if (account == null) {
+        debugPrint('[GoogleSignIn] User canceled account selection picker');
+        return;
+      }
 
+      debugPrint('[GoogleSignIn] Account selected: ${account.email}. Fetching auth tokens...');
       final auth = await account.authentication;
       final idToken = auth.idToken;
 
       if (idToken == null || idToken.isEmpty) {
+        debugPrint('[GoogleSignIn] Error: idToken was null or empty from Google authentication');
         if (mounted) {
           WHAlert.showError(
             context,
-            'Google Sign-In could not be completed. Please try again or sign in with your email and password.',
+            'Google Sign-In could not be completed. Please try again or continue with an email code.',
           );
         }
         return;
       }
 
+      debugPrint('[GoogleSignIn] Successfully retrieved idToken. Authenticating with WatchersHive backend...');
       await ref.read(authStateProvider.notifier).googleSignIn(idToken);
       if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
-        context.go('/feed');
+        debugPrint('[GoogleSignIn] Successfully authenticated with backend.');
+        await _handlePostAuthFlow();
       }
     } catch (e) {
-      debugPrint('Google Sign-In Error: $e');
+      debugPrint('[GoogleSignIn] Error during sign-in flow: $e');
       if (mounted) {
         WHAlert.showError(context, _formatGoogleError(e));
       }
@@ -103,23 +144,115 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _appleSignIn() async {
+    if (_isLoading || _isHandlingPostAuth) return;
+    setState(() => _isLoading = true);
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final identityToken = credential.identityToken;
+      if (identityToken == null || identityToken.isEmpty) {
+        if (mounted) {
+          WHAlert.showError(
+            context,
+            'Apple Sign-In could not be completed. Please try again or continue with an email code.',
+          );
+        }
+        return;
+      }
+
+      await ref.read(authStateProvider.notifier).appleSignIn(
+            identityToken: identityToken,
+            userIdentifier: credential.userIdentifier ?? '',
+            email: credential.email,
+            givenName: credential.givenName,
+            familyName: credential.familyName,
+          );
+
+      if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
+        await _handlePostAuthFlow();
+      }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      debugPrint('[AppleSignIn] AuthorizationException: ${e.code} - ${e.message}');
+      if (e.code == AuthorizationErrorCode.canceled) {
+        if (mounted) {
+          WHAlert.showInfo(
+            context,
+            'Apple Sign-In was canceled. Note: If testing on an iOS Simulator, please ensure you are signed in to your Apple ID in the Simulator Settings app first.',
+          );
+        }
+      } else {
+        if (mounted) {
+          WHAlert.showError(
+            context,
+            e.message.isNotEmpty
+                ? 'Sign in with Apple failed: ${e.message}'
+                : 'Sign in with Apple failed. Please try again or use email sign-in.',
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[AppleSignIn] Error: $e');
+      if (mounted) {
+        WHAlert.showError(context, _parseError(e));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handlePostAuthFlow() async {
+    if (_isHandlingPostAuth) return;
+    _isHandlingPostAuth = true;
+
+    try {
+      final user = ref.read(authStateProvider).value?.user;
+      if (user != null) {
+        final onboardingService = ref.read(onboardingServiceProvider);
+        final shouldPrompt = await onboardingService.shouldPromptUser(user);
+        if (shouldPrompt && mounted) {
+          onboardingService.markPrompted(user.id);
+          await WatchPreferencesOnboardingDialog.show(context);
+          await onboardingService.markPreferencesCompleted(user.id);
+        }
+      }
+    } catch (e) {
+      debugPrint('[LoginScreen] Post-auth preferences check error: $e');
+    }
+
+    if (mounted) {
+      context.go('/feed');
+    }
+  }
+
   String _formatGoogleError(dynamic e) {
-    final str = e.toString();
-    if (str.contains('7:')) {
+    final str = e.toString().toLowerCase();
+    if (str.contains('7:') || str.contains('network_error') || str.contains('socketexception')) {
       return 'Network error during Google Sign-In. Please check your internet connection.';
-    } else if (str.contains('10:') || str.contains('12500')) {
-      return 'Google Sign-In is temporarily unavailable. Please sign in with your email and password.';
-    } else if (str.contains('Concurrent')) {
+    } else if (str.contains('10:') || str.contains('developer_error') || str.contains('12500')) {
+      return 'Google Sign-In is temporarily unavailable on this device. Please continue with an email code.';
+    } else if (str.contains('concurrent')) {
       return 'Google Sign-In is already in progress. Please wait a moment.';
+    } else if (str.contains('sign_in_canceled') || str.contains('canceled')) {
+      return 'Google Sign-In was canceled.';
     }
     return _parseError(e);
   }
 
   String _parseError(dynamic error) {
-    return AppErrorHandler.toUserFriendlyMessage(
+    final message = AppErrorHandler.toUserFriendlyMessage(
       error,
-      defaultMessage: 'Unable to sign in. Please verify your credentials and try again.',
+      defaultMessage: 'Unable to sign in. Please try again.',
     );
+    if (message.toLowerCase().contains('validation failed')) {
+      return 'Please enter a valid email address.';
+    }
+    return message;
   }
 
   @override
@@ -128,156 +261,175 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isBackgroundResolving = authState.isLoading && !_isLoading;
 
     if (isBackgroundResolving) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 32,
-                height: 32,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: AppColors.primary,
-                ),
-              ),
-              SizedBox(height: 20),
-              Text(
-                'Signing you in...',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
+      return WHAppLogoLoader.fullScreen(
+        message: 'Signing you in...',
+        submessage: 'Connecting to WatchersHive',
       );
     }
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 60),
-                const WHLogoHeader(
-                  title: 'Welcome back',
-                  subtitle: 'Sign in to continue tracking',
-                ),
-                const SizedBox(height: 40),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: AutofillGroup(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 48),
+                      const WHLogoHeader(
+                        title: 'Welcome back',
+                        subtitle: 'Sign in to continue tracking',
+                      ),
+                      const SizedBox(height: 32),
 
-                // Email
-                WHTextField(
-                  controller: _emailController,
-                  label: 'Email',
-                  hint: 'you@example.com',
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Email is required';
-                    if (!v.contains('@')) return 'Enter a valid email';
-                    return null;
-                  },
+                      // Social Sign-In (Google & Apple on TOP)
+                      WHGoogleSignInButton(
+                        onPressed: _googleSignIn,
+                        isLoading: _isLoading,
+                      ),
+
+                      // Apple Sign-In (Apple App Store Guideline 4.8)
+                      if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) ...[
+                        const SizedBox(height: 12),
+                        SignInWithAppleButton(
+                          onPressed: _appleSignIn,
+                          style: SignInWithAppleButtonStyle.black,
+                          borderRadius: BorderRadius.circular(16),
+                          height: 48,
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+
+                      // Divider: or continue with email
+                      Row(children: [
+                        const Expanded(child: Divider(color: AppColors.border)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'or continue with email code',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textMuted,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                          ),
+                        ),
+                        const Expanded(child: Divider(color: AppColors.border)),
+                      ]),
+                      const SizedBox(height: 24),
+
+                      // Email Address
+                      WHTextField(
+                        controller: _emailController,
+                        label: 'Email Address',
+                        hint: 'you@example.com',
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.email],
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        textCapitalization: TextCapitalization.none,
+                        onSubmitted: (_) => _sendEmailCode(),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Please enter your email address';
+                          if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim())) {
+                            return 'Please enter a valid email address';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      Text(
+                        'No password needed. We will send a 6-digit verification code to sign in or create your account.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                          color: AppColors.textMuted.withValues(alpha: 0.9),
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Send Code Button
+                      WHButton(
+                        label: 'Send Login Code',
+                        isLoading: _isLoading,
+                        onPressed: _sendEmailCode,
+                      ),
+                      const SizedBox(height: 24),
+
+                // Terms & Privacy acceptance (Apple Guideline 1.2 & 5.1.1)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text.rich(
+                    TextSpan(
+                      text: 'By continuing, you acknowledge our ',
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                      children: [
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: GestureDetector(
+                            onTap: () => context.push('/privacy-policy'),
+                            child: const Text(
+                              'Terms & Privacy Policy',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
                 const SizedBox(height: 16),
 
-                // Password
-                WHTextField(
-                  controller: _passwordController,
-                  label: 'Password',
-                  hint: '••••••••',
-                  obscureText: _obscurePassword,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _login(),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      color: AppColors.textMuted,
-                      size: 20,
+                // Support & Help link
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () => context.push('/support'),
+                    icon: const Icon(Icons.help_outline_rounded, size: 15, color: AppColors.textMuted),
+                    label: const Text(
+                      'Need help? Contact Support',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textMuted,
+                      ),
                     ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // Forgot Password
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => context.push('/forgot-password'),
-                    child: const Text('Forgot password?'),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Login Button
-                WHButton(
-                  label: 'Sign In',
-                  isLoading: _isLoading,
-                  onPressed: _login,
-                ),
-                const SizedBox(height: 20),
-
-                // Divider
-                Row(children: [
-                  const Expanded(child: Divider(color: AppColors.border)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'or',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  const Expanded(child: Divider(color: AppColors.border)),
-                ]),
-                const SizedBox(height: 20),
-
-                // Google Sign-In
-                OutlinedButton.icon(
-                  onPressed: _googleSignIn,
-                  icon: const Text('G', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                  label: const Text('Continue with Google'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // Sign Up Link
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Don't have an account? ",
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                    TextButton(
-                      onPressed: () => context.push('/signup'),
-                      child: const Text('Sign up'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
               ],
             ),
           ),
         ),
       ),
-    );
+    ),
+    if (_isLoading)
+        WHAppLogoLoader.overlay(
+          message: 'Signing you into WatchersHive...',
+          submessage: 'Authenticating your account',
+        ),
+    ],
+  ),
+);
   }
 }

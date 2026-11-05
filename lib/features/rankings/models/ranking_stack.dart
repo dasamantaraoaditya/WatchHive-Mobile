@@ -87,7 +87,7 @@ class RankedItem {
       posterPath: resolvedPoster,
       releaseDate: (json['releaseDate'] as String?) ?? (json['release_date'] as String?) ?? (tmdbData?['release_date'] as String?),
       voteAverage: parseDouble(json['voteAverage'] ?? json['vote_average'] ?? tmdbData?['vote_average']),
-      localRating: parseDouble(json['localRating']),
+      localRating: parseDouble(json['localRating'] ?? json['rating'] ?? json['userRating']),
       localReview: json['localReview'] as String?,
       tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
       watchedAt: json['watchedAt'] != null ? DateTime.tryParse(json['watchedAt'].toString()) : null,

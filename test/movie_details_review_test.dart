@@ -152,7 +152,7 @@ void main() {
       expect(find.text('Logged (⭐ 9.5)'), findsOneWidget);
     });
 
-    testWidgets('renders friend review card with friend username, avatar, and score', (tester) async {
+    testWidgets('renders friend social proof bar and opens friends reviews sheet on tap', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -177,22 +177,19 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Check for friend's watch entry banner
-      expect(find.text("Bob The Cinephile's Watch Entry"), findsOneWidget);
-      expect(find.text('@cinephile_bob'), findsOneWidget);
-
-      // Check for friend review text
-      expect(find.text('Fincher at his best. Brad Pitt and Edward Norton were phenomenal.'), findsOneWidget);
-
-      // Check for friend's score
+      // Check for compact social proof bar instead of bulky card
+      expect(find.text("Bob The Cinephile watched this"), findsOneWidget);
       expect(find.textContaining('8.5'), findsWidgets);
 
-      // Check for friend tags and location
-      expect(find.text('#Fincher'), findsOneWidget);
-      expect(find.text('Home Theater'), findsOneWidget);
+      // Tap social proof bar to open reviews modal sheet
+      await tester.tap(find.text("Bob The Cinephile watched this"));
+      await tester.pumpAndSettle();
 
-      // Check that the viewer sees "View Profile" button for friend
-      expect(find.text('View Profile'), findsOneWidget);
+      // Check for friends who watched sheet details
+      expect(find.text('Friends Who Watched (1)'), findsOneWidget);
+      expect(find.text('Bob The Cinephile'), findsOneWidget);
+      expect(find.textContaining('@cinephile_bob'), findsOneWidget);
+      expect(find.text('Fincher at his best. Brad Pitt and Edward Norton were phenomenal.'), findsOneWidget);
     });
   });
 }

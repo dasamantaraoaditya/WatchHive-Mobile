@@ -124,12 +124,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify Save Changes button and friendly Close button are both visible
-      expect(find.text('Save Changes ✨'), findsOneWidget);
+      expect(find.text('Save Changes'), findsOneWidget);
       expect(find.text('Close'), findsOneWidget);
 
       // Tap the friendly Close button
       await tester.tap(find.text('Close'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       // Verify the sheet closed
       expect(sheetDismissed, isTrue);

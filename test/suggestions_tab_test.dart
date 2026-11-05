@@ -1,0 +1,255 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:watchhive_mobile/core/api/api_client.dart';
+import 'package:watchhive_mobile/core/api/api_endpoints.dart';
+import 'package:watchhive_mobile/features/entries/repositories/suggestions_repository.dart';
+import 'package:watchhive_mobile/features/entries/widgets/suggestions_tab.dart';
+import 'package:watchhive_mobile/features/search/repositories/search_repository.dart';
+
+class MockSuggestionsApiClient extends Fake implements ApiClient {
+  List<dynamic> receivedResponse = [
+    {
+      'tmdbId': 157336,
+      'mediaType': 'movie',
+      'suggestions': [
+        {
+          'id': 'sugg-1',
+          'fromUserId': 'user-1',
+          'toUserId': 'me',
+          'tmdbId': 157336,
+          'mediaType': 'movie',
+          'message': 'You have to watch this!',
+          'status': 'pending',
+          'createdAt': '2026-10-14T10:00:00Z',
+        }
+      ],
+      'suggestors': [
+        {
+          'id': 'user-1',
+          'username': 'alice',
+          'displayName': 'Alice W',
+          'profilePictureUrl': null,
+        }
+      ],
+      'recipients': [],
+    }
+  ];
+
+  List<dynamic> sentResponse = [
+    {
+      'tmdbId': 27205,
+      'mediaType': 'movie',
+      'suggestions': [
+        {
+          'id': 'sugg-2',
+          'fromUserId': 'me',
+          'toUserId': 'user-2',
+          'tmdbId': 27205,
+          'mediaType': 'movie',
+          'message': 'Mind blowing film',
+          'status': 'pending',
+          'createdAt': '2026-10-14T11:00:00Z',
+        }
+      ],
+      'suggestors': [],
+      'recipients': [
+        {
+          'id': 'user-2',
+          'username': 'bob',
+          'displayName': 'Bob M',
+          'profilePictureUrl': null,
+        }
+      ],
+    }
+  ];
+
+  @override
+  Future<Response<T>> get<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    CancelToken? cancelToken,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    if (path == '/suggestions/me') {
+      return Response<T>(
+        data: receivedResponse as T,
+        statusCode: 200,
+        requestOptions: RequestOptions(path: path),
+      );
+    }
+    if (path == ApiEndpoints.sentSuggestions) {
+      return Response<T>(
+        data: sentResponse as T,
+        statusCode: 200,
+        requestOptions: RequestOptions(path: path),
+      );
+    }
+    if (path.startsWith('/tmdb/')) {
+      return Response<T>(
+        data: {
+          'id': 157336,
+          'title': 'Mock Movie',
+          'poster_path': '/poster.jpg',
+          'vote_average': 8.5,
+        } as T,
+        statusCode: 200,
+        requestOptions: RequestOptions(path: path),
+      );
+    }
+    throw UnimplementedError('Path not mocked: $path');
+  }
+}
+
+void main() {
+  testWidgets('SuggestionsTab displays Received Suggestions and Suggested Items tabs with counts', (tester) async {
+    final mockApi = MockSuggestionsApiClient();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          suggestionsRepositoryProvider.overrideWithValue(SuggestionsRepository(mockApi)),
+          tmdbMediaDetailsProvider.overrideWith((ref, arg) async => {
+            'id': arg.tmdbId,
+            'title': 'Mock Title ${arg.tmdbId}',
+            'poster_path': '/mock.jpg',
+            'vote_average': 8.0,
+          }),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SuggestionsTab(),
+          ),
+        ),
+      ),
+    );
+
+    // Initial pump and wait for async fetch and animation
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    // Verify sub-tab labels exist
+    expect(find.text('Suggestions'), findsOneWidget);
+    expect(find.text('Suggested'), findsOneWidget);
+
+    // Verify Suggest button beside subtabs exists
+    expect(find.text('Suggest'), findsOneWidget);
+
+    // Verify counts
+    expect(find.text('1'), findsNWidgets(2)); // 1 received, 1 sent
+
+    // Tap on "Suggested" sub-tab
+    await tester.tap(find.text('Suggested'));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    // Verify "Suggested" is still present and selected
+    expect(find.text('Suggested'), findsOneWidget);
+  });
+
+  testWidgets('Tapping sent suggestion opens SuggestionDetailsModal with read-only metadata and recipients', (tester) async {
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final mockApi = MockSuggestionsApiClient();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          suggestionsRepositoryProvider.overrideWithValue(SuggestionsRepository(mockApi)),
+          tmdbMediaDetailsProvider.overrideWith((ref, arg) async => {
+            'id': arg.tmdbId,
+            'title': 'Inception',
+            'poster_path': '/mock.jpg',
+            'vote_average': 8.8,
+          }),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SuggestionsTab(),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Switch to Suggested tab
+    await tester.tap(find.text('Suggested'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Verify card is rendered with recipient
+    expect(find.text('To: @bob'), findsOneWidget);
+
+    // Tap on the suggestion card
+    await tester.tap(find.text('To: @bob'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    // Verify Suggestion Details modal opened
+    expect(find.text('Sent Suggestion Details'), findsOneWidget);
+    expect(find.text('SUGGESTED TO'), findsOneWidget);
+    expect(find.text('Read-only'), findsOneWidget);
+    expect(find.text('Bob M'), findsOneWidget);
+    expect(find.text('@bob'), findsOneWidget);
+
+    // Verify Suggestion Time
+    expect(find.text('SUGGESTION TIME'), findsOneWidget);
+
+    // Verify Attached Note
+    expect(find.text('ATTACHED NOTE'), findsOneWidget);
+    expect(find.text('“Mind blowing film”'), findsOneWidget);
+
+    // Verify Action button
+    expect(find.text('View Title'), findsOneWidget);
+  });
+
+  testWidgets('Received suggestion details shows Suggested By and message', (tester) async {
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final mockApi = MockSuggestionsApiClient();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          suggestionsRepositoryProvider.overrideWithValue(SuggestionsRepository(mockApi)),
+          tmdbMediaDetailsProvider.overrideWith((ref, arg) async => {
+            'id': arg.tmdbId,
+            'title': 'Interstellar',
+            'poster_path': '/mock.jpg',
+            'vote_average': 8.6,
+          }),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SuggestionsTab(),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Tap on the received suggestion card badge or card
+    expect(find.text('@alice'), findsOneWidget);
+    await tester.tap(find.text('@alice'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    // Verify Suggestion Details modal opened for received suggestion
+    expect(find.text('Received Suggestion Details'), findsOneWidget);
+    expect(find.text('SUGGESTED BY'), findsOneWidget);
+    expect(find.text('Alice W'), findsOneWidget);
+    expect(find.text('@alice'), findsNWidgets(2)); // Card badge + modal
+    expect(find.text('“You have to watch this!”'), findsOneWidget);
+    expect(find.text('Log Watching'), findsOneWidget);
+    expect(find.text('Mark Watched'), findsOneWidget);
+  });
+}

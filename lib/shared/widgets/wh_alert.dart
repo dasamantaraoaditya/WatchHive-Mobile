@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/error_handler.dart';
 
@@ -109,11 +110,59 @@ class WHAlert {
     );
   }
 
+  /// Displays a mobile-friendly, floating Toast alert banner with an optional action button.
+  static void showSuccessWithAction(
+    BuildContext context, {
+    required String message,
+    required String actionLabel,
+    IconData? actionIcon,
+    required VoidCallback onAction,
+    Duration duration = const Duration(milliseconds: 4000),
+  }) {
+    _showFloatingToast(
+      context,
+      message: message,
+      severity: WHAlertSeverity.success,
+      icon: Icons.check_circle_rounded,
+      actionLabel: actionLabel,
+      actionIcon: actionIcon,
+      onAction: onAction,
+      duration: duration,
+    );
+  }
+
+  static Future<void> showSuccessWithShare(
+    BuildContext context, {
+    required String title,
+    required String message,
+    String shareText = 'Share Story',
+    String closeText = 'Close',
+    IconData? shareIcon = Icons.share_rounded,
+    required VoidCallback onShare,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (ctx) => _WHSuccessShareDialog(
+        title: title,
+        message: message,
+        shareText: shareText,
+        closeText: closeText,
+        shareIcon: shareIcon,
+        onShare: onShare,
+      ),
+    );
+  }
+
   static void _showFloatingToast(
     BuildContext context, {
     required String message,
     required WHAlertSeverity severity,
     required IconData icon,
+    String? actionLabel,
+    IconData? actionIcon,
+    VoidCallback? onAction,
+    Duration duration = const Duration(milliseconds: 3200),
   }) {
     final (iconColor, bgColor, textColor, borderColor) = switch (severity) {
       WHAlertSeverity.success => (
@@ -148,8 +197,15 @@ class WHAlert {
         ),
     };
 
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = rootScaffoldMessengerKey.currentState ??
+        (context.mounted ? ScaffoldMessenger.maybeOf(context) : null) ??
+        (rootNavigatorKey.currentContext?.mounted == true
+            ? ScaffoldMessenger.maybeOf(rootNavigatorKey.currentContext!)
+            : null);
+    if (messenger == null) return;
+
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
         elevation: 6,
@@ -160,7 +216,7 @@ class WHAlert {
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: borderColor, width: 1.2),
         ),
-        duration: const Duration(milliseconds: 3200),
+        duration: duration,
         content: Row(
           children: [
             Container(
@@ -184,6 +240,55 @@ class WHAlert {
                 ),
               ),
             ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(width: 8),
+              TextButton(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  backgroundColor: iconColor.withValues(alpha: 0.12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  messenger.hideCurrentSnackBar();
+                  onAction();
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (actionIcon != null) ...[
+                      Icon(actionIcon, size: 13, color: iconColor),
+                      const SizedBox(width: 4),
+                    ],
+                    Text(
+                      actionLabel,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: iconColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => messenger.hideCurrentSnackBar(),
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: textColor.withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -347,6 +452,134 @@ class _WHConfirmDialog extends StatelessWidget {
                     onPressed: () => Navigator.pop(context, true),
                     child: Text(
                       confirmText,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WHSuccessShareDialog extends StatelessWidget {
+  final String title;
+  final String message;
+  final String shareText;
+  final String closeText;
+  final IconData? shareIcon;
+  final VoidCallback onShare;
+
+  const _WHSuccessShareDialog({
+    required this.title,
+    required this.message,
+    required this.shareText,
+    required this.closeText,
+    this.shareIcon,
+    required this.onShare,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 32),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: AppColors.border, width: 1.5),
+                      backgroundColor: AppColors.background,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      closeText,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: const Color(0xFF2D2926),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onShare();
+                    },
+                    icon: Icon(shareIcon ?? Icons.share_rounded, size: 16),
+                    label: Text(
+                      shareText,
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 13,

@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../api/api_endpoints.dart';
+import '../../shared/models/user.dart';
 
 final authManagerProvider = Provider<AuthManager>((ref) {
   return AuthManager();
@@ -11,25 +13,61 @@ final authManagerProvider = Provider<AuthManager>((ref) {
 class AuthManager {
   static const _accessTokenKey = 'wh_access_token';
   static const _refreshTokenKey = 'wh_refresh_token';
+  static const _cachedUserKey = 'wh_cached_user';
 
   final _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 
+  // --- In-Memory Fast Cache ---
+  String? _cachedAccessToken;
+  User? _cachedUser;
+
   // --- Token Accessors ---
 
-  Future<String?> getAccessToken() => _storage.read(key: _accessTokenKey);
+  Future<String?> getAccessToken() async {
+    if (_cachedAccessToken != null && _cachedAccessToken!.isNotEmpty) {
+      return _cachedAccessToken;
+    }
+    _cachedAccessToken = await _storage.read(key: _accessTokenKey);
+    return _cachedAccessToken;
+  }
+
   Future<String?> getRefreshToken() => _storage.read(key: _refreshTokenKey);
 
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
   }) async {
+    _cachedAccessToken = accessToken;
     await Future.wait([
       _storage.write(key: _accessTokenKey, value: accessToken),
       _storage.write(key: _refreshTokenKey, value: refreshToken),
     ]);
+  }
+
+  Future<void> saveUser(User user) async {
+    _cachedUser = user;
+    try {
+      final jsonStr = jsonEncode(user.toJson());
+      await _storage.write(key: _cachedUserKey, value: jsonStr);
+    } catch (_) {}
+  }
+
+  Future<User?> getCachedUser() async {
+    if (_cachedUser != null) {
+      return _cachedUser;
+    }
+    try {
+      final jsonStr = await _storage.read(key: _cachedUserKey);
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+        _cachedUser = User.fromJson(data);
+        return _cachedUser;
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<bool> hasValidSession() async {
@@ -42,9 +80,12 @@ class AuthManager {
   }
 
   Future<void> logout() async {
+    _cachedAccessToken = null;
+    _cachedUser = null;
     await Future.wait([
       _storage.delete(key: _accessTokenKey),
       _storage.delete(key: _refreshTokenKey),
+      _storage.delete(key: _cachedUserKey),
     ]);
   }
 

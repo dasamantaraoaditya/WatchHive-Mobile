@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -7,46 +8,19 @@ import 'package:shimmer/shimmer.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/widgets/shared_widgets.dart';
+import '../../entries/repositories/watchlist_repository.dart';
+import '../../entries/screens/add_entry_sheet.dart';
+import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../search/repositories/search_repository.dart';
+import '../../entries/widgets/platform_logo_badge.dart';
+import '../providers/feed_provider.dart';
+import '../../../core/utils/share_helper.dart';
 
-final tmdbMediaDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({int tmdbId, String mediaType})>((ref, arg) async {
-  if (arg.tmdbId <= 0) return null;
-  final searchRepo = ref.read(searchRepositoryProvider);
-  final isTv = arg.mediaType.toLowerCase().contains('tv');
-  try {
-    if (isTv) {
-      final res = await searchRepo.getTvDetails(arg.tmdbId);
-      if (res['poster_path'] != null || res['backdrop_path'] != null) return res;
-      try {
-        final movieRes = await searchRepo.getMovieDetails(arg.tmdbId);
-        if (movieRes['poster_path'] != null || movieRes['backdrop_path'] != null) return movieRes;
-      } catch (_) {}
-      return res;
-    } else {
-      final res = await searchRepo.getMovieDetails(arg.tmdbId);
-      if (res['poster_path'] != null || res['backdrop_path'] != null) return res;
-      try {
-        final tvRes = await searchRepo.getTvDetails(arg.tmdbId);
-        if (tvRes['poster_path'] != null || tvRes['backdrop_path'] != null) return tvRes;
-      } catch (_) {}
-      return res;
-    }
-  } catch (_) {
-    try {
-      if (isTv) {
-        return await searchRepo.getMovieDetails(arg.tmdbId);
-      } else {
-        return await searchRepo.getTvDetails(arg.tmdbId);
-      }
-    } catch (_) {
-      return null;
-    }
-  }
-});
 
-class WHFeedCard extends StatelessWidget {
+class WHFeedCard extends ConsumerStatefulWidget {
   final Entry entry;
   final bool isLiked;
   final bool isOwnEntry;
@@ -54,6 +28,7 @@ class WHFeedCard extends StatelessWidget {
   final VoidCallback? onCommentTap;
   final VoidCallback onUserTap;
   final VoidCallback onMediaTap;
+  final bool initiallyExpandedReview;
 
   const WHFeedCard({
     super.key,
@@ -64,10 +39,130 @@ class WHFeedCard extends StatelessWidget {
     this.onCommentTap,
     required this.onUserTap,
     required this.onMediaTap,
+    this.initiallyExpandedReview = false,
   });
 
   @override
+  ConsumerState<WHFeedCard> createState() => _WHFeedCardState();
+}
+
+class _WHFeedCardState extends ConsumerState<WHFeedCard> {
+  bool? _inWatchlistLocal;
+  bool _isWatchlistLoading = false;
+  late bool _isReviewExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _isReviewExpanded = widget.initiallyExpandedReview;
+  }
+
+  @override
+  void didUpdateWidget(covariant WHFeedCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.entry.id != widget.entry.id) {
+      _isReviewExpanded = widget.initiallyExpandedReview;
+      _inWatchlistLocal = null;
+    }
+  }
+
+  Future<void> _handleWatchlistToggle(bool currentStatus) async {
+    if (_isWatchlistLoading || widget.entry.tmdbId <= 0) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isWatchlistLoading = true;
+      _inWatchlistLocal = !currentStatus;
+    });
+
+    final title = widget.entry.title.trim().isNotEmpty ? widget.entry.title.trim() : 'Title';
+    final repo = ref.read(watchlistRepositoryProvider);
+
+    try {
+      if (currentStatus) {
+        await repo.removeFromWatchlistByTmdbId(widget.entry.tmdbId);
+        ref.invalidate(isInWatchlistProvider(widget.entry.tmdbId));
+        if (mounted) {
+          WHAlert.showSuccess(context, 'Removed "$title" from Watchlist');
+        }
+      } else {
+        final prefilledSuggestorId = widget.isOwnEntry
+            ? null
+            : (widget.entry.suggestedByUserId ?? widget.entry.user?.id);
+        await repo.addToWatchlist(
+          tmdbId: widget.entry.tmdbId,
+          title: title,
+          mediaType: widget.entry.type == 'TV_SHOW' || widget.entry.type == 'tv' ? 'tv' : 'movie',
+          posterPath: widget.entry.posterPath,
+          overview: widget.entry.review,
+          suggestedByUserId: prefilledSuggestorId,
+        );
+        ref.invalidate(isInWatchlistProvider(widget.entry.tmdbId));
+        if (mounted) {
+          WHAlert.showSuccess(context, 'Added "$title" to Watchlist.');
+        }
+      }
+    } catch (e) {
+      ref.invalidate(isInWatchlistProvider(widget.entry.tmdbId));
+      if (mounted) {
+        setState(() {
+          _inWatchlistLocal = currentStatus;
+        });
+        WHAlert.showError(
+          context,
+          AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to update Watchlist'),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isWatchlistLoading = false);
+      }
+    }
+  }
+
+  void _handleQuickLog() {
+    HapticFeedback.lightImpact();
+    final prefilledSuggestor = widget.isOwnEntry ? null : (widget.entry.suggestedByUser ?? widget.entry.user);
+    final prefilledSuggestorId = widget.isOwnEntry ? null : (widget.entry.suggestedByUserId ?? widget.entry.user?.id);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => AddEntrySheet(
+        prefillTmdbId: widget.entry.tmdbId > 0 ? widget.entry.tmdbId : null,
+        prefillType: widget.entry.type,
+        prefillTitle: widget.entry.title,
+        prefillPosterPath: widget.entry.posterPath,
+        prefillSuggestor: prefilledSuggestor,
+        prefillSuggestedByUserId: prefilledSuggestorId,
+      ),
+    );
+  }
+
+  void _handleQuickSuggest() {
+    HapticFeedback.lightImpact();
+    SuggestMovieModal.show(
+      context,
+      tmdbId: widget.entry.tmdbId > 0 ? widget.entry.tmdbId : null,
+      title: widget.entry.title,
+      mediaType: widget.entry.type == 'TV_SHOW' || widget.entry.type == 'tv' ? 'tv' : 'movie',
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final isLiked = widget.isLiked;
+    final onLike = widget.onLike;
+    final onCommentTap = widget.onCommentTap;
+    final onUserTap = widget.onUserTap;
+    final onMediaTap = widget.onMediaTap;
+
+    final hasValidTmdb = entry.tmdbId > 0;
+    final inWatchlistAsync = hasValidTmdb ? ref.watch(isInWatchlistProvider(entry.tmdbId)) : null;
+    final inWatchlist = _inWatchlistLocal ?? inWatchlistAsync?.valueOrNull ?? false;
+
     final isSuggestion = entry.isSuggestion || entry.user == null;
     final displayName = () {
       if (isSuggestion) return 'WatchersHive';
@@ -83,8 +178,9 @@ class WHFeedCard extends StatelessWidget {
     final actionText = () {
       if (isSuggestion) return 'recommends';
       if (entry.isWatching) return 'started watching';
-      if (entry.startedAt != null) return 'completed watching';
-      return entry.review != null && entry.review!.isNotEmpty ? 'reviewed' : 'watched';
+      if (entry.completedAt != null || entry.startedAt != null) return 'completed watching';
+      if (entry.review != null && entry.review!.isNotEmpty) return 'reviewed';
+      return 'logged';
     }();
 
     return Container(
@@ -213,7 +309,8 @@ class WHFeedCard extends StatelessWidget {
                                     if (sdn != null && sdn.isNotEmpty) return sdn;
                                     final sun = entry.suggestedByUser!.username.trim();
                                     if (sun.isNotEmpty) {
-                                      return sun.startsWith('@') ? sun.substring(1) : sun;
+                                      final rawSun = sun.startsWith('@') ? sun.substring(1) : sun;
+                                      return rawSun.length > 10 ? '${rawSun.substring(0, 10)}...' : rawSun;
                                     }
                                     return 'Friend';
                                   }(),
@@ -236,17 +333,130 @@ class WHFeedCard extends StatelessWidget {
                 ),
 
                 const SizedBox(width: 8),
-                // Compact header timestamp (e.g. "2:30 PM" or "Aug 23")
-                Text(
-                  _formatCompactHeaderDate(entry.watchedAt),
-                  maxLines: 1,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
+                if (entry.isPendingSync) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFF59E0B)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.sync_rounded, size: 10, color: Color(0xFFB45309)),
+                        SizedBox(width: 3),
+                        Text(
+                          'Pending Sync',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFB45309),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 6),
+                ],
+                // Where did you watch platform badge (e.g., Netflix, Prime, Cinema) to the right of the card in the same line
+                if (entry.watchLocation != null && entry.watchLocation!.trim().isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        PlatformBrandLogo(
+                          platform: entry.watchLocation!.trim(),
+                          size: 13,
+                        ),
+                        const SizedBox(width: 4),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 88),
+                          child: Text(
+                            entry.watchLocation!.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                if (!widget.isOwnEntry && !isSuggestion && entry.user != null) ...[
+                  const SizedBox(width: 2),
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert_rounded, size: 18, color: AppColors.textMuted),
+                      padding: EdgeInsets.zero,
+                      color: AppColors.surfaceElevated,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      onSelected: (value) {
+                        if (value == 'report') {
+                          UgcModerationDialog.showReportDialog(
+                            context,
+                            ref,
+                            targetType: 'ENTRY',
+                            targetId: entry.id,
+                            targetTitle: entry.title.isNotEmpty ? entry.title : null,
+                            onReported: () {
+                              ref.read(feedProvider.notifier).removeEntry(entry.id);
+                            },
+                          );
+                        } else if (value == 'block') {
+                          UgcModerationDialog.confirmBlockUser(
+                            context,
+                            ref,
+                            userId: entry.user!.id,
+                            username: displayName,
+                            onBlocked: () {
+                              ref.read(feedProvider.notifier).removeEntriesByUser(entry.user!.id);
+                            },
+                          );
+                        }
+                      },
+                      itemBuilder: (ctx) => [
+                        const PopupMenuItem<String>(
+                          value: 'report',
+                          height: 38,
+                          child: Row(
+                            children: [
+                              Icon(Icons.flag_outlined, size: 16, color: AppColors.error),
+                              SizedBox(width: 8),
+                              Text('Report Post', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem<String>(
+                          value: 'block',
+                          height: 38,
+                          child: Row(
+                            children: [
+                              Icon(Icons.block_rounded, size: 16, color: AppColors.error),
+                              SizedBox(width: 8),
+                              Text('Block User', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -267,7 +477,7 @@ class WHFeedCard extends StatelessWidget {
                       ? Icons.auto_awesome_rounded
                       : (entry.isWatching
                           ? Icons.play_circle_outline_rounded
-                          : (entry.startedAt != null ? Icons.check_circle_outline_rounded : Icons.schedule_rounded)),
+                          : (entry.completedAt != null || entry.startedAt != null ? Icons.check_circle_outline_rounded : Icons.schedule_rounded)),
                   size: 14,
                   color: isSuggestion ? AppColors.primary : AppColors.textMuted,
                 ),
@@ -281,7 +491,9 @@ class WHFeedCard extends StatelessWidget {
                               ? (entry.suggestionReason ?? 'Recommended for You')
                               : (entry.isWatching
                                   ? 'Started watching • '
-                                  : (entry.startedAt != null ? 'Completed watching • ' : 'Seen • ')),
+                                  : (entry.completedAt != null || entry.startedAt != null
+                                      ? 'Completed watching • '
+                                      : (entry.review != null && entry.review!.isNotEmpty ? 'Reviewed • ' : 'Logged • '))),
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,
@@ -291,7 +503,7 @@ class WHFeedCard extends StatelessWidget {
                         ),
                         if (!isSuggestion)
                           TextSpan(
-                            text: _formatFullTimestamp(entry.watchedAt),
+                            text: _formatFullTimestamp(entry.activityDate),
                             style: const TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 12,
@@ -310,72 +522,30 @@ class WHFeedCard extends StatelessWidget {
           ),
 
           // Review / MindLens Insight Quote Box
-          if (entry.review != null && entry.review!.isNotEmpty) ...[
+          if (entry.review != null && entry.review!.trim().isNotEmpty) ...[
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.psychology_outlined, color: AppColors.primary, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isSuggestion ? 'Why you might like this' : 'Review & Insight',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            '"${entry.review!}"',
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 13,
-                              fontStyle: FontStyle.italic,
-                              color: AppColors.textPrimary,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: _buildReviewBox(entry.review!, isSuggestion),
             ),
           ],
 
-          if (!isSuggestion) ...[
-            const SizedBox(height: 10),
-            const Divider(height: 1, color: AppColors.border),
+          // Action bar
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: AppColors.border),
 
-            // Action bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Row(
-                children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              children: [
+                if (!isSuggestion) ...[
                   WHFeedActionButton(
                     icon: isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                     label: '${entry.likesCount}',
                     color: isLiked ? AppColors.error : AppColors.textMuted,
                     onTap: onLike,
                   ),
+                  const SizedBox(width: 4),
                   WHFeedActionButton(
                     icon: (entry.isCommented || entry.commentsCount > 0)
                         ? Icons.chat_bubble_rounded
@@ -386,56 +556,208 @@ class WHFeedCard extends StatelessWidget {
                         : AppColors.textMuted,
                     onTap: onCommentTap ?? () {},
                   ),
-                  if (entry.watchLocation != null && entry.watchLocation!.trim().isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textMuted),
-                              const SizedBox(width: 3),
-                              Flexible(
-                                child: Text(
-                                  entry.watchLocation!.trim(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
-              ),
+                const Spacer(),
+                // Quick Actions: Watchlist, Log Watch, Suggest, Share
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (hasValidTmdb)
+                          IconButton(
+                            tooltip: inWatchlist ? 'In Watchlist' : 'Add to Watchlist',
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                            splashRadius: 18,
+                            icon: _isWatchlistLoading
+                                ? const WHBeeSpinner(size: 14)
+                                : Icon(
+                                    inWatchlist ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                                    size: 19,
+                                    color: inWatchlist ? AppColors.primaryDark : AppColors.textMuted,
+                                  ),
+                            onPressed: () => _handleWatchlistToggle(inWatchlist),
+                          ),
+                        IconButton(
+                          tooltip: 'Log Watch',
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          splashRadius: 18,
+                          icon: const Icon(
+                            Icons.add_task_rounded,
+                            size: 19,
+                            color: AppColors.textMuted,
+                          ),
+                          onPressed: _handleQuickLog,
+                        ),
+                        if (hasValidTmdb)
+                          IconButton(
+                            tooltip: 'Suggest to Friend',
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                            splashRadius: 18,
+                            icon: const Icon(
+                              Icons.send_rounded,
+                              size: 18,
+                              color: AppColors.textMuted,
+                            ),
+                            onPressed: _handleQuickSuggest,
+                          ),
+                        if (widget.isOwnEntry)
+                          IconButton(
+                            tooltip: 'Share Watch',
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                            splashRadius: 18,
+                            icon: const Icon(
+                              Icons.share_outlined,
+                              size: 18,
+                              color: AppColors.textMuted,
+                            ),
+                            onPressed: () {
+                              ShareHelper.shareCompletedWatch(
+                                context: context,
+                                title: entry.title,
+                                posterPath: entry.posterPath,
+                                backdropPath: entry.backdropPath,
+                                rating: entry.isWatching ? null : entry.rating,
+                                review: entry.isWatching ? null : entry.review,
+                                tmdbId: entry.tmdbId > 0 ? entry.tmdbId : null,
+                                mediaType: (entry.type == 'TV_SHOW' || entry.type == 'EPISODE') ? 'tv' : 'movie',
+                                userDisplayName: entry.user?.displayName ?? entry.user?.username,
+                                username: entry.user?.username,
+                                userAvatarUrl: entry.user?.profilePictureUrl,
+                                shareMode: entry.isWatching ? StoryShareMode.watching : StoryShareMode.logged,
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ],
       ),
     );
   }
 
-  String _formatCompactHeaderDate(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-    if (diff.inDays == 0) return DateFormat('h:mm a').format(date.toLocal());
-    if (diff.inDays < 7) return DateFormat('EEE, h:mm a').format(date.toLocal());
-    return DateFormat('MMM d').format(date.toLocal());
+  Widget _buildReviewBox(String rawReview, bool isSuggestion) {
+    final review = rawReview.trim();
+    const int reviewCharLimit = 160;
+    final bool isLongReview = review.length > reviewCharLimit || review.split('\n').length > 2;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isLongReview
+              ? () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _isReviewExpanded = !_isReviewExpanded);
+                }
+              : null,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.psychology_outlined, color: AppColors.primary, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isSuggestion ? 'Why you might like this' : 'Review & Insight',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeInOutCubic,
+                        alignment: Alignment.topLeft,
+                        child: Text(
+                          '“$review”',
+                          maxLines: _isReviewExpanded ? null : 3,
+                          overflow: _isReviewExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'Georgia',
+                            fontFamilyFallback: ['serif'],
+                            fontSize: 14,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.textPrimary,
+                            height: 1.5,
+                            letterSpacing: 0.15,
+                          ),
+                        ),
+                      ),
+                      if (isLongReview) ...[
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _isReviewExpanded = !_isReviewExpanded);
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _isReviewExpanded ? 'Show less' : 'Read more',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(
+                                _isReviewExpanded
+                                    ? Icons.keyboard_arrow_up_rounded
+                                    : Icons.keyboard_arrow_down_rounded,
+                                size: 16,
+                                color: AppColors.primaryDark,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   String _formatFullTimestamp(DateTime date) {
-    final localDate = date.toLocal();
+    final now = DateTime.now();
+    final effectiveDate = date.isAfter(now) ? now : date;
+    final localDate = effectiveDate.toLocal();
     final dateStr = DateFormat('MMM d, yyyy').format(localDate);
     final timeStr = DateFormat('h:mm a').format(localDate);
     return '$dateStr at $timeStr';
@@ -462,16 +784,17 @@ class WHFeedActionButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 5),
+            Icon(icon, size: 17, color: color),
+            const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
                 fontFamily: 'Inter',
-                fontSize: 13,
+                fontSize: 12,
                 color: color,
                 fontWeight: FontWeight.w500,
               ),
@@ -600,7 +923,7 @@ class FeedMediaHeroBanner extends ConsumerWidget {
                       border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
                     ),
                     child: Text(
-                      entry.type == 'MOVIE' ? '🎬 Movie' : '📺 TV Show',
+                      entry.type == 'MOVIE' ? 'Movie' : 'TV Series',
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 11,
@@ -618,7 +941,7 @@ class FeedMediaHeroBanner extends ConsumerWidget {
                         border: Border.all(color: AppColors.info.withValues(alpha: 0.4)),
                       ),
                       child: const Text(
-                        '🔁 Rewatch',
+                        'Rewatch',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 11,
@@ -632,7 +955,7 @@ class FeedMediaHeroBanner extends ConsumerWidget {
             ),
 
             // Top-Right Badge: Rating
-            if (entry.rating != null)
+            if (entry.rating != null && entry.rating! > 0)
               Positioned(
                 top: 10,
                 right: 10,

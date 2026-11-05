@@ -1,0 +1,804 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as p;
+import '../api/api_endpoints.dart';
+import '../../shared/models/entry.dart';
+
+final offlineStorageServiceProvider = Provider<OfflineStorageService>((ref) {
+  return OfflineStorageService();
+});
+
+class SyncQueueItem {
+  final String queueId;
+  final String action; // 'CREATE_ENTRY' | 'UPDATE_ENTRY' | 'DELETE_ENTRY'
+  final String entityId;
+  final Map<String, dynamic> payload;
+  final DateTime createdAt;
+  final int retryCount;
+  final String? lastError;
+
+  SyncQueueItem({
+    required this.queueId,
+    required this.action,
+    required this.entityId,
+    required this.payload,
+    required this.createdAt,
+    this.retryCount = 0,
+    this.lastError,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'queueId': queueId,
+        'action': action,
+        'entityId': entityId,
+        'payload': jsonEncode(payload),
+        'createdAt': createdAt.millisecondsSinceEpoch,
+        'retryCount': retryCount,
+        'lastError': lastError,
+      };
+
+  factory SyncQueueItem.fromMap(Map<String, dynamic> map) {
+    Map<String, dynamic> parsedPayload = {};
+    try {
+      final raw = map['payload'];
+      if (raw is String) {
+        parsedPayload = jsonDecode(raw) as Map<String, dynamic>;
+      } else if (raw is Map) {
+        parsedPayload = Map<String, dynamic>.from(raw);
+      }
+    } catch (_) {}
+
+    return SyncQueueItem(
+      queueId: map['queueId'] as String,
+      action: map['action'] as String,
+      entityId: map['entityId'] as String,
+      payload: parsedPayload,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int? ?? DateTime.now().millisecondsSinceEpoch),
+      retryCount: map['retryCount'] as int? ?? 0,
+      lastError: map['lastError'] as String?,
+    );
+  }
+}
+
+class OfflineStorageService {
+  Database? _db;
+  bool _isInitialized = false;
+  bool get isInitialized => _isInitialized;
+
+  // In-memory fallbacks when SQLite native binary is unavailable (e.g. headless unit tests)
+  final Map<String, Entry> _memEntries = {};
+  final List<Entry> _memFeed = [];
+  final List<Map<String, dynamic>> _memWatchlist = [];
+  final Map<String, SyncQueueItem> _memQueue = {};
+  final Map<String, Map<String, dynamic>> _memMediaDetails = {};
+  final Map<String, Map<String, dynamic>> _memUserPreferences = {};
+
+  Future<Database?> _getDatabase() async {
+    if (_db != null && _db!.isOpen) return _db;
+    try {
+      final dbPath = await getDatabasesPath();
+      final path = p.join(dbPath, 'watchhive_offline.db');
+
+      _db = await openDatabase(
+        path,
+        version: 3,
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS cached_media_details (
+                tmdbId INTEGER,
+                mediaType TEXT,
+                jsonData TEXT,
+                cachedAt INTEGER,
+                PRIMARY KEY (tmdbId, mediaType)
+              )
+            ''');
+          }
+          if (oldVersion < 3) {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS cached_user_preferences (
+                userId TEXT PRIMARY KEY,
+                jsonData TEXT,
+                updatedAt INTEGER
+              )
+            ''');
+          }
+        },
+        onCreate: (db, version) async {
+          await db.execute('''
+            CREATE TABLE cached_entries (
+              id TEXT PRIMARY KEY,
+              userId TEXT,
+              tmdbId INTEGER,
+              type TEXT,
+              isWatching INTEGER,
+              watchedAt TEXT,
+              jsonData TEXT,
+              cachedAt INTEGER,
+              isPendingSync INTEGER
+            )
+          ''');
+
+          await db.execute('''
+            CREATE TABLE cached_feed (
+              id TEXT PRIMARY KEY,
+              jsonData TEXT,
+              activityDate INTEGER,
+              cachedAt INTEGER
+            )
+          ''');
+
+          await db.execute('''
+            CREATE TABLE cached_watchlist (
+              id TEXT PRIMARY KEY,
+              tmdbId INTEGER,
+              jsonData TEXT,
+              cachedAt INTEGER
+            )
+          ''');
+
+          await db.execute('''
+            CREATE TABLE cached_media_details (
+              tmdbId INTEGER,
+              mediaType TEXT,
+              jsonData TEXT,
+              cachedAt INTEGER,
+              PRIMARY KEY (tmdbId, mediaType)
+            )
+          ''');
+
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS cached_user_preferences (
+              userId TEXT PRIMARY KEY,
+              jsonData TEXT,
+              updatedAt INTEGER
+            )
+          ''');
+
+          await db.execute('''
+            CREATE TABLE offline_sync_queue (
+              queueId TEXT PRIMARY KEY,
+              action TEXT,
+              entityId TEXT,
+              payload TEXT,
+              createdAt INTEGER,
+              retryCount INTEGER,
+              lastError TEXT
+            )
+          ''');
+        },
+      );
+      _isInitialized = true;
+      return _db;
+    } catch (e) {
+      debugPrint('[OfflineStorageService] SQLite unavailable, using in-memory store: $e');
+      _isInitialized = true;
+      return null;
+    }
+  }
+
+  // ─── ENTRIES CACHE ──────────────────────────────────────────────────────────
+
+  Future<void> cacheEntries(List<Entry> entries, {bool? isWatching}) async {
+    for (final e in entries) {
+      _memEntries[e.id] = e;
+    }
+
+    final db = await _getDatabase();
+    if (db == null) return;
+
+    try {
+      final batch = db.batch();
+      for (final e in entries) {
+        batch.insert(
+          'cached_entries',
+          {
+            'id': e.id,
+            'userId': e.userId,
+            'tmdbId': e.tmdbId,
+            'type': e.type,
+            'isWatching': e.isWatching ? 1 : 0,
+            'watchedAt': e.watchedAt.toIso8601String(),
+            'jsonData': jsonEncode(e.toFullJson()),
+            'cachedAt': DateTime.now().millisecondsSinceEpoch,
+            'isPendingSync': e.isPendingSync ? 1 : 0,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+
+      // Pre-warm poster images for entries in background so images exist on disk offline
+      for (final e in entries.take(30)) {
+        if (e.posterPath != null && e.posterPath!.isNotEmpty) {
+          prewarmImage(e.posterPath);
+        }
+      }
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error caching entries: $e');
+    }
+  }
+
+  Future<void> insertOrUpdateCachedEntry(Entry entry) async {
+    _memEntries[entry.id] = entry;
+
+    final db = await _getDatabase();
+    if (db == null) return;
+
+    try {
+      await db.insert(
+        'cached_entries',
+        {
+          'id': entry.id,
+          'userId': entry.userId,
+          'tmdbId': entry.tmdbId,
+          'type': entry.type,
+          'isWatching': entry.isWatching ? 1 : 0,
+          'watchedAt': entry.watchedAt.toIso8601String(),
+          'jsonData': jsonEncode(entry.toFullJson()),
+          'cachedAt': DateTime.now().millisecondsSinceEpoch,
+          'isPendingSync': entry.isPendingSync ? 1 : 0,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error saving entry: $e');
+    }
+  }
+
+  Future<void> removeCachedEntry(String id) async {
+    _memEntries.remove(id);
+
+    final db = await _getDatabase();
+    if (db == null) return;
+
+    try {
+      await db.delete('cached_entries', where: 'id = ?', whereArgs: [id]);
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error removing entry: $e');
+    }
+  }
+
+  Future<List<Entry>> getCachedEntries({bool? isWatching, String? type, String? userId}) async {
+    final db = await _getDatabase();
+    if (db == null) {
+      var list = _memEntries.values.toList();
+      if (isWatching != null) {
+        list = list.where((e) => e.isWatching == isWatching).toList();
+      }
+      if (type != null && type.isNotEmpty) {
+        list = list.where((e) => e.type == type).toList();
+      }
+      if (userId != null && userId.isNotEmpty) {
+        list = list.where((e) => e.userId == userId).toList();
+      }
+      list.sort((a, b) => b.watchedAt.compareTo(a.watchedAt));
+      return list;
+    }
+
+    try {
+      final whereClauses = <String>[];
+      final whereArgs = <dynamic>[];
+
+      if (isWatching != null) {
+        whereClauses.add('isWatching = ?');
+        whereArgs.add(isWatching ? 1 : 0);
+      }
+      if (type != null && type.isNotEmpty) {
+        whereClauses.add('type = ?');
+        whereArgs.add(type);
+      }
+      if (userId != null && userId.isNotEmpty) {
+        whereClauses.add('userId = ?');
+        whereArgs.add(userId);
+      }
+
+      final results = await db.query(
+        'cached_entries',
+        where: whereClauses.isNotEmpty ? whereClauses.join(' AND ') : null,
+        whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
+        orderBy: 'watchedAt DESC',
+      );
+
+      final entries = <Entry>[];
+      for (final row in results) {
+        final jsonStr = row['jsonData'] as String?;
+        if (jsonStr != null && jsonStr.isNotEmpty) {
+          try {
+            final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+            final entry = Entry.fromJson(map).copyWith(
+              isPendingSync: (row['isPendingSync'] as int? ?? 0) == 1,
+            );
+            entries.add(entry);
+          } catch (_) {}
+        }
+      }
+      return entries;
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error fetching cached entries: $e');
+      return _memEntries.values.toList();
+    }
+  }
+
+  // ─── FEED CACHE ─────────────────────────────────────────────────────────────
+
+  Future<void> cacheFeed(List<Entry> entries) async {
+    _memFeed.clear();
+    _memFeed.addAll(entries);
+
+    final db = await _getDatabase();
+    if (db == null) return;
+
+    try {
+      final batch = db.batch();
+      batch.delete('cached_feed');
+      for (final e in entries) {
+        batch.insert('cached_feed', {
+          'id': e.id,
+          'jsonData': jsonEncode(e.toFullJson()),
+          'activityDate': e.activityDate.millisecondsSinceEpoch,
+          'cachedAt': DateTime.now().millisecondsSinceEpoch,
+        });
+      }
+      await batch.commit(noResult: true);
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error caching feed: $e');
+    }
+  }
+
+  Future<List<Entry>> getCachedFeed() async {
+    final db = await _getDatabase();
+    if (db == null) return List<Entry>.from(_memFeed);
+
+    try {
+      final results = await db.query(
+        'cached_feed',
+        orderBy: 'activityDate DESC',
+        limit: 50,
+      );
+
+      final entries = <Entry>[];
+      for (final row in results) {
+        final jsonStr = row['jsonData'] as String?;
+        if (jsonStr != null && jsonStr.isNotEmpty) {
+          try {
+            final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+            entries.add(Entry.fromJson(map));
+          } catch (_) {}
+        }
+      }
+      return entries;
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error reading cached feed: $e');
+      return List<Entry>.from(_memFeed);
+    }
+  }
+
+  // ─── WATCHLIST CACHE ────────────────────────────────────────────────────────
+
+  Future<void> cacheWatchlist(List<Map<String, dynamic>> items) async {
+    _memWatchlist.clear();
+    _memWatchlist.addAll(items);
+
+    final db = await _getDatabase();
+    if (db == null) return;
+
+    try {
+      final batch = db.batch();
+      batch.delete('cached_watchlist');
+      for (final item in items) {
+        final id = (item['id'] ?? item['tmdbId'] ?? DateTime.now().millisecondsSinceEpoch).toString();
+        batch.insert('cached_watchlist', {
+          'id': id,
+          'tmdbId': (item['tmdbId'] as num?)?.toInt() ?? 0,
+          'jsonData': jsonEncode(item),
+          'cachedAt': DateTime.now().millisecondsSinceEpoch,
+        });
+      }
+      await batch.commit(noResult: true);
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error caching watchlist: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getCachedWatchlist() async {
+    final db = await _getDatabase();
+    if (db == null) return List<Map<String, dynamic>>.from(_memWatchlist);
+
+    try {
+      final results = await db.query('cached_watchlist', orderBy: 'cachedAt DESC');
+      final list = <Map<String, dynamic>>[];
+      for (final row in results) {
+        final jsonStr = row['jsonData'] as String?;
+        if (jsonStr != null && jsonStr.isNotEmpty) {
+          try {
+            list.add(jsonDecode(jsonStr) as Map<String, dynamic>);
+          } catch (_) {}
+        }
+      }
+      return list;
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error fetching cached watchlist: $e');
+      return List<Map<String, dynamic>>.from(_memWatchlist);
+    }
+  }
+
+  // ─── USER PREFERENCES CACHE ──────────────────────────────────────────────────
+
+  Future<void> saveUserPreferences(String userId, Map<String, dynamic> preferences) async {
+    final cleanId = userId.trim();
+    if (cleanId.isEmpty) return;
+    _memUserPreferences[cleanId] = Map<String, dynamic>.from(preferences);
+
+    try {
+      final db = await _getDatabase();
+      if (db != null) {
+        await db.insert(
+          'cached_user_preferences',
+          {
+            'userId': cleanId,
+            'jsonData': jsonEncode(preferences),
+            'updatedAt': DateTime.now().millisecondsSinceEpoch,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error caching user preferences: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>?> getUserPreferences(String userId) async {
+    final cleanId = userId.trim();
+    if (cleanId.isEmpty) return null;
+    if (_memUserPreferences.containsKey(cleanId)) {
+      return _memUserPreferences[cleanId];
+    }
+
+    try {
+      final db = await _getDatabase();
+      if (db != null) {
+        final rows = await db.query(
+          'cached_user_preferences',
+          where: 'userId = ?',
+          whereArgs: [cleanId],
+          limit: 1,
+        );
+        if (rows.isNotEmpty) {
+          final jsonStr = rows.first['jsonData'] as String?;
+          if (jsonStr != null && jsonStr.isNotEmpty) {
+            final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+            _memUserPreferences[cleanId] = data;
+            return data;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error reading user preferences: $e');
+    }
+    return null;
+  }
+
+  // ─── OFFLINE SYNC QUEUE ─────────────────────────────────────────────────────
+
+  Future<SyncQueueItem> enqueueSyncAction({
+    required String action,
+    required String entityId,
+    required Map<String, dynamic> payload,
+  }) async {
+    final queueId = 'queue_${DateTime.now().millisecondsSinceEpoch}_${entityId.hashCode.abs()}';
+    final item = SyncQueueItem(
+      queueId: queueId,
+      action: action,
+      entityId: entityId,
+      payload: payload,
+      createdAt: DateTime.now(),
+    );
+
+    _memQueue[queueId] = item;
+
+    final db = await _getDatabase();
+    if (db != null) {
+      try {
+        await db.insert('offline_sync_queue', item.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      } catch (e) {
+        debugPrint('[OfflineStorageService] Error enqueuing sync action: $e');
+      }
+    }
+
+    return item;
+  }
+
+  Future<List<SyncQueueItem>> getPendingSyncActions() async {
+    final db = await _getDatabase();
+    if (db == null) {
+      final list = _memQueue.values.toList();
+      list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      return list;
+    }
+
+    try {
+      final rows = await db.query('offline_sync_queue', orderBy: 'createdAt ASC');
+      return rows.map((r) => SyncQueueItem.fromMap(r)).toList();
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error reading sync queue: $e');
+      return _memQueue.values.toList();
+    }
+  }
+
+  Future<void> removeSyncAction(String queueId) async {
+    _memQueue.remove(queueId);
+
+    final db = await _getDatabase();
+    if (db != null) {
+      try {
+        await db.delete('offline_sync_queue', where: 'queueId = ?', whereArgs: [queueId]);
+      } catch (e) {
+        debugPrint('[OfflineStorageService] Error removing sync action: $e');
+      }
+    }
+  }
+
+  Future<void> updateSyncActionError(String queueId, String error) async {
+    if (_memQueue.containsKey(queueId)) {
+      final old = _memQueue[queueId]!;
+      _memQueue[queueId] = SyncQueueItem(
+        queueId: old.queueId,
+        action: old.action,
+        entityId: old.entityId,
+        payload: old.payload,
+        createdAt: old.createdAt,
+        retryCount: old.retryCount + 1,
+        lastError: error,
+      );
+    }
+
+    final db = await _getDatabase();
+    if (db != null) {
+      try {
+        await db.rawUpdate(
+          'UPDATE offline_sync_queue SET retryCount = retryCount + 1, lastError = ? WHERE queueId = ?',
+          [error, queueId],
+        );
+      } catch (e) {
+        debugPrint('[OfflineStorageService] Error updating sync queue error: $e');
+      }
+    }
+  }
+
+  Future<int> getPendingCount() async {
+    final db = await _getDatabase();
+    if (db == null) return _memQueue.length;
+
+    try {
+      final result = await db.rawQuery('SELECT COUNT(*) as count FROM offline_sync_queue');
+      return Sqflite.firstIntValue(result) ?? 0;
+    } catch (e) {
+      return _memQueue.length;
+    }
+  }
+
+  // ─── MEDIA DETAILS & POSTERS CACHE ─────────────────────────────────────────
+
+  Future<void> prewarmImage(String? posterPath) async {
+    if (posterPath == null || posterPath.isEmpty) return;
+    try {
+      final url = ApiEndpoints.tmdbPoster(posterPath);
+      await DefaultCacheManager().downloadFile(url);
+    } catch (_) {}
+  }
+
+  Future<void> saveMediaDetails(int tmdbId, String mediaType, Map<String, dynamic> data) async {
+    if (tmdbId <= 0) return;
+    final normType = mediaType.toLowerCase().contains('tv') ? 'tv' : 'movie';
+    final key = '$tmdbId:$normType';
+    _memMediaDetails[key] = data;
+
+    final db = await _getDatabase();
+    if (db == null) return;
+    try {
+      await db.insert(
+        'cached_media_details',
+        {
+          'tmdbId': tmdbId,
+          'mediaType': normType,
+          'jsonData': jsonEncode(data),
+          'cachedAt': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error saving media details: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>?> getCachedMediaDetails(int tmdbId, String mediaType) async {
+    if (tmdbId <= 0) return null;
+    final normType = mediaType.toLowerCase().contains('tv') ? 'tv' : 'movie';
+    final key = '$tmdbId:$normType';
+    if (_memMediaDetails.containsKey(key)) {
+      return _memMediaDetails[key];
+    }
+
+    final db = await _getDatabase();
+    if (db == null) return null;
+    try {
+      final rows = await db.query(
+        'cached_media_details',
+        where: 'tmdbId = ? AND mediaType = ?',
+        whereArgs: [tmdbId, normType],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) {
+        final jsonStr = rows.first['jsonData'] as String?;
+        if (jsonStr != null) {
+          final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+          _memMediaDetails[key] = data;
+          return data;
+        }
+      }
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error getting cached media details: $e');
+    }
+    return null;
+  }
+
+  Future<void> updateEntryPostersByTmdbId(int tmdbId, {String? posterPath, String? backdropPath}) async {
+    if (tmdbId <= 0 || (posterPath == null && backdropPath == null)) return;
+
+    for (final key in _memEntries.keys) {
+      final entry = _memEntries[key]!;
+      if (entry.tmdbId == tmdbId) {
+        _memEntries[key] = entry.copyWith(
+          posterPath: posterPath ?? entry.posterPath,
+          backdropPath: backdropPath ?? entry.backdropPath,
+        );
+      }
+    }
+
+    final db = await _getDatabase();
+    if (db == null) return;
+    try {
+      final rows = await db.query('cached_entries', where: 'tmdbId = ?', whereArgs: [tmdbId]);
+      for (final row in rows) {
+        final jsonStr = row['jsonData'] as String?;
+        if (jsonStr != null) {
+          final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+          if (posterPath != null) map['posterPath'] = posterPath;
+          if (backdropPath != null) map['backdropPath'] = backdropPath;
+          await db.update(
+            'cached_entries',
+            {'jsonData': jsonEncode(map)},
+            where: 'id = ?',
+            whereArgs: [row['id']],
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[OfflineStorageService] Error updating entry posters for tmdbId $tmdbId: $e');
+    }
+  }
+
+  /// Search across cached entries, cached watchlist, and cached media details for matching titles offline.
+  Future<List<Map<String, dynamic>>> searchLocalMedia(String query) async {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return [];
+
+    final Map<int, Map<String, dynamic>> results = {};
+
+    // 1. Search cached entries
+    final entries = await getCachedEntries();
+    for (final e in entries) {
+      if (e.tmdbId > 0 && e.title.toLowerCase().contains(q)) {
+        results[e.tmdbId] = {
+          'id': e.tmdbId,
+          'title': e.title,
+          'mediaType': e.type.toLowerCase().contains('tv') ? 'tv' : 'movie',
+          'posterPath': e.posterPath,
+          'backdropPath': e.backdropPath,
+          'year': e.watchedAt.year.toString(),
+          'source': 'Saved in your Hive',
+        };
+      }
+    }
+
+    // 2. Search cached watchlist
+    final watchlist = await getCachedWatchlist();
+    for (final w in watchlist) {
+      final tmdbId = (w['tmdbId'] as num?)?.toInt() ?? int.tryParse(w['tmdbId']?.toString() ?? '') ?? 0;
+      final title = (w['title'] ?? w['name'])?.toString() ?? '';
+      if (tmdbId > 0 && title.toLowerCase().contains(q)) {
+        if (!results.containsKey(tmdbId)) {
+          results[tmdbId] = {
+            'id': tmdbId,
+            'title': title,
+            'mediaType': (w['mediaType'] ?? 'movie').toString().toLowerCase().contains('tv') ? 'tv' : 'movie',
+            'posterPath': w['posterPath'] ?? w['poster_path'],
+            'backdropPath': w['backdropPath'] ?? w['backdrop_path'],
+            'year': w['releaseDate']?.toString().split('-').first,
+            'source': 'In your Watchlist',
+          };
+        }
+      }
+    }
+
+    // 3. Search in-memory media details
+    for (final entry in _memMediaDetails.entries) {
+      final data = entry.value;
+      final tmdbId = (data['id'] as num?)?.toInt() ?? 0;
+      final title = (data['title'] ?? data['name'])?.toString() ?? '';
+      if (tmdbId > 0 && title.toLowerCase().contains(q)) {
+        if (!results.containsKey(tmdbId)) {
+          results[tmdbId] = {
+            'id': tmdbId,
+            'title': title,
+            'mediaType': (data['title'] != null) ? 'movie' : 'tv',
+            'posterPath': data['poster_path'],
+            'backdropPath': data['backdrop_path'],
+            'year': (data['release_date'] ?? data['first_air_date'])?.toString().split('-').first,
+            'source': 'Offline Cache',
+          };
+        }
+      }
+    }
+
+    return results.values.toList();
+  }
+
+  Future<void> discardSyncAction(String queueId) async {
+    await removeSyncAction(queueId);
+  }
+
+  Future<void> updateSyncActionPayload(String queueId, Map<String, dynamic> newPayload) async {
+    if (_memQueue.containsKey(queueId)) {
+      final old = _memQueue[queueId]!;
+      _memQueue[queueId] = SyncQueueItem(
+        queueId: old.queueId,
+        action: old.action,
+        entityId: old.entityId,
+        payload: newPayload,
+        createdAt: old.createdAt,
+        retryCount: 0,
+        lastError: null,
+      );
+    }
+
+    final db = await _getDatabase();
+    if (db != null) {
+      try {
+        await db.update(
+          'offline_sync_queue',
+          {
+            'payload': jsonEncode(newPayload),
+            'retryCount': 0,
+            'lastError': null,
+          },
+          where: 'queueId = ?',
+          whereArgs: [queueId],
+        );
+      } catch (e) {
+        debugPrint('[OfflineStorageService] Error updating sync action payload: $e');
+      }
+    }
+  }
+
+  Future<void> clearAllCache() async {
+    _memEntries.clear();
+    _memFeed.clear();
+    _memWatchlist.clear();
+    _memQueue.clear();
+
+    final db = await _getDatabase();
+    if (db != null) {
+      try {
+        await db.delete('cached_entries');
+        await db.delete('cached_feed');
+        await db.delete('cached_watchlist');
+        await db.delete('offline_sync_queue');
+      } catch (_) {}
+    }
+  }
+}

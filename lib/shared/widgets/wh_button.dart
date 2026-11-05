@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'wh_bee_loader.dart';
 
 class WHButton extends StatelessWidget {
   final String label;
@@ -19,14 +20,7 @@ class WHButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final child = isLoading
-        ? const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: Colors.black,
-            ),
-          )
+        ? const WHBeeSpinner(size: 20)
         : Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,

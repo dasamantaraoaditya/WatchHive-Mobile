@@ -1,7 +1,7 @@
 name: watchhive_mobile
 description: WatchersHive — Track Movies, Anime, K-Drama & Series
 publish_to: 'none'
-version: 1.0.29+30
+version: 1.0.49+51
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -25,12 +25,14 @@ dependencies:
 
   # Image Caching
   cached_network_image: ^3.3.1
+  flutter_cache_manager: ^3.4.1
 
   # Environment Variables
   flutter_dotenv: ^5.1.0
 
-  # Google Sign-In
+  # Social Authentication
   google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.4
 
   # Firebase (Push Notifications)
   firebase_core: ^3.3.0
@@ -54,6 +56,13 @@ dependencies:
   share_plus: ^10.0.0
   image_picker: ^1.1.2
   file_picker: ^11.0.3
+  connectivity_plus: 6.1.4
+  sqflite: ^2.4.4+2
+  path_provider: ^2.1.6
+  path: ^1.9.1
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.4.2
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:

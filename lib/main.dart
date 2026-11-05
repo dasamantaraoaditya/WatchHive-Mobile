@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -25,7 +26,8 @@ Future<void> main() async {
       );
     }
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    await PushNotificationService.instance.initialize();
+    // Initialize push notifications asynchronously so UI rendering is never blocked
+    unawaited(PushNotificationService.instance.initialize());
   } catch (e) {
     debugPrint('Firebase init skipped or unconfigured: $e');
   }

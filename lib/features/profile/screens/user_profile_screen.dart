@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/config/web_urls.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/models/models.dart';
@@ -15,14 +13,19 @@ import '../../entries/repositories/watchlist_repository.dart';
 import '../../entries/screens/add_entry_sheet.dart';
 import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../entries/widgets/wh_entry_grid_card.dart';
+import '../../../core/utils/share_helper.dart';
 import '../../search/repositories/search_repository.dart';
 import '../repositories/user_repository.dart';
 import '../widgets/follow_list_sheet.dart';
 import '../widgets/user_rankings_tab.dart';
 import 'edit_profile_dialog.dart';
+import '../widgets/avatar_viewer_dialog.dart';
+import '../widgets/honey_badges_dialog.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
 import '../../feed/providers/feed_provider.dart';
+import '../../scanner/widgets/user_qr_dialog.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 const _emptyEntriesResult = (
   entries: <Entry>[],
@@ -60,9 +63,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   bool _isIncomingRequest = false;
   String? _incomingRequestId;
   bool _isActionLoading = false;
+  bool _isBlocked = false;
 
   // Tab content data
   TabController? _tabController;
+  int? _rankingsCount;
   List<Entry> _historyEntries = [];
   List<Entry> _watchingEntries = [];
   List<dynamic> _watchlistItems = [];
@@ -74,6 +79,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     super.initState();
     if (widget.initialUser != null) {
       _user = widget.initialUser;
+      _isLoading = false;
       _isFollowing = widget.initialUser!.isFollowing;
       _isRequested = widget.initialUser!.isRequested;
       _isIncomingRequest = widget.initialUser!.isIncomingRequest;
@@ -131,6 +137,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         watchlistCount: watchlistTotal,
       );
 
+      bool isBlocked = false;
+      try {
+        final blockedIds = await repo.getBlockedUserIds();
+        isBlocked = blockedIds.contains(widget.userId);
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _user = userWithStats;
@@ -138,6 +150,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           _isRequested = user.isRequested;
           _isIncomingRequest = user.isIncomingRequest;
           _incomingRequestId = user.incomingRequestId;
+          _isBlocked = isBlocked;
           _historyEntries = historyRes.entries;
           _watchingEntries = watchingRes.entries;
           _watchlistItems = rawWatchlist;
@@ -181,16 +194,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     } catch (_) {}
   }
 
-  void _shareProfile() {
-    if (_user == null) return;
-    final name = _user!.displayName?.isNotEmpty == true ? _user!.displayName! : _user!.name;
-    final profileUrl = WebUrls.userProfile(_user!.id, refUsername: _user!.username);
-    final text = _isMe
-        ? 'Join me on WatchersHive! Check out my profile and cinematic journey: 🐝🎥\n\n$profileUrl'
-        : 'Check out $name\'s profile on WatchersHive! 🐝🎬\n\n$profileUrl';
-    Share.share(text, subject: 'WatchersHive: $name');
-  }
-
   String _formatTabLabel({required String baseLabel, required int? count}) {
     if (count == null) {
       return baseLabel;
@@ -201,6 +204,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   List<_ProfileTabConfig> _getVisibleTabs() {
     if (_user == null) return [];
     final list = <_ProfileTabConfig>[];
+    if (_user!.showRankings) {
+      list.add(_ProfileTabConfig(
+        label: _formatTabLabel(baseLabel: 'Rankings', count: _rankingsCount),
+        view: UserRankingsTab(
+          userId: _user!.id,
+          onStacksCountChanged: (c) {
+            if (mounted && _rankingsCount != c) {
+              setState(() => _rankingsCount = c);
+            }
+          },
+        ),
+      ));
+    }
     if (_user!.showWatchEntries) {
       final count = _hasLoadedTabs
           ? (_user!.entriesCount > 0 ? _user!.entriesCount : _historyEntries.length)
@@ -226,12 +242,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       list.add(_ProfileTabConfig(
         label: _formatTabLabel(baseLabel: 'Watchlist', count: count),
         view: _buildUserWatchlistTab(),
-      ));
-    }
-    if (_user!.showRankings) {
-      list.add(_ProfileTabConfig(
-        label: 'Rankings',
-        view: UserRankingsTab(userId: _user!.id),
       ));
     }
     return list;
@@ -435,13 +445,17 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           WHAlert.showInfo(context, origRequested ? 'Follow request cancelled' : 'Unfollowed @${_user!.username}');
         }
       } else {
-        await repo.followUser(_user!.id);
-        final isPrivate = _user!.privacyLevel == 'FOLLOWERS_ONLY' || _user!.privacyLevel == 'PRIVATE' || _user!.isPrivate;
+        final res = await repo.followUser(_user!.id);
+        final status = res['status']?.toString().toLowerCase();
+        final isPrivate = status == 'requested' ||
+            (status == null && (_user!.privacyLevel == 'FOLLOWERS_ONLY' || _user!.privacyLevel == 'PRIVATE' || _user!.isPrivate));
         setState(() {
           if (isPrivate) {
             _isRequested = true;
+            _isFollowing = false;
           } else {
             _isFollowing = true;
+            _isRequested = false;
             _user = _user!.copyWith(followersCount: _user!.followersCount + 1);
           }
         });
@@ -456,8 +470,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           WHAlert.showSuccess(
             context,
             isPrivate
-                ? 'Follow request sent to @${_user!.username} ⏳'
-                : 'Now following @${_user!.username}! ✨',
+                ? 'Follow request sent to @${_user!.username}.'
+                : 'Following @${_user!.username}.',
           );
         }
       }
@@ -470,7 +484,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         _isRequested = origRequested;
       });
       if (mounted) {
-        WHAlert.showError(context, 'Action failed: $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Action failed'));
       }
     } finally {
       if (mounted) setState(() => _isActionLoading = false);
@@ -487,11 +501,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         _incomingRequestId = null;
       });
       if (mounted) {
-        WHAlert.showSuccess(context, 'Follow request accepted! 🤝');
+        WHAlert.showSuccess(context, 'Follow request accepted.');
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to accept request: $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to accept request'));
       }
     } finally {
       if (mounted) setState(() => _isActionLoading = false);
@@ -512,13 +526,43 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to decline request: $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to decline request'));
       }
     } finally {
       if (mounted) setState(() => _isActionLoading = false);
     }
   }
 
+  Future<void> _handleUnblockUser() async {
+    if (_user == null) return;
+    final confirm = await WHAlert.confirm(
+      context,
+      title: 'Unblock @${_user!.username}?',
+      message: 'Their content and recommendations will appear in your feed again.',
+      confirmText: 'Unblock',
+      severity: WHAlertSeverity.primary,
+      icon: Icons.person_add_rounded,
+    );
+    if (!confirm || !mounted) return;
+    try {
+      final repo = ref.read(userRepositoryProvider);
+      await repo.unblockUser(_user!.id);
+      try {
+        await repo.followUser(_user!.id);
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _isBlocked = false;
+        _isFollowing = true;
+      });
+      _fetchProfile();
+      ref.read(feedProvider.notifier).loadFeed(isRefresh: true);
+      WHAlert.showSuccess(context, 'Unblocked @${_user!.username}');
+    } catch (_) {
+      if (!mounted) return;
+      WHAlert.showError(context, 'Failed to unblock user.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -526,7 +570,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       return const WHSkeletonProfile();
     }
 
-    if (_error != null || _user == null) {
+    if (_user == null) {
       return PopScope(
         canPop: context.safeCanPop,
         onPopInvokedWithResult: (didPop, _) {
@@ -623,11 +667,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 ),
               ),
               actions: [
-                if (_user != null)
+                if (!_isMe && _user != null)
                   IconButton(
-                    icon: const Icon(Icons.share_outlined, color: AppColors.textPrimary),
-                    tooltip: 'Share Profile',
-                    onPressed: _shareProfile,
+                    icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.primary),
+                    tooltip: 'Hive Code (QR)',
+                    onPressed: () => UserQrDialog.showForUser(context, _user!, isMe: false),
                   ),
                 if (_isMe)
                   IconButton(
@@ -641,6 +685,72 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                       );
                     },
                   ),
+                if (!_isMe && _user != null)
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
+                    color: AppColors.surfaceElevated,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onSelected: (value) async {
+                      if (value == 'report') {
+                        UgcModerationDialog.showReportDialog(
+                          context,
+                          ref,
+                          targetType: 'USER',
+                          targetId: _user!.id,
+                          targetTitle: _user!.displayName ?? '@${_user!.username}',
+                        );
+                      } else if (value == 'block') {
+                        UgcModerationDialog.confirmBlockUser(
+                          context,
+                          ref,
+                          userId: _user!.id,
+                          username: _user!.username,
+                          onBlocked: () {
+                            setState(() => _isBlocked = true);
+                            ref.read(feedProvider.notifier).removeEntriesByUser(_user!.id);
+                          },
+                        );
+                      } else if (value == 'unblock') {
+                        _handleUnblockUser();
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem<String>(
+                        value: 'report',
+                        height: 38,
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag_outlined, size: 16, color: AppColors.error),
+                            SizedBox(width: 8),
+                            Text('Report User', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: _isBlocked ? 'unblock' : 'block',
+                        height: 38,
+                        child: Row(
+                          children: [
+                            Icon(
+                              _isBlocked ? Icons.person_add_rounded : Icons.block_rounded,
+                              size: 16,
+                              color: _isBlocked ? AppColors.primary : AppColors.error,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isBlocked ? 'Unblock User' : 'Block User',
+                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+                  tooltip: 'About User Profile',
+                  onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.userProfile),
+                ),
               ],
             ),
             if (_isMe)
@@ -739,45 +849,54 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Persona Badge
+          // Top Row: Persona (Left) & Level Progression (Right)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.stars_rounded, size: 14, color: AppColors.primaryDark),
-                    SizedBox(width: 4),
-                    Text(
-                      'SOUL PERSONA',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
-                        color: AppColors.primaryDark,
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.stars_rounded, size: 14, color: AppColors.primaryDark),
+                      SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'CINEPHILE',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                            color: AppColors.primaryDark,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceHighest,
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: Text(
                   'LVL ${user.level} · ${user.xp} XP',
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontFamily: 'Inter',
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w800,
                     color: AppColors.textSecondary,
                   ),
@@ -790,10 +909,27 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           // Avatar & User Info
           Row(
             children: [
-              WHAvatar(
-                imageUrl: user.profilePictureUrl,
-                name: user.name,
-                radius: 36,
+              GestureDetector(
+                onTap: () {
+                  AvatarViewerDialog.show(
+                    context,
+                    imageUrl: user.profilePictureUrl,
+                    name: user.name,
+                    username: user.username,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primary, width: 2),
+                  ),
+                  child: WHAvatar(
+                    imageUrl: user.profilePictureUrl,
+                    name: user.name,
+                    radius: 36,
+                  ),
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -854,17 +990,99 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           // Bio
           if (user.bio != null && user.bio!.trim().isNotEmpty) ...[
             Text(
-              '"${user.bio!}"',
+              user.bio!.trim(),
               style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 13,
-                height: 1.4,
-                color: AppColors.textSecondary,
-                fontStyle: FontStyle.italic,
+                fontSize: 13.5,
+                height: 1.45,
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w400,
               ),
             ),
             const SizedBox(height: 14),
           ],
+
+          // Cinephile Progression & Badges Tray (Responsive Wrap — zero overflow risk)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              // Honey Badges Earned Pill
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => HoneyBadgesDialog.show(context, user, entries: _historyEntries),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.military_tech_rounded, size: 15, color: AppColors.primaryDark),
+                        const SizedBox(width: 4),
+                        Builder(
+                          builder: (context) {
+                            final count = HoneyBadgesDialog.getEarnedBadgesCount(user, entries: _historyEntries);
+                            return Text(
+                              '$count ${count == 1 ? "Badge" : "Badges"} Unlocked',
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF2D2926),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 3),
+                        const Icon(Icons.chevron_right_rounded, size: 14, color: AppColors.primaryDark),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Streak Pill
+              if (user.watchStreak > 0)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => HoneyBadgesDialog.show(context, user, entries: _historyEntries),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFDBA74)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('🔥', style: TextStyle(fontSize: 11)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${user.watchStreak}-Day Streak',
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF9A3412),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
 
           // Followers & Following Counters (Clickable)
           Row(
@@ -972,7 +1190,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.black,
+                      foregroundColor: const Color(0xFF2D2926),
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -1022,7 +1240,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                     onPressed: _isActionLoading ? null : _handleFollowToggle,
                     icon: Icon(
                       _isFollowing
-                          ? Icons.person_remove_outlined
+                          ? Icons.check_rounded
                           : _isRequested
                               ? Icons.hourglass_top_rounded
                               : Icons.person_add_rounded,
@@ -1047,34 +1265,66 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 // Compare Taste Shortcut
                 IconButton.filledTonal(
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                    foregroundColor: AppColors.primaryDark,
+                    backgroundColor: _isFollowing
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : AppColors.surfaceHighest,
+                    foregroundColor: _isFollowing ? AppColors.primaryDark : AppColors.textMuted,
                     padding: const EdgeInsets.all(12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  tooltip: 'Compare Taste',
-                  onPressed: () => context.push('/compare/${user.id}', extra: user),
-                  icon: const Icon(Icons.compare_arrows_rounded, size: 20),
+                  tooltip: _isFollowing
+                      ? 'Compare Taste'
+                      : 'Follow @${user.username} to compare taste',
+                  onPressed: () {
+                    if (!_isFollowing) {
+                      WHAlert.showWarning(
+                        context,
+                        'You must follow @${user.username} to compare taste.',
+                      );
+                      return;
+                    }
+                    context.push('/compare/${user.id}', extra: user);
+                  },
+                  icon: Icon(
+                    Icons.compare_arrows_rounded,
+                    size: 20,
+                    color: _isFollowing ? AppColors.primaryDark : AppColors.textMuted,
+                  ),
                 ),
                 const SizedBox(width: 8),
 
                 // Suggest Movie Modal
                 IconButton.filledTonal(
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                    foregroundColor: AppColors.primaryDark,
+                    backgroundColor: _isFollowing
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : AppColors.surfaceHighest,
+                    foregroundColor: _isFollowing ? AppColors.primaryDark : AppColors.textMuted,
                     padding: const EdgeInsets.all(12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  tooltip: 'Suggest a Movie',
+                  tooltip: _isFollowing
+                      ? 'Suggest a Movie'
+                      : 'Follow @${user.username} to suggest movies',
                   onPressed: () {
+                    if (!_isFollowing) {
+                      WHAlert.showWarning(
+                        context,
+                        'You must follow @${user.username} to suggest movies.',
+                      );
+                      return;
+                    }
                     SuggestMovieModal.show(
                       context,
                       initialToUserId: user.id,
                       initialToUserName: user.username,
                     );
                   },
-                  icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+                  icon: Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 20,
+                    color: _isFollowing ? AppColors.primaryDark : AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -1085,58 +1335,61 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
   Widget _buildNoPublicSectionsView() {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceHighest,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.visibility_off_outlined, size: 30, color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              _isMe ? 'No Public Sections Enabled' : 'No Public Activity',
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _isMe
-                  ? 'You have disabled all individual tabs (Watches, Watching, Watchlist, Rankings) in your privacy settings. Other users will only see your basic profile and bio.'
-                  : 'This user has kept their watch history, lists, and rankings private.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-            ),
-            if (_isMe && _user != null) ...[
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: const BoxDecoration(
+                  color: AppColors.surfaceHighest,
+                  shape: BoxShape.circle,
                 ),
-                onPressed: () {
-                  EditProfileDialog.show(
-                    context,
-                    user: _user!,
-                    onSaved: _fetchProfile,
-                  );
-                },
-                icon: const Icon(Icons.tune_rounded, size: 16),
-                label: const Text('Enable Sections in Privacy Settings'),
+                child: const Icon(Icons.visibility_off_outlined, size: 30, color: AppColors.textMuted),
               ),
+              const SizedBox(height: 14),
+              Text(
+                _isMe ? 'No Public Sections Enabled' : 'No Public Activity',
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _isMe
+                    ? 'You have disabled all individual tabs (Watches, Watching, Watchlist, Rankings) in your privacy settings. Other users will only see your basic profile and bio.'
+                    : 'This user has kept their watch history, lists, and rankings private.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              ),
+              if (_isMe && _user != null) ...[
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    EditProfileDialog.show(
+                      context,
+                      user: _user!,
+                      onSaved: _fetchProfile,
+                    );
+                  },
+                  icon: const Icon(Icons.tune_rounded, size: 16),
+                  label: const Text('Enable Sections in Privacy Settings'),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -1221,7 +1474,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
               ),
               const SizedBox(height: 8),
               Text(
-                'Follow @${user.username} to see their watch history, watchlist, and ranking stacks.',
+                'Follow @${user.username} to view their watch history, watchlist, and ranked lists.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
               ),
@@ -1276,7 +1529,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           mediaType: entry.type,
           mode: WHEntryCardMode.history,
           rating: entry.rating,
-          watchedAt: entry.watchedAt,
+          watchedAt: entry.hasExactWatchDate ? entry.watchedAt : null,
           watchLocation: entry.watchLocation,
           tags: entry.tags,
           onTap: () {
@@ -1379,6 +1632,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
             ? addedAtRaw
             : (addedAtRaw is String && addedAtRaw.isNotEmpty ? DateTime.tryParse(addedAtRaw) : null);
 
+        final suggestedByUser = item['suggestedByUser'] as Map<String, dynamic>?;
+        final suggestorUsername = suggestedByUser?['username'] as String? ?? item['suggestedByUsername'] as String?;
+        final suggestorAvatar = suggestedByUser?['profilePictureUrl'] as String?;
+
         return WHEntryGridCard(
           tmdbId: tmdbId,
           title: title.isNotEmpty ? title : 'Untitled',
@@ -1386,6 +1643,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           mediaType: mediaType,
           mode: WHEntryCardMode.watchlist,
           addedAt: addedAt,
+          suggestedByUsername: suggestorUsername,
+          suggestedByAvatarUrl: suggestorAvatar,
           onTap: () {
             if (tmdbId > 0) context.push('/details/$mediaType/$tmdbId');
           },
@@ -1469,7 +1728,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' && effectiveTitle.toLowerCase() != 'this title' ? effectiveTitle : cleanTitle,
         'type': mediaType,
         'isWatching': true,
-        'startedAt': DateTime.now().toIso8601String(),
+        'startedAt': DateTime.now().toUtc().toIso8601String(),
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
       });
 
@@ -1485,7 +1744,27 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
               (itemId != null && it['id'] == itemId));
           _watchingEntries.insert(0, entry);
         });
-        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching! 🍿');
+        final currentUser = ref.read(authStateProvider).value?.user;
+        final posterPath = (item['poster_path'] ?? item['posterPath'])?.toString();
+        WHAlert.showSuccessWithAction(
+          context,
+          message: 'Moved "$cleanTitle" to Currently Watching.',
+          actionLabel: 'Share',
+          actionIcon: Icons.share_rounded,
+          onAction: () {
+            ShareHelper.shareCompletedWatch(
+              context: context,
+              title: cleanTitle,
+              posterPath: posterPath,
+              tmdbId: tmdbId > 0 ? tmdbId : null,
+              mediaType: isTv ? 'tv' : 'movie',
+              userDisplayName: currentUser?.displayName ?? currentUser?.username,
+              username: currentUser?.username,
+              userAvatarUrl: currentUser?.profilePictureUrl,
+              shareMode: StoryShareMode.watching,
+            );
+          },
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -1552,7 +1831,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                   (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
                   (itemId != null && it['id'] == itemId));
             });
-            WHAlert.showSuccess(context, 'Logged and removed "$cleanTitle" from Watchlist! ✨');
+            WHAlert.showSuccess(context, 'Logged and removed "$cleanTitle" from Watchlist.');
           }
         },
       ),
@@ -1615,7 +1894,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to remove "$cleanTitle": $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to remove "$cleanTitle"'));
       }
     }
   }

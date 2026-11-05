@@ -28,6 +28,7 @@ class ApiClient {
 
     _dio.interceptors.addAll([
       _AuthInterceptor(_authManager, _dio),
+      _TmdBCacheInterceptor(),
       LogInterceptor(
         request: false,
         responseBody: false,
@@ -138,6 +139,154 @@ class _AuthInterceptor extends Interceptor {
       await _authManager.logout();
     } finally {
       _refreshCompleter = null;
+    }
+
+    handler.next(err);
+  }
+}
+
+// ─── TMDb In-Memory SWR Cache Interceptor ────────────────────────────────────
+
+class _TmdBCacheEntry {
+  final dynamic data;
+  final int statusCode;
+  final Headers headers;
+  final DateTime expiresAt;
+
+  _TmdBCacheEntry({
+    required this.data,
+    required this.statusCode,
+    required this.headers,
+    required this.expiresAt,
+  });
+
+  bool get isExpired => DateTime.now().isAfter(expiresAt);
+}
+
+class _TmdBCacheInterceptor extends Interceptor {
+  final Map<String, _TmdBCacheEntry> _cache = {};
+  final Map<String, Completer<Response>> _inFlight = {};
+  static const int _maxEntries = 500;
+
+  String _buildKey(RequestOptions options) {
+    final queryStr = options.queryParameters.entries
+        .map((e) => '${e.key}=${e.value}')
+        .join('&');
+    return '${options.path}?$queryStr';
+  }
+
+  Duration _getTtl(String path) {
+    if (path.contains('/season/')) return const Duration(days: 7);
+    if (path.contains('/movie/') || path.contains('/tv/')) return const Duration(hours: 24);
+    if (path.contains('/trending/') || path.contains('/popular')) return const Duration(hours: 1);
+    if (path.contains('/search/')) return const Duration(minutes: 10);
+    if (path.contains('/discover')) return const Duration(minutes: 30);
+    return const Duration(minutes: 30);
+  }
+
+  bool _isCacheable(RequestOptions options) {
+    if (options.method.toUpperCase() != 'GET') return false;
+    if (!options.path.startsWith('/tmdb/')) return false;
+    if (options.extra['noCache'] == true ||
+        options.headers['Cache-Control'] == 'no-cache') {
+      return false;
+    }
+    return true;
+  }
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    if (!_isCacheable(options)) {
+      return handler.next(options);
+    }
+
+    final key = _buildKey(options);
+
+    // 1. Check in-memory cache
+    final entry = _cache[key];
+    if (entry != null && !entry.isExpired) {
+      return handler.resolve(
+        Response(
+          requestOptions: options,
+          data: entry.data,
+          statusCode: entry.statusCode,
+          headers: entry.headers,
+        ),
+      );
+    }
+
+    // 2. Single-flight deduplication: await identical in-flight request
+    if (_inFlight.containsKey(key)) {
+      try {
+        final resp = await _inFlight[key]!.future;
+        return handler.resolve(
+          Response(
+            requestOptions: options,
+            data: resp.data,
+            statusCode: resp.statusCode,
+            headers: resp.headers,
+          ),
+        );
+      } catch (_) {
+        // Fall through to make fresh request if ongoing one errored
+      }
+    }
+
+    _inFlight[key] = Completer<Response>();
+    handler.next(options);
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    if (_isCacheable(response.requestOptions) && response.statusCode == 200) {
+      final key = _buildKey(response.requestOptions);
+
+      // Evict oldest 20% if cache full
+      if (_cache.length >= _maxEntries) {
+        final keysToRemove = _cache.keys.take((_maxEntries * 0.2).toInt()).toList();
+        for (final k in keysToRemove) {
+          _cache.remove(k);
+        }
+      }
+
+      final ttl = _getTtl(response.requestOptions.path);
+      _cache[key] = _TmdBCacheEntry(
+        data: response.data,
+        statusCode: response.statusCode ?? 200,
+        headers: response.headers,
+        expiresAt: DateTime.now().add(ttl),
+      );
+
+      final completer = _inFlight.remove(key);
+      if (completer != null && !completer.isCompleted) {
+        completer.complete(response);
+      }
+    }
+
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    if (_isCacheable(err.requestOptions)) {
+      final key = _buildKey(err.requestOptions);
+      final completer = _inFlight.remove(key);
+      if (completer != null && !completer.isCompleted) {
+        completer.completeError(err);
+      }
+
+      // Offline / network failure graceful fallback to cached stale data
+      final stale = _cache[key];
+      if (stale != null) {
+        return handler.resolve(
+          Response(
+            requestOptions: err.requestOptions,
+            data: stale.data,
+            statusCode: stale.statusCode,
+            headers: stale.headers,
+          ),
+        );
+      }
     }
 
     handler.next(err);

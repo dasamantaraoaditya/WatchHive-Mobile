@@ -130,6 +130,10 @@ void main() {
         }
       ];
 
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -189,6 +193,10 @@ void main() {
           'addedAt': '2025-08-20T10:00:00Z',
         }
       ];
+
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
         ProviderScope(

@@ -10,6 +10,7 @@ import '../../../core/services/data_parser_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wh_alert.dart';
+import '../../../shared/widgets/wh_bee_loader.dart';
 import '../repositories/user_repository.dart';
 import 'import_preview_sheet.dart';
 
@@ -22,10 +23,11 @@ class DataManagementCard extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<DataManagementCard> createState() => _DataManagementCardState();
+  ConsumerState<DataManagementCard> createState() => DataManagementCardState();
 }
 
-class _DataManagementCardState extends ConsumerState<DataManagementCard> {
+class DataManagementCardState extends ConsumerState<DataManagementCard> {
+  bool _isExpanded = false;
   String _activeTab = 'import'; // 'import' or 'export'
   bool _includeEntries = true;
   bool _includeLists = true;
@@ -35,6 +37,12 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
   bool _defaultToCurrentYear = false;
   bool _copiedAiPrompt = false;
   Map<String, dynamic>? _importResult;
+
+  void expand() {
+    if (!_isExpanded && mounted) {
+      setState(() => _isExpanded = true);
+    }
+  }
 
   Future<void> _handleExport() async {
     if (!_includeEntries && !_includeLists) {
@@ -204,7 +212,9 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: _isExpanded
+          ? const EdgeInsets.all(20)
+          : const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
@@ -213,537 +223,576 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with Mode Switcher
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  _activeTab == 'export' ? Icons.file_download_rounded : Icons.file_upload_rounded,
-                  size: 18,
-                  color: AppColors.primaryDark,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Data Management',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _activeTab == 'export'
-                          ? 'Export your watch entries and lists'
-                          : 'Import your watch history & migrate catalogs',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                    ),
-                  ],
-                ),
-              ),
-              // Segmented Tab Toggle
-              Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceHighest,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    _buildModeButton('import', 'Import'),
-                    _buildModeButton('export', 'Export'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-
-          if (_activeTab == 'export') ...[
-            // ─── EXPORT VIEW ───────────────────────────────────────
-            const Text(
-              'DATA TYPES TO INCLUDE',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.8,
-                color: AppColors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            Row(
+          // Header (Tappable to expand / collapse)
+          InkWell(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Row(
               children: [
-                Expanded(
-                  child: _buildDataTypeTile(
-                    icon: Icons.history_rounded,
-                    title: 'Watch Entries',
-                    subtitle: 'Ratings & reviews',
-                    checked: _includeEntries,
-                    onChanged: (val) => setState(() => _includeEntries = val),
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _activeTab == 'export' ? Icons.file_download_rounded : Icons.file_upload_rounded,
+                    size: 18,
+                    color: AppColors.primaryDark,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: _buildDataTypeTile(
-                    icon: Icons.list_alt_rounded,
-                    title: 'Watch Lists',
-                    subtitle: 'Saved collections',
-                    checked: _includeLists,
-                    onChanged: (val) => setState(() => _includeLists = val),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Data Management',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _activeTab == 'export'
+                            ? 'Export your watch entries and lists'
+                            : 'Import your watch history & migrate catalogs',
+                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                AnimatedRotation(
+                  turns: _isExpanded ? 0.5 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.textMuted,
+                    size: 24,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+          ),
+          if (_isExpanded) ...[
+            const SizedBox(height: 18),
 
+            // Segmented Tab Toggle (Import first, then Export)
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: AppColors.surfaceHighest.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(18),
+                color: AppColors.surfaceHighest,
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.border),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
+                  Expanded(child: _buildModeButton('import', 'Import')),
+                  Expanded(child: _buildModeButton('export', 'Export')),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            if (_activeTab == 'export') ...[
+              // ─── EXPORT VIEW ───────────────────────────────────────
+              const Text(
+                'DATA TYPES TO INCLUDE',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.8,
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildDataTypeTile(
+                      icon: Icons.history_rounded,
+                      title: 'Watch Entries',
+                      subtitle: 'Ratings & reviews',
+                      checked: _includeEntries,
+                      onChanged: (val) => setState(() => _includeEntries = val),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildDataTypeTile(
+                      icon: Icons.list_alt_rounded,
+                      title: 'Watch Lists',
+                      subtitle: 'Saved collections',
+                      checked: _includeLists,
+                      onChanged: (val) => setState(() => _includeLists = val),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Feed Protection Info Banner
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.shield_outlined, size: 18, color: AppColors.primaryDark),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Feed Protection: Imported watch history and entries are added to your personal library & stats only and will not flood the community feed.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Format Toggle & Actions Container
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceHighest.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Export Format',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _exportFormat.toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.8,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(
+                            children: ['json', 'csv'].map((fmt) {
+                              final isSelected = _exportFormat == fmt;
+                              return GestureDetector(
+                                onTap: () => setState(() => _exportFormat = fmt),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? AppColors.primary : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(9),
+                                  ),
+                                  child: Text(
+                                    fmt.toUpperCase(),
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.5,
+                                      color: isSelected ? Colors.black : AppColors.textMuted,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.black,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: _isExporting || _isImporting ? null : _handleExport,
+                        icon: _isExporting
+                            ? const WHBeeSpinner(size: 16)
+                            : const Icon(Icons.download_rounded, size: 18),
+                        label: Text(
+                          _isExporting ? 'Exporting...' : 'Export Data',
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              // ─── IMPORT VIEW (Compact & AI First) ──────────────────
+              // 1. Format with AI card (Shifted Above)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.black),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Format Your History with AI',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Have unformatted notes or a text list? Copy our prompt into ChatGPT, Claude, or Gemini to instantly convert into importable JSON.',
+                                style: TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.35),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black,
+                          backgroundColor: _copiedAiPrompt ? AppColors.success.withValues(alpha: 0.15) : AppColors.surface,
+                          side: BorderSide(color: _copiedAiPrompt ? AppColors.success : AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Clipboard.setData(const ClipboardData(text: DataParserService.aiImportPrompt));
+                          setState(() => _copiedAiPrompt = true);
+                          Future.delayed(const Duration(seconds: 2), () {
+                            if (mounted) setState(() => _copiedAiPrompt = false);
+                          });
+                        },
+                        icon: Icon(
+                          _copiedAiPrompt ? Icons.check_circle_rounded : Icons.content_copy_rounded,
+                          size: 15,
+                          color: _copiedAiPrompt ? AppColors.success : Colors.black,
+                        ),
+                        label: Text(
+                          _copiedAiPrompt ? 'Prompt Copied! ✨' : 'Copy AI Formatting Prompt',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: _copiedAiPrompt ? AppColors.success : Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // 2. Default to current year toggle
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceHighest.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primaryDark),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Export Format',
+                            'Default to current year if no date',
                             style: TextStyle(
                               fontFamily: 'Inter',
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w800,
                               color: AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            _exportFormat.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.8,
-                              color: AppColors.textMuted,
-                            ),
+                            _defaultToCurrentYear
+                                ? 'Items without a date will default to ${DateTime.now().year}'
+                                : 'Off by default — no watch date will be recorded',
+                            style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
                           ),
                         ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Row(
-                          children: ['json', 'csv'].map((fmt) {
-                            final isSelected = _exportFormat == fmt;
-                            return GestureDetector(
-                              onTap: () => setState(() => _exportFormat = fmt),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? AppColors.primary : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(9),
-                                ),
-                                child: Text(
-                                  fmt.toUpperCase(),
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.5,
-                                    color: isSelected ? Colors.black : AppColors.textMuted,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.black,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      onPressed: _isExporting || _isImporting ? null : _handleExport,
-                      icon: _isExporting
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                            )
-                          : const Icon(Icons.download_rounded, size: 18),
-                      label: Text(
-                        _isExporting ? 'Exporting...' : 'Export Data',
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            // ─── IMPORT VIEW (Compact & AI First) ──────────────────
-            // 1. Format with AI card (Shifted Above)
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.black),
-                      ),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Format Your History with AI',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Have unformatted notes or a text list? Copy our prompt into ChatGPT, Claude, or Gemini to instantly convert into importable JSON.',
-                              style: TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.35),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black,
-                        backgroundColor: _copiedAiPrompt ? AppColors.success.withValues(alpha: 0.15) : AppColors.surface,
-                        side: BorderSide(color: _copiedAiPrompt ? AppColors.success : AppColors.primary),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: () {
-                        Clipboard.setData(const ClipboardData(text: DataParserService.aiImportPrompt));
-                        setState(() => _copiedAiPrompt = true);
-                        Future.delayed(const Duration(seconds: 2), () {
-                          if (mounted) setState(() => _copiedAiPrompt = false);
-                        });
-                      },
-                      icon: Icon(
-                        _copiedAiPrompt ? Icons.check_circle_rounded : Icons.content_copy_rounded,
-                        size: 15,
-                        color: _copiedAiPrompt ? AppColors.success : Colors.black,
-                      ),
-                      label: Text(
-                        _copiedAiPrompt ? 'Prompt Copied! ✨' : 'Copy AI Formatting Prompt',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: _copiedAiPrompt ? AppColors.success : Colors.black,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // 2. Default to current year toggle
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceHighest.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primaryDark),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Default to current year if no date',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _defaultToCurrentYear
-                              ? 'Items without a date will default to ${DateTime.now().year}'
-                              : 'Off by default — no watch date will be recorded',
-                          style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Switch.adaptive(
-                    value: _defaultToCurrentYear,
-                    activeTrackColor: AppColors.primary,
-                    onChanged: (val) => setState(() => _defaultToCurrentYear = val),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // 3. Compact Dropzone File Picker
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceHighest.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.cloud_upload_rounded, size: 22, color: AppColors.primaryDark),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Select File to Import',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Letterboxd, IMDb, Trakt, Notion CSV or WatchersHive JSON',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 10, color: AppColors.textMuted),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      _buildChip('🟩 Letterboxd'),
-                      _buildChip('🟨 IMDb'),
-                      _buildChip('🟥 Trakt'),
-                      _buildChip('📄 CSV / JSON'),
-                      _buildChip('✨ Auto TMDb Match', color: AppColors.success),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.black,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      onPressed: _isExporting || _isImporting ? null : _handleImport,
-                      icon: _isImporting
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                            )
-                          : const Icon(Icons.upload_file_rounded, size: 18),
-                      label: Text(
-                        _isImporting ? 'Parsing & Matching...' : 'Choose File to Import',
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // 4. Collapsible Migration Tips
-            Theme(
-              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceHighest.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: ExpansionTile(
-                  tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
-                  childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                  leading: const Icon(Icons.help_outline_rounded, size: 18, color: AppColors.primaryDark),
-                  title: const Text(
-                    'Migration tips (Letterboxd, IMDb, Trakt)',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  children: [
-                    _buildMigrationCard(
-                      badge: '🟩 Letterboxd',
-                      guide: 'Settings > Data > Export Data. Drop diary.csv. 5-star ratings scale 2x to 10-point scale!',
-                    ),
-                    const SizedBox(height: 6),
-                    _buildMigrationCard(
-                      badge: '🟨 IMDb',
-                      guide: 'Your Ratings > ⋯ > Export. Drop ratings.csv. Const IDs ensure instant 100% accurate TMDb matching!',
-                    ),
-                    const SizedBox(height: 6),
-                    _buildMigrationCard(
-                      badge: '🟥 Trakt / Notion',
-                      guide: 'Export your watched history CSV/JSON. Dates, ratings, and IDs are mapped automatically.',
+                    Switch.adaptive(
+                      value: _defaultToCurrentYear,
+                      activeTrackColor: AppColors.primary,
+                      onChanged: (val) => setState(() => _defaultToCurrentYear = val),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
 
-          // Import Result Summary Banner
-          if (_importResult != null) ...[
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.success),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _importResult!['message']?.toString() ?? 'Import Complete!',
+              // 3. Compact Dropzone File Picker
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceHighest.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.cloud_upload_rounded, size: 22, color: AppColors.primaryDark),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Select File to Import',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Letterboxd, IMDb, Trakt, Notion CSV or WatchersHive JSON',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 10, color: AppColors.textMuted),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _buildChip('🟩 Letterboxd'),
+                        _buildChip('🟨 IMDb'),
+                        _buildChip('🟥 Trakt'),
+                        _buildChip('📄 CSV / JSON'),
+                        _buildChip('✨ Auto TMDb Match', color: AppColors.success),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.black,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: _isExporting || _isImporting ? null : _handleImport,
+                        icon: _isImporting
+                            ? const WHBeeSpinner(size: 16)
+                            : const Icon(Icons.upload_file_rounded, size: 18),
+                        label: Text(
+                          _isImporting ? 'Parsing & Matching...' : 'Choose File to Import',
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.success,
+                            letterSpacing: 0.2,
                           ),
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => setState(() => _importResult = null),
-                        child: const Icon(Icons.close_rounded, size: 16, color: AppColors.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // 4. Collapsible Migration Tips
+              Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceHighest.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: ExpansionTile(
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+                    childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                    leading: const Icon(Icons.help_outline_rounded, size: 18, color: AppColors.primaryDark),
+                    title: const Text(
+                      'Migration tips (Letterboxd, IMDb, Trakt)',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    children: [
+                      _buildMigrationCard(
+                        badge: '🟩 Letterboxd',
+                        guide: 'Settings > Data > Export Data. Drop diary.csv. 5-star ratings scale 2x to 10-point scale!',
+                      ),
+                      const SizedBox(height: 6),
+                      _buildMigrationCard(
+                        badge: '🟨 IMDb',
+                        guide: 'Your Ratings > ⋯ > Export. Drop ratings.csv. Const IDs ensure instant 100% accurate TMDb matching!',
+                      ),
+                      const SizedBox(height: 6),
+                      _buildMigrationCard(
+                        badge: '🟥 Trakt / Notion',
+                        guide: 'Export your watched history CSV/JSON. Dates, ratings, and IDs are mapped automatically.',
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 4,
-                    children: [
-                      if (_importResult!['entriesImported'] != null)
-                        Text(
-                          '${_importResult!['entriesImported']} entries added',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                        ),
-                      if ((_importResult!['entriesSkipped'] as num? ?? 0) > 0)
-                        Text(
-                          '${_importResult!['entriesSkipped']} skipped',
-                          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                        ),
-                      if (_importResult!['listsImported'] != null)
-                        Text(
-                          '${_importResult!['listsImported']} lists added',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                        ),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
+
+            // Import Result Summary Banner
+            if (_importResult != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.success),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _importResult!['message']?.toString() ?? 'Import Complete!',
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.success,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => setState(() => _importResult = null),
+                          child: const Icon(Icons.close_rounded, size: 16, color: AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
+                      children: [
+                        if (_importResult!['entriesImported'] != null)
+                          Text(
+                            '${_importResult!['entriesImported']} entries added',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                          ),
+                        if ((_importResult!['entriesSkipped'] as num? ?? 0) > 0)
+                          Text(
+                            '${_importResult!['entriesSkipped']} skipped',
+                            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                          ),
+                        if (_importResult!['listsImported'] != null)
+                          Text(
+                            '${_importResult!['listsImported']} lists added',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ],
       ),
@@ -758,7 +807,8 @@ class _DataManagementCardState extends ConsumerState<DataManagementCard> {
         _importResult = null;
       }),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(9),

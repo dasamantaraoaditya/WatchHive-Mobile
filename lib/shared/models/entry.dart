@@ -28,6 +28,10 @@ class Entry {
   final bool isSuggestion;
   final String? suggestionReason;
   final DateTime? updatedAt;
+  final bool isImported;
+  final bool isPendingSync;
+  final bool postToFeed;
+  final bool hasExactWatchDate;
 
   const Entry({
     required this.id,
@@ -48,6 +52,10 @@ class Entry {
     this.watchLocation,
     required this.createdAt,
     this.updatedAt,
+    this.isImported = false,
+    this.isPendingSync = false,
+    this.postToFeed = true,
+    this.hasExactWatchDate = true,
     this.user,
     this.likesCount = 0,
     this.commentsCount = 0,
@@ -59,10 +67,31 @@ class Entry {
     this.suggestionReason,
   });
 
+  /// Computes the effective latest activity date for feed sorting and status display.
+  /// Standard: Posts are ordered chronologically by when they were created (createdAt).
+  /// Exception: Completed watching milestones (transition from watching to completed) use completedAt.
+  /// Regular edits/updates do NOT bump a post to the top.
+  DateTime get activityDate {
+    final now = DateTime.now();
+    DateTime raw;
+    final isCompletedWatchingUpdate = !isWatching &&
+        completedAt != null &&
+        (startedAt != null || completedAt!.difference(createdAt).inSeconds > 2);
+
+    if (isWatching) {
+      raw = startedAt ?? createdAt;
+    } else if (isCompletedWatchingUpdate) {
+      raw = completedAt!;
+    } else {
+      raw = createdAt;
+    }
+    return raw.isAfter(now) ? now : raw;
+  }
+
   String get typeLabel => switch (type) {
-        'MOVIE' => '🎬 Movie',
-        'TV_SHOW' => '📺 TV Show',
-        'EPISODE' => '📺 Episode',
+        'MOVIE' => 'Movie',
+        'TV_SHOW' => 'TV Show',
+        'EPISODE' => 'Episode',
         _ => type,
       };
 
@@ -125,9 +154,10 @@ class Entry {
       watchedAt: dataMap['watchedAt'] != null
           ? (DateTime.tryParse(dataMap['watchedAt'].toString())?.toLocal() ?? DateTime.now())
           : (json['timestamp'] != null ? (DateTime.tryParse(json['timestamp'].toString())?.toLocal() ?? DateTime.now()) : DateTime.now()),
+      hasExactWatchDate: dataMap['watchedAt'] != null && dataMap['watchedAt'].toString().isNotEmpty,
       rating: dataMap['rating'] != null
           ? double.tryParse(dataMap['rating'].toString())
-          : (dataMap['vote_average'] != null ? double.tryParse(dataMap['vote_average'].toString()) : null),
+          : (isSuggestion && dataMap['vote_average'] != null ? double.tryParse(dataMap['vote_average'].toString()) : null),
       review: dataMap['review'] as String? ?? (isSuggestion && dataMap['overview'] != null ? dataMap['overview'].toString() : null),
       tags: (dataMap['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       isRewatch: dataMap['isRewatch'] as bool? ?? false,
@@ -141,7 +171,21 @@ class Entry {
       watchLocation: dataMap['watchLocation'] as String?,
       createdAt: dataMap['createdAt'] != null
           ? (DateTime.tryParse(dataMap['createdAt'].toString())?.toLocal() ?? DateTime.now())
-          : DateTime.now(),
+          : (json['timestamp'] != null
+              ? (DateTime.tryParse(json['timestamp'].toString())?.toLocal() ?? (isSuggestion ? DateTime.fromMillisecondsSinceEpoch(0) : DateTime.now()))
+              : (isSuggestion ? DateTime.fromMillisecondsSinceEpoch(0) : DateTime.now())),
+      updatedAt: dataMap['updatedAt'] != null
+          ? DateTime.tryParse(dataMap['updatedAt'].toString())?.toLocal()
+          : (json['timestamp'] != null
+              ? DateTime.tryParse(json['timestamp'].toString())?.toLocal()
+              : null),
+      isImported: dataMap['isImported'] == true ||
+          dataMap['is_imported'] == true ||
+          json['isImported'] == true ||
+          (dataMap['tags'] as List<dynamic>?)?.contains('imported') == true,
+      isPendingSync: dataMap['isPendingSync'] == true ||
+          dataMap['is_pending_sync'] == true ||
+          json['isPendingSync'] == true,
       user: dataMap['user'] != null
           ? User.fromJson(dataMap['user'] as Map<String, dynamic>)
           : null,
@@ -165,6 +209,7 @@ class Entry {
           (dataMap['poster_path'] as String?),
       isSuggestion: isSuggestion,
       suggestionReason: reason,
+      postToFeed: dataMap['postToFeed'] as bool? ?? dataMap['post_to_feed'] as bool? ?? true,
     );
   }
 
@@ -187,6 +232,8 @@ class Entry {
     String? watchLocation,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? isImported,
+    bool? isPendingSync,
     User? user,
     int? likesCount,
     int? commentsCount,
@@ -196,6 +243,8 @@ class Entry {
     String? backdropPath,
     bool? isSuggestion,
     String? suggestionReason,
+    bool? postToFeed,
+    bool? hasExactWatchDate,
   }) {
     return Entry(
       id: id ?? this.id,
@@ -216,6 +265,10 @@ class Entry {
       watchLocation: watchLocation ?? this.watchLocation,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isImported: isImported ?? this.isImported,
+      isPendingSync: isPendingSync ?? this.isPendingSync,
+      postToFeed: postToFeed ?? this.postToFeed,
+      hasExactWatchDate: hasExactWatchDate ?? this.hasExactWatchDate,
       user: user ?? this.user,
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,
@@ -232,15 +285,49 @@ class Entry {
         'tmdbId': tmdbId,
         'title': title,
         'type': type,
-        'watchedAt': watchedAt.toIso8601String(),
+        'watchedAt': hasExactWatchDate ? watchedAt.toUtc().toIso8601String() : null,
         if (rating != null) 'rating': rating,
         if (review != null) 'review': review,
         'tags': tags,
         'isRewatch': isRewatch,
         'isWatching': isWatching,
-        if (startedAt != null) 'startedAt': startedAt!.toIso8601String(),
-        if (completedAt != null) 'completedAt': completedAt!.toIso8601String(),
+        'postToFeed': postToFeed,
+        if (startedAt != null) 'startedAt': startedAt!.toUtc().toIso8601String(),
+        if (completedAt != null) 'completedAt': completedAt!.toUtc().toIso8601String(),
         if (watchLocation != null) 'watchLocation': watchLocation,
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
+      };
+
+  Map<String, dynamic> toFullJson() => {
+        'id': id,
+        'userId': userId,
+        if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
+        if (suggestedByUser != null) 'suggestedByUser': suggestedByUser!.toJson(),
+        'tmdbId': tmdbId,
+        'title': title,
+        'type': type,
+        'watchedAt': hasExactWatchDate ? watchedAt.toUtc().toIso8601String() : null,
+        if (rating != null) 'rating': rating,
+        if (review != null) 'review': review,
+        'tags': tags,
+        'isRewatch': isRewatch,
+        'isWatching': isWatching,
+        'postToFeed': postToFeed,
+        if (startedAt != null) 'startedAt': startedAt!.toUtc().toIso8601String(),
+        if (completedAt != null) 'completedAt': completedAt!.toUtc().toIso8601String(),
+        if (watchLocation != null) 'watchLocation': watchLocation,
+        'createdAt': createdAt.toUtc().toIso8601String(),
+        if (updatedAt != null) 'updatedAt': updatedAt!.toUtc().toIso8601String(),
+        'isImported': isImported,
+        'isPendingSync': isPendingSync,
+        if (user != null) 'user': user!.toJson(),
+        'likesCount': likesCount,
+        'commentsCount': commentsCount,
+        'isLiked': isLiked,
+        'isCommented': isCommented,
+        if (posterPath != null) 'posterPath': posterPath,
+        if (backdropPath != null) 'backdropPath': backdropPath,
+        'isSuggestion': isSuggestion,
+        if (suggestionReason != null) 'suggestionReason': suggestionReason,
       };
 }

@@ -15,18 +15,26 @@ class User {
   final bool showCurrentlyWatching;
   final bool showWatchlist;
   final bool showRankings;
+  final bool notifyFollowingActivity;
   final List<dynamic> badges;
+  final int watchStreak;
+  final String? lastWatchDate;
+  final Map<String, dynamic>? preferences;
+  final bool hasCompletedOnboarding;
   final int entriesCount;
   final int? watchingCount;
   final int? watchlistCount;
   final int followersCount;
   final int followingCount;
   final bool isFollowing;
+  final bool isFollower;
   final bool isRequested;
   final bool isIncomingRequest;
   final String? incomingRequestId;
   final bool hasGoogleLinked;
   final bool hasPassword;
+  final String? suggestionReason;
+  final int mutualFriendsCount;
   final DateTime createdAt;
 
   const User({
@@ -43,25 +51,64 @@ class User {
     this.showCurrentlyWatching = true,
     this.showWatchlist = true,
     this.showRankings = true,
+    this.notifyFollowingActivity = true,
     this.xp = 0,
     this.level = 1,
     this.badges = const [],
+    this.watchStreak = 0,
+    this.lastWatchDate,
+    this.preferences,
+    this.hasCompletedOnboarding = false,
     this.entriesCount = 0,
     this.watchingCount,
     this.watchlistCount,
     this.followersCount = 0,
     this.followingCount = 0,
     this.isFollowing = false,
+    this.isFollower = false,
     this.isRequested = false,
     this.isIncomingRequest = false,
     this.incomingRequestId,
     this.hasGoogleLinked = false,
     this.hasPassword = true,
+    this.suggestionReason,
+    this.mutualFriendsCount = 0,
     required this.createdAt,
   });
 
   String get name => (displayName != null && displayName!.trim().isNotEmpty) ? displayName! : username;
   String? get displayLocation => (location != null && location!.trim().isNotEmpty) ? location!.trim() : null;
+
+  /// Returns true if this user has non-empty, substantive watch preferences saved.
+  bool get hasSubstantivePreferences {
+    if (preferences == null || preferences!.isEmpty) return false;
+    final langs = preferences!['languages'] as List?;
+    final genres = preferences!['genres'] as List?;
+    final platforms = preferences!['streamingPlatforms'] as List?;
+    return (langs != null && langs.isNotEmpty) ||
+        (genres != null && genres.isNotEmpty) ||
+        (platforms != null && platforms.isNotEmpty);
+  }
+
+  List<String> get savedLanguages {
+    final list = preferences?['languages'] as List?;
+    return list?.map((e) => e.toString()).toList() ?? const [];
+  }
+
+  List<String> get savedGenres {
+    final list = preferences?['genres'] as List?;
+    return list?.map((e) => e.toString()).toList() ?? const [];
+  }
+
+  List<int> get savedGenreIds {
+    final list = preferences?['genreIds'] as List?;
+    return list?.map((e) => int.tryParse(e.toString()) ?? 0).where((id) => id > 0).toList() ?? const [];
+  }
+
+  List<String> get savedStreamingPlatforms {
+    final list = preferences?['streamingPlatforms'] as List?;
+    return list?.map((e) => e.toString()).toList() ?? const [];
+  }
 
   static int _parseInt(dynamic val) {
     if (val == null) return 0;
@@ -96,9 +143,14 @@ class User {
       showCurrentlyWatching: json['showCurrentlyWatching'] as bool? ?? true,
       showWatchlist: json['showWatchlist'] as bool? ?? true,
       showRankings: json['showRankings'] as bool? ?? true,
+      notifyFollowingActivity: json['notifyFollowingActivity'] as bool? ?? true,
       xp: _parseInt(json['xp']),
       level: _parseInt(json['level']) > 0 ? _parseInt(json['level']) : 1,
       badges: json['badges'] as List<dynamic>? ?? [],
+      watchStreak: _parseInt(json['watchStreak'] ?? json['watch_streak']),
+      lastWatchDate: json['lastWatchDate']?.toString() ?? json['last_watch_date']?.toString(),
+      preferences: json['preferences'] is Map ? Map<String, dynamic>.from(json['preferences'] as Map) : null,
+      hasCompletedOnboarding: json['hasCompletedOnboarding'] as bool? ?? json['has_completed_onboarding'] as bool? ?? false,
       entriesCount: _parseInt(
         countData?['entries'] ?? countData?['watches'] ?? countData?['entriesCount'] ?? json['entriesCount'] ?? json['entries'],
       ),
@@ -115,11 +167,14 @@ class User {
         countData?['following'] ?? countData?['followingCount'] ?? json['followingCount'] ?? json['following'],
       ),
       isFollowing: json['isFollowing'] as bool? ?? false,
+      isFollower: json['isFollower'] as bool? ?? false,
       isRequested: json['isRequested'] as bool? ?? false,
       isIncomingRequest: json['isIncomingRequest'] as bool? ?? false,
       incomingRequestId: json['incomingRequestId']?.toString(),
       hasGoogleLinked: json['hasGoogleLinked'] as bool? ?? false,
       hasPassword: json['hasPassword'] as bool? ?? true,
+      suggestionReason: json['suggestionReason'] as String?,
+      mutualFriendsCount: _parseInt(json['mutualFriendsCount']),
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
           : DateTime.now(),
@@ -140,14 +195,23 @@ class User {
         'showCurrentlyWatching': showCurrentlyWatching,
         'showWatchlist': showWatchlist,
         'showRankings': showRankings,
+        'notifyFollowingActivity': notifyFollowingActivity,
         'xp': xp,
         'level': level,
         'badges': badges,
+        'watchStreak': watchStreak,
+        if (lastWatchDate != null) 'lastWatchDate': lastWatchDate,
+        if (preferences != null) 'preferences': preferences,
+        'hasCompletedOnboarding': hasCompletedOnboarding,
         'entriesCount': entriesCount,
         if (watchingCount != null) 'watchingCount': watchingCount,
         if (watchlistCount != null) 'watchlistCount': watchlistCount,
         'followersCount': followersCount,
         'followingCount': followingCount,
+        'isFollowing': isFollowing,
+        'isFollower': isFollower,
+        if (suggestionReason != null) 'suggestionReason': suggestionReason,
+        if (mutualFriendsCount > 0) 'mutualFriendsCount': mutualFriendsCount,
         'createdAt': createdAt.toIso8601String(),
       };
 
@@ -168,18 +232,26 @@ class User {
     bool? showCurrentlyWatching,
     bool? showWatchlist,
     bool? showRankings,
+    bool? notifyFollowingActivity,
     List<dynamic>? badges,
+    int? watchStreak,
+    String? lastWatchDate,
+    Map<String, dynamic>? preferences,
+    bool? hasCompletedOnboarding,
     int? entriesCount,
     int? watchingCount,
     int? watchlistCount,
     int? followersCount,
     int? followingCount,
     bool? isFollowing,
+    bool? isFollower,
     bool? isRequested,
     bool? isIncomingRequest,
     String? incomingRequestId,
     bool? hasGoogleLinked,
     bool? hasPassword,
+    String? suggestionReason,
+    int? mutualFriendsCount,
     DateTime? createdAt,
   }) {
     return User(
@@ -198,18 +270,26 @@ class User {
       showCurrentlyWatching: showCurrentlyWatching ?? this.showCurrentlyWatching,
       showWatchlist: showWatchlist ?? this.showWatchlist,
       showRankings: showRankings ?? this.showRankings,
+      notifyFollowingActivity: notifyFollowingActivity ?? this.notifyFollowingActivity,
       badges: badges ?? this.badges,
+      watchStreak: watchStreak ?? this.watchStreak,
+      lastWatchDate: lastWatchDate ?? this.lastWatchDate,
+      preferences: preferences ?? this.preferences,
+      hasCompletedOnboarding: hasCompletedOnboarding ?? this.hasCompletedOnboarding,
       entriesCount: entriesCount ?? this.entriesCount,
       watchingCount: watchingCount ?? this.watchingCount,
       watchlistCount: watchlistCount ?? this.watchlistCount,
       followersCount: followersCount ?? this.followersCount,
       followingCount: followingCount ?? this.followingCount,
       isFollowing: isFollowing ?? this.isFollowing,
+      isFollower: isFollower ?? this.isFollower,
       isRequested: isRequested ?? this.isRequested,
       isIncomingRequest: isIncomingRequest ?? this.isIncomingRequest,
       incomingRequestId: incomingRequestId ?? this.incomingRequestId,
       hasGoogleLinked: hasGoogleLinked ?? this.hasGoogleLinked,
       hasPassword: hasPassword ?? this.hasPassword,
+      suggestionReason: suggestionReason ?? this.suggestionReason,
+      mutualFriendsCount: mutualFriendsCount ?? this.mutualFriendsCount,
       createdAt: createdAt ?? this.createdAt,
     );
   }

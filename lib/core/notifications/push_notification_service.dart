@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -61,9 +62,33 @@ class PushNotificationService {
           options: DefaultFirebaseOptions.currentPlatform,
         );
       }
+
+      // On iOS, ensure APNs token has been received from Apple before calling getToken()
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        String? apnsToken = await _fcm.getAPNSToken();
+        if (apnsToken == null) {
+          debugPrint('[PushNotificationService] Waiting for iOS APNs token from Apple...');
+          for (int i = 0; i < 20; i++) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            apnsToken = await _fcm.getAPNSToken();
+            if (apnsToken != null) {
+              debugPrint('[PushNotificationService] iOS APNs token acquired successfully!');
+              break;
+            }
+          }
+        }
+        if (apnsToken == null) {
+          _lastTokenError =
+              'iOS APNs token not yet received from Apple. Notifications require a physical iOS device with Push capability enabled and APNs Key (.p8) uploaded in Firebase Console.';
+          debugPrint('[PushNotificationService] $_lastTokenError');
+          return null;
+        }
+      }
+
       _currentToken = await _fcm.getToken();
       _lastTokenError = null;
       if (_currentToken != null && _currentToken!.isNotEmpty) {
+        debugPrint('[PushNotificationService] FCM token obtained: ${_currentToken!.substring(0, 10)}...');
         _tokenController.add(_currentToken!);
       }
       return _currentToken;
@@ -72,6 +97,32 @@ class PushNotificationService {
       debugPrint('[PushNotificationService] Error fetching FCM token: $e');
       return null;
     }
+  }
+
+  /// Background watcher that polls for iOS APNs token if not immediately available on cold launch
+  void _startIosApnsWatcher([Future<void> Function(String token)? onTokenRefresh]) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return;
+    int attempts = 0;
+    Timer.periodic(const Duration(seconds: 3), (timer) async {
+      attempts++;
+      if (_currentToken != null && _currentToken!.isNotEmpty) {
+        timer.cancel();
+        return;
+      }
+      if (attempts > 30) {
+        timer.cancel();
+        return;
+      }
+      try {
+        final token = await getOrFetchToken();
+        if (token != null && token.isNotEmpty) {
+          timer.cancel();
+          if (onTokenRefresh != null) {
+            await onTokenRefresh(token);
+          }
+        }
+      } catch (_) {}
+    });
   }
 
   /// Initialize Firebase Messaging, Local Notifications, channels, and event listeners
@@ -148,16 +199,20 @@ class PushNotificationService {
 
       // 8. Get device FCM Token and register refresh callback
       try {
-        _currentToken = await _fcm.getToken();
+        _currentToken = await getOrFetchToken();
         if (_currentToken != null && _currentToken!.isNotEmpty) {
           debugPrint('[PushNotificationService] FCM Device Token obtained: ${_currentToken!.substring(0, 10)}...');
-          _tokenController.add(_currentToken!);
           if (onTokenRefresh != null) {
             await onTokenRefresh(_currentToken!);
           }
         }
       } catch (e) {
         debugPrint('[PushNotificationService] Could not retrieve FCM token: $e');
+      }
+
+      // On iOS, also launch background watcher if token was not available on first attempt
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS && _currentToken == null) {
+        _startIosApnsWatcher(onTokenRefresh);
       }
 
       _fcm.onTokenRefresh.listen((String newToken) async {
@@ -194,6 +249,9 @@ class PushNotificationService {
 
         isGranted = settings.authorizationStatus == AuthorizationStatus.authorized ||
             settings.authorizationStatus == AuthorizationStatus.provisional;
+        if (isGranted) {
+          unawaited(getOrFetchToken());
+        }
       }
     } catch (e) {
       debugPrint('[PushNotificationService] Error requesting notification permission via FCM: $e');
@@ -348,9 +406,59 @@ class PushNotificationService {
     if (context == null) return;
 
     final type = (data['type'] ?? '').toString().toUpperCase();
+    final rawMediaType = (data['mediaType'] ?? data['type'] ?? '').toString().toLowerCase();
+    final normMediaType = (rawMediaType.contains('tv') || rawMediaType.contains('show') || rawMediaType.contains('series')) ? 'tv' : 'movie';
     final url = data['url']?.toString();
 
-    // If explicit URL / route is passed
+    switch (type) {
+      case 'LIKE':
+      case 'FRIEND_STARTED_WATCHING':
+      case 'FRIEND_LOGGED_WATCH':
+        final entryId = data['entryId']?.toString();
+        if (entryId != null && entryId.isNotEmpty) {
+          context.push('/entry/$entryId');
+          return;
+        }
+        break;
+
+      case 'COMMENT':
+      case 'REPLY':
+        final entryId = data['entryId']?.toString();
+        if (entryId != null && entryId.isNotEmpty) {
+          context.push('/entry/$entryId?openComments=true');
+          return;
+        }
+        break;
+
+      case 'SUGGESTION':
+        final tmdbId = data['tmdbId'];
+        if (tmdbId != null && int.tryParse(tmdbId.toString()) != null && int.parse(tmdbId.toString()) > 0) {
+          context.push('/details/$normMediaType/$tmdbId');
+          return;
+        }
+        break;
+
+      case 'FOLLOW':
+      case 'FOLLOW_REQUEST':
+      case 'FOLLOW_ACCEPT':
+      case 'FOLLOW_REJECT':
+        final actorId = data['actorId'];
+        if (actorId != null && actorId.toString().isNotEmpty) {
+          context.push('/profile/$actorId');
+          return;
+        }
+        break;
+
+      case 'MENTION':
+        final entryId = data['entryId']?.toString();
+        if (entryId != null && entryId.isNotEmpty) {
+          context.push('/entry/$entryId?openComments=true');
+          return;
+        }
+        break;
+    }
+
+    // Fallback: If explicit deep-link URL is provided
     if (url != null && url.isNotEmpty) {
       if (url.startsWith('/watch-hive')) {
         final mobileRoute = url.replaceFirst('/watch-hive', '');
@@ -362,51 +470,6 @@ class PushNotificationService {
       }
     }
 
-    switch (type) {
-      case 'LIKE':
-        final entryId = data['entryId']?.toString();
-        if (entryId != null && entryId.isNotEmpty) {
-          context.push('/entry/$entryId');
-        } else {
-          context.go('/feed');
-        }
-        break;
-
-      case 'COMMENT':
-      case 'REPLY':
-        final entryId = data['entryId']?.toString();
-        if (entryId != null && entryId.isNotEmpty) {
-          context.push('/entry/$entryId?openComments=true');
-        } else {
-          context.go('/feed');
-        }
-        break;
-
-      case 'SUGGESTION':
-        final tmdbId = data['tmdbId'];
-        final mediaType = (data['mediaType'] ?? 'movie').toString().toLowerCase();
-        if (tmdbId != null && int.tryParse(tmdbId.toString()) != null && int.parse(tmdbId.toString()) > 0) {
-          context.push('/details/$mediaType/$tmdbId');
-        } else {
-          context.go('/entries');
-        }
-        break;
-
-      case 'FOLLOW':
-      case 'FOLLOW_REQUEST':
-      case 'FOLLOW_ACCEPT':
-      case 'FOLLOW_REJECT':
-        final actorId = data['actorId'];
-        if (actorId != null && actorId.toString().isNotEmpty) {
-          context.push('/profile/$actorId');
-        } else {
-          context.go('/notifications');
-        }
-        break;
-
-      default:
-        context.go('/notifications');
-        break;
-    }
+    context.go('/notifications');
   }
 }

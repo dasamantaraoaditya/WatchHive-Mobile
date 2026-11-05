@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
@@ -9,6 +10,9 @@ import '../repositories/entries_repository.dart';
 import '../repositories/watchlist_repository.dart';
 import '../screens/entries_screen.dart';
 import '../../feed/providers/feed_provider.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../../core/router/app_router.dart';
+import '../../../core/utils/share_helper.dart';
 
 class QuickCurrentlyWatchingSheet extends ConsumerStatefulWidget {
   const QuickCurrentlyWatchingSheet({super.key});
@@ -102,7 +106,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
         'title': title,
         'type': apiType,
         'isWatching': true,
-        'startedAt': DateTime.now().toIso8601String(),
+        'startedAt': DateTime.now().toUtc().toIso8601String(),
       });
 
       // Optimistically update entries tab if active
@@ -116,14 +120,36 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
 
       if (mounted) {
         Navigator.of(context).pop();
-        WHAlert.showSuccess(
-          context,
-          '"$cleanTitle" added to your Currently Watching log! 👁️✨',
+        final currentUser = ref.read(authStateProvider).value?.user;
+        final year = (media.releaseDate != null && media.releaseDate!.length >= 4)
+            ? media.releaseDate!.substring(0, 4)
+            : null;
+
+        WHAlert.showSuccessWithAction(
+          rootNavigatorKey.currentContext ?? context,
+          message: 'Added "$cleanTitle" to Currently Watching.',
+          actionLabel: 'Share',
+          actionIcon: Icons.share_rounded,
+          onAction: () {
+            ShareHelper.shareCompletedWatch(
+              context: rootNavigatorKey.currentContext,
+              title: cleanTitle,
+              posterPath: media.posterPath,
+              backdropPath: media.backdropPath,
+              tmdbId: media.id,
+              mediaType: media.mediaType,
+              releaseYear: year,
+              userDisplayName: currentUser?.displayName ?? currentUser?.username,
+              username: currentUser?.username,
+              userAvatarUrl: currentUser?.profilePictureUrl,
+              shareMode: StoryShareMode.watching,
+            );
+          },
         );
       }
     } catch (e) {
       if (mounted) {
-        WHAlert.showError(context, 'Failed to add "$cleanTitle" to Currently Watching: $e');
+        WHAlert.showError(context, AppErrorHandler.toUserFriendlyMessage(e, action: 'Failed to add "$cleanTitle" to Currently Watching'));
       }
     } finally {
       if (mounted) {
@@ -143,8 +169,11 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(
-        children: [
+      child: WHModalLoadingOverlay(
+        isLoading: _isSubmitting,
+        message: 'Adding to Currently Watching...',
+        child: Column(
+          children: [
           // Drag Handle
           const SizedBox(height: 12),
           Container(
@@ -223,11 +252,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
                 suffixIcon: _isSearching
                     ? const Padding(
                         padding: EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                        ),
+                        child: WHBeeSpinner(size: 16),
                       )
                     : _searchController.text.isNotEmpty
                         ? IconButton(
@@ -263,6 +288,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
             child: _buildResultsView(),
           ),
         ],
+      ),
       ),
     );
   }
@@ -417,14 +443,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
                     shape: BoxShape.circle,
                   ),
                   child: _isSubmitting && _submittingMediaId == item.id
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.green,
-                          ),
-                        )
+                      ? const WHBeeSpinner(size: 20)
                       : const Icon(Icons.add_rounded, color: Colors.green, size: 20),
                 ),
               ],

@@ -5,8 +5,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
-import '../repositories/watchlist_repository.dart';
 import 'suggest_movie_modal.dart';
+import 'add_to_watchlist_sheet.dart';
 
 enum QuickSearchIntent {
   watchlist,
@@ -84,42 +84,19 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
     if (_isSubmitting) return;
 
     if (_isWatchlist) {
-      final title = media.title;
-      final cleanTitle = title.trim().isNotEmpty && title != 'Untitled'
-          ? title.trim()
-          : (media.mediaType == 'tv' ? 'this TV show' : 'this movie');
-
-      final confirm = await WHAlert.confirm(
-        context,
-        title: 'Add to Watchlist',
-        message: 'Would you like to add "$cleanTitle" to your Watchlist?',
-        confirmText: 'Add to Watchlist',
-        severity: WHAlertSeverity.primary,
-        icon: Icons.bookmark_add_rounded,
-      );
-
-      if (!confirm || !mounted) return;
-
       setState(() => _isSubmitting = true);
       try {
-        await ref.read(watchlistRepositoryProvider).addToWatchlist(
+        final added = await AddToWatchlistSheet.show(
+          context,
           tmdbId: media.id,
-          title: title,
+          title: media.title,
           mediaType: media.mediaType,
           posterPath: media.posterPath,
           overview: media.overview,
         );
 
-        if (mounted) {
+        if (added == true && mounted) {
           Navigator.of(context).pop();
-          WHAlert.showSuccess(
-            context,
-            'Added "$cleanTitle" to your Watchlist! 📌',
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          WHAlert.showError(context, 'Failed to add "$cleanTitle" to Watchlist: $e');
         }
       } finally {
         if (mounted) setState(() => _isSubmitting = false);
@@ -141,7 +118,7 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
     final titleText = _isWatchlist ? 'Add to Watchlist' : 'Suggest to Friends';
     final subtitleText = _isWatchlist
         ? 'Select a movie or show to save for later'
-        : 'Search a title to recommend to cinephiles';
+        : 'Search a title to recommend to friends';
     final headerIcon = _isWatchlist ? Icons.bookmark_add_rounded : Icons.send_rounded;
     final headerColor = _isWatchlist ? AppColors.primary : const Color(0xFFA855F7);
 
@@ -229,13 +206,9 @@ class _QuickSearchMediaSheetState extends ConsumerState<QuickSearchMediaSheet> {
                 hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
                 prefixIcon: Icon(Icons.search_rounded, color: headerColor),
                 suffixIcon: _isSearching
-                    ? Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: headerColor),
-                        ),
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: WHBeeSpinner(size: 16),
                       )
                     : _searchController.text.isNotEmpty
                         ? IconButton(

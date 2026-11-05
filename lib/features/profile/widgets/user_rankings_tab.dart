@@ -12,8 +12,13 @@ import '../../../shared/widgets/wh_skeleton.dart';
 
 class UserRankingsTab extends ConsumerStatefulWidget {
   final String userId;
+  final ValueChanged<int>? onStacksCountChanged;
 
-  const UserRankingsTab({super.key, required this.userId});
+  const UserRankingsTab({
+    super.key,
+    required this.userId,
+    this.onStacksCountChanged,
+  });
 
   @override
   ConsumerState<UserRankingsTab> createState() => _UserRankingsTabState();
@@ -49,6 +54,7 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
           _stacks = stacks;
           _isLoading = false;
         });
+        widget.onStacksCountChanged?.call(stacks.length);
       }
     } catch (e) {
       if (mounted) {
@@ -99,55 +105,58 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
     }
 
     if (_stacks.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.format_list_numbered_rounded, size: 36, color: AppColors.primary),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                isCurrentUser ? 'No Ranking Stacks Created' : 'No Public Rankings',
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                isCurrentUser
-                    ? 'Create ordered lists to rank your absolute top films, director filmographies, or yearly favorites!'
-                    : 'This user hasn\'t shared any public ranking stacks yet.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-              ),
-              if (isCurrentUser) ...[
-                const SizedBox(height: 18),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    await context.push('/rankings');
-                    _fetchRankings();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
                   ),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Create a Stack 🏆', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                  child: const Icon(Icons.format_list_numbered_rounded, size: 36, color: AppColors.primary),
                 ),
+                const SizedBox(height: 14),
+                Text(
+                  isCurrentUser ? 'No Ranking Stacks Created' : 'No Public Rankings',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  isCurrentUser
+                      ? 'Create ordered lists to rank your absolute top films, director filmographies, or yearly favorites!'
+                      : 'This user hasn\'t shared any public ranking stacks yet.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                ),
+                if (isCurrentUser) ...[
+                  const SizedBox(height: 18),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await context.push('/rankings');
+                      _fetchRankings();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Create a Stack', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       );
@@ -190,7 +199,7 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text('Open Stacks 📚', style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold)),
+                    child: const Text('Open Stacks', style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -241,7 +250,7 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.12),
+                              color: AppColors.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -250,7 +259,7 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
                                 fontFamily: 'Inter',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 10,
-                                color: AppColors.primary,
+                                color: AppColors.primaryDark,
                               ),
                             ),
                           ),
@@ -301,16 +310,28 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
               itemBuilder: (ctx, idx) {
                 final item = stack.items[idx];
                 final rank = idx + 1;
-                final isTop3 = rank <= 3;
 
-                Color badgeBg = isTop3
-                    ? (rank == 1
-                        ? const Color(0xFFFFD700)
-                        : rank == 2
-                            ? const Color(0xFFE0E0E0)
-                            : const Color(0xFFCD7F32))
-                    : AppColors.surfaceHighest;
-                Color badgeText = (rank == 1 || rank == 2) ? Colors.black : Colors.white;
+                Color badgeBg;
+                Color badgeText;
+                Border? badgeBorder;
+
+                if (rank == 1) {
+                  badgeBg = const Color(0xFFFFB700);
+                  badgeText = const Color(0xFF2D2926);
+                  badgeBorder = Border.all(color: const Color(0xFFE59700), width: 1);
+                } else if (rank == 2) {
+                  badgeBg = const Color(0xFFE2E8F0);
+                  badgeText = const Color(0xFF2D2926);
+                  badgeBorder = Border.all(color: const Color(0xFFCBD5E1), width: 1);
+                } else if (rank == 3) {
+                  badgeBg = const Color(0xFFD97706);
+                  badgeText = Colors.white;
+                  badgeBorder = Border.all(color: const Color(0xFFB45309), width: 1);
+                } else {
+                  badgeBg = AppColors.surface;
+                  badgeText = AppColors.textPrimary;
+                  badgeBorder = Border.all(color: AppColors.border, width: 1);
+                }
 
                 return InkWell(
                   onTap: () {
@@ -327,6 +348,14 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
                           decoration: BoxDecoration(
                             color: badgeBg,
                             borderRadius: BorderRadius.circular(8),
+                            border: badgeBorder,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 3,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
                           ),
                           child: Center(
                             child: Text(

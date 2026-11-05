@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/suggestion.dart';
+import '../../../shared/models/smart_suggest.dart';
 
 final suggestionsRepositoryProvider = Provider<SuggestionsRepository>((ref) {
   return SuggestionsRepository(ref.read(apiClientProvider));
@@ -14,6 +15,12 @@ class SuggestionsRepository {
 
   Future<List<GroupedSuggestion>> getMySuggestions() async {
     final response = await _api.get('/suggestions/me');
+    final list = response.data as List<dynamic>;
+    return list.map((item) => GroupedSuggestion.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<GroupedSuggestion>> getSentSuggestions() async {
+    final response = await _api.get(ApiEndpoints.sentSuggestions);
     final list = response.data as List<dynamic>;
     return list.map((item) => GroupedSuggestion.fromJson(item as Map<String, dynamic>)).toList();
   }
@@ -41,5 +48,29 @@ class SuggestionsRepository {
 
   Future<void> deleteSuggestion(String id) async {
     await _api.delete('/suggestions/$id');
+  }
+
+  Future<SmartSuggestResponse> getSmartSuggestions({
+    String mode = 'social',
+    int limit = 10,
+    List<String>? languages,
+    List<String>? genres,
+  }) async {
+    final queryParams = <String, dynamic>{
+      'mode': mode,
+      'limit': limit,
+    };
+    if (languages != null && languages.isNotEmpty) {
+      queryParams['languages'] = languages.join(',');
+    }
+    if (genres != null && genres.isNotEmpty) {
+      queryParams['genres'] = genres.join(',');
+    }
+
+    final response = await _api.get(
+      '/suggestions/smart-suggest',
+      queryParameters: queryParams,
+    );
+    return SmartSuggestResponse.fromJson(response.data as Map<String, dynamic>);
   }
 }

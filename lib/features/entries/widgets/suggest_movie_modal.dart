@@ -1,15 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../profile/repositories/user_repository.dart';
+import '../../profile/widgets/add_friends_sheet.dart';
 import '../../search/repositories/search_repository.dart';
 import '../repositories/suggestions_repository.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../profile/services/honey_badge_service.dart';
 
 class SuggestMovieModal extends ConsumerStatefulWidget {
   final int? tmdbId;
@@ -57,9 +61,7 @@ class SuggestMovieModal extends ConsumerStatefulWidget {
 class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   final Set<String> _selectedUserIds = {};
   List<User> _friends = [];
-  List<User> _searchedUsers = [];
   bool _isLoadingFriends = true;
-  bool _isSearchingUsers = false;
   bool _isSending = false;
 
   // For movie search when no tmdbId is passed
@@ -67,11 +69,25 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   List<MediaResult> _searchResults = [];
   bool _isSearchingMedia = false;
   Timer? _debounce;
-  Timer? _friendDebounce;
   final _movieSearchController = TextEditingController();
 
   String _friendSearchQuery = '';
+  final _friendSearchController = TextEditingController();
+  List<User> _searchedUsers = [];
+  bool _isSearchingFriends = false;
+  Timer? _friendDebounce;
+
   final _messageController = TextEditingController();
+
+  final _scrollController = ScrollController();
+  final _messageFocusNode = FocusNode();
+  final _friendSearchFocusNode = FocusNode();
+  final _movieSearchFocusNode = FocusNode();
+
+  final _movieSearchKey = GlobalKey();
+  final _friendSearchKey = GlobalKey();
+  final _messageKey = GlobalKey();
+  double _lastBottomInset = 0.0;
 
   @override
   void initState() {
@@ -80,38 +96,94 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
       _selectedUserIds.add(widget.initialToUserId!);
     }
     _loadFriends();
+
+    _messageFocusNode.addListener(() {
+      if (_messageFocusNode.hasFocus) {
+        _scrollToKey(_messageKey, alignment: 0.0);
+      }
+    });
+
+    _friendSearchFocusNode.addListener(() {
+      if (_friendSearchFocusNode.hasFocus) {
+        _scrollToKey(_friendSearchKey, alignment: 0.0);
+      }
+    });
+
+    _movieSearchFocusNode.addListener(() {
+      if (_movieSearchFocusNode.hasFocus) {
+        _scrollToKey(_movieSearchKey, alignment: 0.0);
+      }
+    });
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _friendDebounce?.cancel();
+    _scrollController.dispose();
+    _messageFocusNode.dispose();
+    _friendSearchFocusNode.dispose();
+    _movieSearchFocusNode.dispose();
     _movieSearchController.dispose();
+    _friendSearchController.dispose();
     _messageController.dispose();
     super.dispose();
+  }
+
+  void _scrollToKey(GlobalKey key, {double alignment = 0.05}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 140), () {
+        if (!mounted) return;
+        final ctx = key.currentContext;
+        if (ctx != null && ctx.mounted) {
+          Scrollable.ensureVisible(
+            ctx,
+            alignment: alignment,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+          );
+        } else if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      });
+    });
   }
 
   Future<void> _loadFriends() async {
     try {
       final userRepo = ref.read(userRepositoryProvider);
-      final searchRepo = ref.read(searchRepositoryProvider);
-      final me = await userRepo.getCurrentUser();
-      
-      final results = await Future.wait([
-        userRepo.getFollowing(me.id).catchError((_) => <User>[]),
-        userRepo.getFollowers(me.id).catchError((_) => <User>[]),
-        searchRepo.getSuggestedUsers().catchError((_) => <User>[]),
-      ]);
+      final currentUserId = ref.read(authStateProvider).value?.user?.id;
+      final myId = (currentUserId != null && currentUserId.isNotEmpty)
+          ? currentUserId
+          : (await userRepo.getCurrentUser()).id;
 
-      final following = results[0];
-      final followers = results[1];
-      final suggested = results[2];
+      final following = await userRepo.getFollowing(myId, limit: 200).catchError((_) => <User>[]);
 
       final friendMap = <String, User>{};
-      for (final u in [...following, ...followers, ...suggested]) {
-        if (u.id != me.id) {
-          friendMap[u.id] = u;
+      for (final u in following) {
+        if (u.id != myId) {
+          friendMap[u.id] = u.copyWith(isFollowing: true);
         }
+      }
+
+      // If initialToUserId was provided and not found in initial 200, check follow status directly
+      if (widget.initialToUserId != null && !friendMap.containsKey(widget.initialToUserId)) {
+        try {
+          final status = await userRepo.getFollowStatus(widget.initialToUserId!);
+          if (status.isFollowing) {
+            friendMap[widget.initialToUserId!] = User(
+              id: widget.initialToUserId!,
+              username: widget.initialToUserName ?? 'friend',
+              displayName: widget.initialToUserName,
+              createdAt: DateTime.now(),
+              isFollowing: true,
+            );
+          }
+        } catch (_) {}
       }
 
       if (mounted) {
@@ -126,29 +198,58 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   }
 
   void _onFriendSearchChanged(String query) {
-    setState(() => _friendSearchQuery = query.trim());
-    _friendDebounce?.cancel();
+    final trimmed = query.trim();
+    setState(() => _friendSearchQuery = trimmed);
 
-    if (query.trim().length < 2) {
+    _friendDebounce?.cancel();
+    final cleanQ = trimmed.replaceAll('@', '').trim().toLowerCase();
+    if (cleanQ.isEmpty) {
       setState(() {
         _searchedUsers = [];
-        _isSearchingUsers = false;
+        _isSearchingFriends = false;
       });
       return;
     }
 
-    _friendDebounce = Timer(const Duration(milliseconds: 300), () async {
-      setState(() => _isSearchingUsers = true);
+    // Check if matching friends are already loaded locally
+    final hasLocalMatch = _friends.any((u) {
+      final name = (u.displayName ?? '').toLowerCase();
+      final username = u.username.toLowerCase();
+      final fullName = u.name.toLowerCase();
+      return name.contains(cleanQ) || username.contains(cleanQ) || fullName.contains(cleanQ);
+    });
+
+    // If local match exists and total loaded friends is less than 200, all friends are already in memory
+    if (hasLocalMatch && _friends.length < 200) {
+      return;
+    }
+
+    // If not found locally or more friends might exist beyond initial 200, search user's followed network
+    _friendDebounce = Timer(const Duration(milliseconds: 250), () async {
+      if (!mounted) return;
+      setState(() => _isSearchingFriends = true);
       try {
-        final users = await ref.read(searchRepositoryProvider).searchUsers(query.trim());
+        final userRepo = ref.read(userRepositoryProvider);
+        final currentUserId = ref.read(authStateProvider).value?.user?.id;
+        final myId = (currentUserId != null && currentUserId.isNotEmpty)
+            ? currentUserId
+            : (await userRepo.getCurrentUser()).id;
+
+        final results = await userRepo.getFollowing(myId, limit: 50, query: cleanQ);
         if (mounted) {
           setState(() {
-            _searchedUsers = users;
-            _isSearchingUsers = false;
+            _searchedUsers = results.where((u) {
+              if (u.id == myId) return false;
+              final name = (u.displayName ?? '').toLowerCase();
+              final username = u.username.toLowerCase();
+              final fullName = u.name.toLowerCase();
+              return name.contains(cleanQ) || username.contains(cleanQ) || fullName.contains(cleanQ);
+            }).map((u) => u.copyWith(isFollowing: true)).toList();
+            _isSearchingFriends = false;
           });
         }
       } catch (_) {
-        if (mounted) setState(() => _isSearchingUsers = false);
+        if (mounted) setState(() => _isSearchingFriends = false);
       }
     });
   }
@@ -195,6 +296,16 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
       return;
     }
 
+    if (widget.initialToUserId != null &&
+        !_isLoadingFriends &&
+        !_friends.any((u) => u.id == widget.initialToUserId)) {
+      WHAlert.showWarning(
+        context,
+        'You must follow @${widget.initialToUserName ?? "this user"} to send movie suggestions.',
+      );
+      return;
+    }
+
     setState(() => _isSending = true);
     try {
       final suggRepo = ref.read(suggestionsRepositoryProvider);
@@ -206,12 +317,17 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
         message: _messageController.text.trim().isNotEmpty ? _messageController.text.trim() : null,
       );
 
+      final currentUserId = ref.read(authStateProvider).value?.user?.id;
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        HoneyBadgeService.awardBadgeLocally(currentUserId, 'hive_suggester');
+      }
+
       if (mounted) {
         Navigator.pop(context);
         final recipientDesc = widget.initialToUserName != null
             ? '@${widget.initialToUserName}'
             : '${_selectedUserIds.length} friend${_selectedUserIds.length > 1 ? "s" : ""}';
-        WHAlert.showSuccess(context, 'Suggestion for "$title" sent to $recipientDesc! ✨');
+        WHAlert.showSuccess(context, 'Suggested "$title" to $recipientDesc.');
       }
     } catch (e) {
       if (mounted) {
@@ -232,351 +348,583 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
   @override
   Widget build(BuildContext context) {
     final targetTitle = widget.title ?? _selectedMedia?.title;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isKeyboardOpen = bottomInset > 0;
+    final bool isSingleRecipientNotFollowed = widget.initialToUserId != null &&
+        !_isLoadingFriends &&
+        !_friends.any((u) => u.id == widget.initialToUserId);
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
+    if (bottomInset > _lastBottomInset && _messageFocusNode.hasFocus) {
+      _scrollToKey(_messageKey, alignment: 0.0);
+    }
+    _lastBottomInset = bottomInset;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: SafeArea(
+        top: false,
+        child: WHModalLoadingOverlay(
+          isLoading: _isSending,
+          message: 'Delivering your recommendation...',
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: (screenHeight - bottomInset).clamp(300.0, screenHeight * 0.90),
             ),
-          ),
-
-          // Header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.auto_awesome_rounded, color: AppColors.primaryDark, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.initialToUserName != null
-                          ? 'Suggest to @${widget.initialToUserName}'
-                          : 'Suggest to Hive Friends',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    if (targetTitle != null)
-                      Text(
-                        targetTitle,
-                        style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.bold),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded, color: AppColors.textMuted),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.border),
-          const SizedBox(height: 12),
-
-          // Movie Selection if no initial title
-          if (widget.tmdbId == null) ...[
-            if (_selectedMedia == null) ...[
-              const Text(
-                '1. CHOOSE MOVIE OR TV SHOW',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.textMuted, letterSpacing: 1.0),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _movieSearchController,
-                onChanged: _onSearchChanged,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Search TMDB for a title...',
-                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 20),
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-                ),
-              ),
-              if (_isSearchingMedia)
-                const WHSkeletonMediaSearchList(count: 2)
-              else if (_searchResults.isNotEmpty)
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 180),
-                  margin: const EdgeInsets.only(top: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: _searchResults.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
-                    itemBuilder: (ctx, i) {
-                      final item = _searchResults[i];
-                      return ListTile(
-                        dense: true,
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: item.posterPath != null
-                              ? Image.network(
-                                  ApiEndpoints.tmdbPoster(item.posterPath),
-                                  width: 28,
-                                  height: 42,
-                                  fit: BoxFit.cover,
-                                )
-                              : Container(width: 28, height: 42, color: AppColors.surfaceHighest),
-                        ),
-                        title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
-                        subtitle: Text('${item.mediaType.toUpperCase()} · ${item.year}', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                        trailing: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary),
-                        onTap: () => setState(() => _selectedMedia = item),
-                      );
-                    },
-                  ),
-                ),
-            ] else ...[
-              // Selected Movie Chip
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.primary, width: 1.5),
-                ),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: _selectedMedia!.posterPath != null
-                          ? Image.network(
-                              ApiEndpoints.tmdbPoster(_selectedMedia!.posterPath),
-                              width: 36,
-                              height: 52,
-                              fit: BoxFit.cover,
-                            )
-                          : Container(width: 36, height: 52, color: AppColors.surfaceHighest),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _selectedMedia!.title,
-                            style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
-                          ),
-                          Text(
-                            '${_selectedMedia!.mediaType.toUpperCase()} · ${_selectedMedia!.year}',
-                            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
-                      onPressed: () => setState(() => _selectedMedia = null),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-          ],
-
-          // Friends List (if not fixed to 1 user or to pick friends)
-          if (widget.initialToUserId == null) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  '2. SELECT RECIPIENTS',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.textMuted, letterSpacing: 1.0),
-                ),
-                if (_friends.isNotEmpty)
-                  GestureDetector(
-                    onTap: () {
-                      final currentDisplayList = _getDisplayUsers();
-                      setState(() {
-                        if (_selectedUserIds.length >= currentDisplayList.length && currentDisplayList.isNotEmpty) {
-                          _selectedUserIds.clear();
-                        } else {
-                          _selectedUserIds.addAll(currentDisplayList.map((u) => u.id));
-                        }
-                      });
-                    },
-                    child: Text(
-                      _selectedUserIds.isNotEmpty && _selectedUserIds.length >= _getDisplayUsers().length
-                          ? 'CLEAR ALL'
-                          : 'SELECT ALL',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                        letterSpacing: 0.5,
+              // ── Header (Pinned at top) ──────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Drag handle
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              onChanged: _onFriendSearchChanged,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-              decoration: InputDecoration(
-                hintText: 'Search friends or cinephiles...',
-                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 18),
-                suffixIcon: _isSearchingUsers
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
-                      )
-                    : null,
-                filled: true,
-                fillColor: AppColors.surface,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
 
-          // Recipient List View
-          Expanded(
-            child: widget.initialToUserId != null
-                ? Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.person_rounded, color: AppColors.primary),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Recipient: @${widget.initialToUserName ?? widget.initialToUserId}',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
+                    // Title Row
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.auto_awesome_rounded, color: AppColors.primaryDark, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.initialToUserName != null
+                                    ? 'Suggest to @${widget.initialToUserName}'
+                                    : 'Suggest to Hive Friends',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              if (targetTitle != null)
+                                Text(
+                                  targetTitle,
+                                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.bold),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: AppColors.textMuted),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    const Divider(height: 1, color: AppColors.border),
+                  ],
+                ),
+              ),
+
+              // ── Scrollable Body ───────────────────────────────
+              Flexible(
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Movie Selection if no initial title
+                      if (widget.tmdbId == null) ...[
+                        if (_selectedMedia == null) ...[
+                          const Text(
+                            '1. CHOOSE MOVIE OR TV SHOW',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.textMuted, letterSpacing: 1.0),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            key: _movieSearchKey,
+                            child: TextField(
+                              controller: _movieSearchController,
+                              focusNode: _movieSearchFocusNode,
+                              onChanged: _onSearchChanged,
+                              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                              decoration: InputDecoration(
+                                hintText: 'Search TMDB for a title...',
+                                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 20),
+                                filled: true,
+                                fillColor: AppColors.surface,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+                              ),
+                            ),
+                          ),
+                          if (_isSearchingMedia)
+                            const WHSkeletonMediaSearchList(count: 2)
+                          else if (_searchResults.isNotEmpty)
+                            Container(
+                              constraints: const BoxConstraints(maxHeight: 180),
+                              margin: const EdgeInsets.only(top: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: ListView.separated(
+                                shrinkWrap: true,
+                                physics: const ClampingScrollPhysics(),
+                                itemCount: _searchResults.length,
+                                separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
+                                itemBuilder: (ctx, i) {
+                                  final item = _searchResults[i];
+                                  return ListTile(
+                                    dense: true,
+                                    leading: ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: item.posterPath != null
+                                          ? Image.network(
+                                              ApiEndpoints.tmdbPoster(item.posterPath),
+                                              width: 28,
+                                              height: 42,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Container(width: 28, height: 42, color: AppColors.surfaceHighest),
+                                    ),
+                                    title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
+                                    subtitle: Text('${item.mediaType.toUpperCase()} · ${item.year}', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                                    trailing: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary),
+                                    onTap: () => setState(() => _selectedMedia = item),
+                                  );
+                                },
+                              ),
+                            ),
+                        ] else ...[
+                          // Selected Movie Chip
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.primary, width: 1.5),
+                            ),
+                            child: Row(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: _selectedMedia!.posterPath != null
+                                      ? Image.network(
+                                          ApiEndpoints.tmdbPoster(_selectedMedia!.posterPath),
+                                          width: 36,
+                                          height: 52,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Container(width: 36, height: 52, color: AppColors.surfaceHighest),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _selectedMedia!.title,
+                                        style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+                                      ),
+                                      Text(
+                                        '${_selectedMedia!.mediaType.toUpperCase()} · ${_selectedMedia!.year}',
+                                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
+                                  onPressed: () => setState(() => _selectedMedia = null),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Recipients Section
+                      if (widget.initialToUserId == null) ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              '2. SELECT RECIPIENTS',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.textMuted, letterSpacing: 1.0),
+                            ),
+                            if (_friends.isNotEmpty)
+                              GestureDetector(
+                                onTap: () {
+                                  final currentDisplayList = _getDisplayUsers();
+                                  setState(() {
+                                    if (_selectedUserIds.length >= currentDisplayList.length && currentDisplayList.isNotEmpty) {
+                                      _selectedUserIds.clear();
+                                    } else {
+                                      _selectedUserIds.addAll(currentDisplayList.map((u) => u.id));
+                                    }
+                                  });
+                                },
+                                child: Text(
+                                  _selectedUserIds.isNotEmpty && _selectedUserIds.length >= _getDisplayUsers().length
+                                      ? 'CLEAR ALL'
+                                      : 'SELECT ALL',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primary,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          key: _friendSearchKey,
+                          child: TextField(
+                            controller: _friendSearchController,
+                            focusNode: _friendSearchFocusNode,
+                            onChanged: _onFriendSearchChanged,
+                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: 'Search friends by name or @username...',
+                              prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 18),
+                              suffixIcon: _isSearchingFriends
+                                  ? const Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: WHBeeSpinner(size: 14),
+                                    )
+                                  : (_friendSearchQuery.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
+                                          onPressed: () {
+                                            _friendSearchController.clear();
+                                            _onFriendSearchChanged('');
+                                          },
+                                        )
+                                      : null),
+                              filled: true,
+                              fillColor: AppColors.surface,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+
+                      // Recipient List
+                      if (widget.initialToUserId != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.person_rounded, color: AppColors.primary),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Recipient: @${widget.initialToUserName ?? widget.initialToUserId}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isSingleRecipientNotFollowed) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'You are not following @${widget.initialToUserName ?? "this user"}. You must follow them to send movie suggestions.',
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 12,
+                                      color: Colors.amber,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ]
+                      else if (_isLoadingFriends)
+                        const WHSkeletonUserList(count: 3)
+                      else
+                        Container(
+                          constraints: BoxConstraints(
+                            maxHeight: isKeyboardOpen ? 180 : 260,
+                          ),
+                          child: _buildFriendsList(),
+                        ),
+
+                      const SizedBox(height: 16),
+
+                      // Optional Note / Suggestion Comments (Auto-scrolls when focused)
+                      Container(
+                        key: _messageKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'ADD A NOTE (OPTIONAL)',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textMuted,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: _messageController,
+                              focusNode: _messageFocusNode,
+                              scrollPadding: const EdgeInsets.only(bottom: 120),
+                              maxLines: 3,
+                              minLines: 1,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                color: AppColors.textPrimary,
+                                fontSize: 13,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'e.g. "You gotta watch this, the ending blew my mind!"',
+                                hintStyle: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  color: AppColors.textMuted,
+                                  fontSize: 12.5,
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.chat_bubble_outline_rounded,
+                                  color: AppColors.textMuted,
+                                  size: 18,
+                                ),
+                                filled: true,
+                                fillColor: AppColors.surface,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: AppColors.border),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: AppColors.border),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  )
-                : _isLoadingFriends
-                    ? const WHSkeletonUserList(count: 3)
-                    : _buildFriendsList(),
-          ),
-          const SizedBox(height: 12),
+                      const SizedBox(height: 16),
 
-          // Optional Note
-          TextField(
-            controller: _messageController,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-            decoration: InputDecoration(
-              hintText: 'Add an optional note ("You gotta watch this!")...',
-              filled: true,
-              fillColor: AppColors.surface,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Send Button
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      // Send Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isSingleRecipientNotFollowed ? AppColors.surfaceHighest : AppColors.primary,
+                            foregroundColor: isSingleRecipientNotFollowed ? AppColors.textMuted : Colors.black,
+                            elevation: isSingleRecipientNotFollowed ? 0 : 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: (_isSending || isSingleRecipientNotFollowed) ? null : _handleSend,
+                          child: _isSending
+                              ? const WHBeeSpinner(size: 20)
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      isSingleRecipientNotFollowed ? Icons.block_rounded : Icons.send_rounded,
+                                      size: 16,
+                                      color: isSingleRecipientNotFollowed ? AppColors.textMuted : Colors.black,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      isSingleRecipientNotFollowed
+                                          ? 'Cannot Suggest (Not Following)'
+                                          : 'Send Suggestion (${_selectedUserIds.length})',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14,
+                                        color: isSingleRecipientNotFollowed ? AppColors.textMuted : Colors.black,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              onPressed: _isSending ? null : _handleSend,
-              child: _isSending
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
-                  : Text(
-                      'Send Suggestion (${_selectedUserIds.length})',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
-                    ),
-            ),
+            ],
           ),
-        ],
+        ),
+      ),
       ),
     );
   }
 
   List<User> _getDisplayUsers() {
-    final map = <String, User>{};
+    if (_friendSearchQuery.isEmpty) return _friends;
+    final cleanQ = _friendSearchQuery.replaceAll('@', '').trim().toLowerCase();
+    if (cleanQ.isEmpty) return _friends;
+
+    final resultIds = <String>{};
+    final list = <User>[];
+
+    // 1. Add matching users from loaded friends (instant local search)
     for (final u in _friends) {
-      if (_friendSearchQuery.isEmpty) {
-        map[u.id] = u;
-      } else {
-        final full = '${u.displayName ?? ''} ${u.username}'.toLowerCase();
-        if (full.contains(_friendSearchQuery.toLowerCase())) {
-          map[u.id] = u;
-        }
+      final name = (u.displayName ?? '').toLowerCase();
+      final username = u.username.toLowerCase();
+      final fullName = u.name.toLowerCase();
+      if (name.contains(cleanQ) || username.contains(cleanQ) || fullName.contains(cleanQ)) {
+        resultIds.add(u.id);
+        list.add(u);
       }
     }
+
+    // 2. Add matching users from remote network search
     for (final u in _searchedUsers) {
-      map[u.id] = u;
+      if (!resultIds.contains(u.id)) {
+        resultIds.add(u.id);
+        list.add(u);
+      }
     }
-    return map.values.toList();
+
+    return list;
   }
 
   Widget _buildFriendsList() {
     final displayList = _getDisplayUsers();
 
+    if (_isSearchingFriends && displayList.isEmpty) {
+      return const WHSkeletonUserList(count: 3);
+    }
+
     if (displayList.isEmpty) {
-      return Center(
+      if (_friendSearchQuery.isNotEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.people_outline_rounded, size: 36, color: AppColors.textMuted),
+              const SizedBox(height: 8),
+              Text(
+                'No friends found matching "$_friendSearchQuery"',
+                style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+        );
+      }
+
+      final currentUser = ref.read(authStateProvider).value?.user;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+        ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.people_outline_rounded, size: 36, color: AppColors.textMuted),
-            const SizedBox(height: 8),
-            Text(
-              _friendSearchQuery.isNotEmpty ? 'No users found matching "$_friendSearchQuery"' : 'No friends connected yet',
-              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.primary, size: 22),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'No friends in your hive yet',
+              style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Find friends to follow and start sharing movie suggestions!',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                if (currentUser != null) {
+                  AddFriendsSheet.show(context, user: currentUser);
+                } else {
+                  context.push('/search');
+                }
+              },
+              icon: const Icon(Icons.person_search_rounded, size: 16),
+              label: const Text('Find Friends to Follow'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -584,6 +932,8 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
     }
 
     return ListView.builder(
+      shrinkWrap: true,
+      physics: const ClampingScrollPhysics(),
       itemCount: displayList.length,
       itemBuilder: (ctx, i) {
         final user = displayList[i];

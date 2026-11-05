@@ -7,6 +7,7 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../repositories/user_repository.dart';
 import '../widgets/data_management_card.dart';
+import '../widgets/avatar_viewer_dialog.dart';
 import '../../../core/utils/error_handler.dart';
 
 class EditProfileDialog extends ConsumerStatefulWidget {
@@ -46,18 +47,16 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
   late final TextEditingController _displayNameController;
   late final TextEditingController _bioController;
   late final TextEditingController _locationController;
-  late final TextEditingController _passwordController;
 
   late String _privacyLevel;
   late bool _showWatchEntries;
   late bool _showCurrentlyWatching;
   late bool _showWatchlist;
   late bool _showRankings;
+  late bool _notifyFollowingActivity;
 
   bool _isSaving = false;
   bool _isUploadingAvatar = false;
-  bool _isSettingPassword = false;
-  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -65,13 +64,13 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     _displayNameController = TextEditingController(text: widget.user.displayName ?? '');
     _bioController = TextEditingController(text: widget.user.bio ?? '');
     _locationController = TextEditingController(text: widget.user.location ?? '');
-    _passwordController = TextEditingController();
 
     _privacyLevel = widget.user.privacyLevel;
     _showWatchEntries = widget.user.showWatchEntries;
     _showCurrentlyWatching = widget.user.showCurrentlyWatching;
     _showWatchlist = widget.user.showWatchlist;
     _showRankings = widget.user.showRankings;
+    _notifyFollowingActivity = widget.user.notifyFollowingActivity;
   }
 
   @override
@@ -79,7 +78,6 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     _displayNameController.dispose();
     _bioController.dispose();
     _locationController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -99,7 +97,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
       final updatedUser = await ref.read(userRepositoryProvider).uploadAvatar(image);
       ref.read(authStateProvider.notifier).updateUser(updatedUser);
       if (mounted) {
-        WHAlert.showSuccess(context, 'Profile picture updated! 📸');
+        WHAlert.showSuccess(context, 'Profile picture updated.');
       }
     } catch (e) {
       if (mounted) {
@@ -171,6 +169,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
           'showCurrentlyWatching': _showCurrentlyWatching,
           'showWatchlist': _showWatchlist,
           'showRankings': _showRankings,
+          'notifyFollowingActivity': _notifyFollowingActivity,
         },
       );
 
@@ -195,34 +194,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     }
   }
 
-  Future<void> _handleSetPassword() async {
-    final password = _passwordController.text.trim();
-    if (password.length < 8) {
-      WHAlert.showWarning(context, 'Password must be at least 8 characters');
-      return;
-    }
 
-    setState(() => _isSettingPassword = true);
-    try {
-      await ref.read(userRepositoryProvider).setPassword(password);
-      if (mounted) {
-        _passwordController.clear();
-        WHAlert.showSuccess(context, 'Backup password successfully set! 🔒');
-      }
-    } catch (e) {
-      if (mounted) {
-        WHAlert.showError(
-          context,
-          AppErrorHandler.toUserFriendlyMessage(
-            e,
-            defaultMessage: 'Failed to set password. Please try again.',
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSettingPassword = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -236,8 +208,11 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      child: Column(
-        children: [
+      child: WHModalLoadingOverlay(
+        isLoading: _isSaving,
+        message: 'Saving profile changes...',
+        child: Column(
+          children: [
           // Drag handle
           Center(
             child: Container(
@@ -332,11 +307,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                 ),
                 onPressed: _isSaving ? null : _handleSave,
                 child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black),
-                      )
+                    ? const WHBeeSpinner(size: 20)
                     : const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -356,6 +327,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -407,16 +379,27 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.primary, width: 2),
-                ),
-                child: WHAvatar(
-                  imageUrl: currentUser.profilePictureUrl,
-                  name: currentUser.name,
-                  radius: 46,
+              GestureDetector(
+                onTap: () {
+                  AvatarViewerDialog.show(
+                    context,
+                    imageUrl: currentUser.profilePictureUrl,
+                    name: currentUser.name,
+                    username: currentUser.username,
+                    onRemoveAvatar: _removeAvatar,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primary, width: 2),
+                  ),
+                  child: WHAvatar(
+                    imageUrl: currentUser.profilePictureUrl,
+                    name: currentUser.name,
+                    radius: 46,
+                  ),
                 ),
               ),
               if (_isUploadingAvatar)
@@ -455,29 +438,6 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                   ),
                 ),
               ),
-              if (currentUser.profilePictureUrl != null && currentUser.profilePictureUrl!.isNotEmpty)
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: _removeAvatar,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.close_rounded, size: 14, color: AppColors.error),
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -506,7 +466,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
           maxLength: 50,
           style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
           decoration: InputDecoration(
-            hintText: 'Your name or cinephile alias',
+            hintText: 'Your name or nickname',
             filled: true,
             fillColor: AppColors.surface,
             counterText: '',
@@ -687,6 +647,14 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                   value: _showRankings,
                   onChanged: (v) => setState(() => _showRankings = v),
                 ),
+                const Divider(height: 1, color: AppColors.border),
+                _buildSwitchTile(
+                  icon: Icons.notifications_active_outlined,
+                  title: "Friends' Activity Alerts",
+                  subtitle: "Receive push notifications when followed users watch movies",
+                  value: _notifyFollowingActivity,
+                  onChanged: (v) => setState(() => _notifyFollowingActivity = v),
+                ),
               ],
             ),
           ),
@@ -701,82 +669,6 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Backup password section (if Google linked)
-        if (currentUser.hasGoogleLinked && !currentUser.hasPassword) ...[
-          const Text(
-            'ACCOUNT SECURITY',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textMuted,
-              letterSpacing: 1.0,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.password_rounded, color: AppColors.primary, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Set Backup Password',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Allow logging in with email and password in addition to Google Sign-In.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    hintText: 'New password (min 8 chars)',
-                    filled: true,
-                    fillColor: AppColors.background,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        size: 18,
-                        color: AppColors.textMuted,
-                      ),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: _isSettingPassword ? null : _handleSetPassword,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  icon: const Icon(Icons.lock_rounded, size: 16),
-                  label: _isSettingPassword
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                      : const Text('Set Password', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-
         // Data Management Section (Export & Import Hive Data)
         DataManagementCard(onDataChanged: widget.onSaved),
         const SizedBox(height: 16),

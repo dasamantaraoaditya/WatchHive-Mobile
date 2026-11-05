@@ -172,6 +172,92 @@ class AppTheme {
         space: 0,
       ),
 
+      // Date Picker
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: AppColors.surface,
+        headerBackgroundColor: AppColors.surfaceElevated,
+        headerForegroundColor: AppColors.textPrimary,
+        headerHeadlineStyle: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
+        ),
+        headerHelpStyle: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textMuted,
+        ),
+        weekdayStyle: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textSecondary,
+        ),
+        dayStyle: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.black;
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return AppColors.textMuted.withValues(alpha: 0.4);
+          }
+          return AppColors.textPrimary;
+        }),
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primary;
+          }
+          return Colors.transparent;
+        }),
+        todayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.black;
+          }
+          return AppColors.primaryDark;
+        }),
+        todayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primary;
+          }
+          return AppColors.surfaceElevated;
+        }),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: AppColors.border),
+        ),
+      ),
+
+      // Time Picker
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: AppColors.surface,
+        hourMinuteTextColor: AppColors.textPrimary,
+        hourMinuteColor: AppColors.surfaceElevated,
+        dayPeriodTextColor: AppColors.textPrimary,
+        dayPeriodColor: AppColors.surfaceElevated,
+        dayPeriodBorderSide: const BorderSide(color: AppColors.border),
+        dialTextColor: AppColors.textPrimary,
+        dialBackgroundColor: AppColors.surfaceElevated,
+        dialHandColor: AppColors.primary,
+        entryModeIconColor: AppColors.textPrimary,
+        helpTextStyle: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textMuted,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: AppColors.border),
+        ),
+      ),
+
       // Text Theme
       textTheme: const TextTheme(
         displayLarge: TextStyle(

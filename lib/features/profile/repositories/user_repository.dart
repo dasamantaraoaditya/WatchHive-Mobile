@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,15 +7,20 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/user.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../onboarding/services/onboarding_service.dart';
 
 final userRepositoryProvider = Provider<UserRepository>((ref) {
-  return UserRepository(ref.read(apiClientProvider));
+  return UserRepository(
+    ref.read(apiClientProvider),
+    ref.read(onboardingServiceProvider),
+  );
 });
 
 class UserRepository {
   final ApiClient _api;
+  final OnboardingService? _onboardingService;
 
-  UserRepository(this._api);
+  UserRepository(this._api, [this._onboardingService]);
 
   /// Fetch authenticated current user profile with live follower/following counts
   Future<User> getCurrentUser() async {
@@ -34,6 +40,11 @@ class UserRepository {
         );
       } catch (_) {}
     }
+
+    if (!user.hasSubstantivePreferences && _onboardingService != null) {
+      user = await _onboardingService.resolveUserWithPreferences(user);
+    }
+
     return user;
   }
 
@@ -102,7 +113,11 @@ class UserRepository {
 
     final map = resData is Map<String, dynamic> ? resData : <String, dynamic>{};
     final userJson = map.containsKey('user') ? map['user'] as Map<String, dynamic> : map;
-    return User.fromJson(userJson);
+    var user = User.fromJson(userJson);
+    if (!user.hasSubstantivePreferences && _onboardingService != null) {
+      user = await _onboardingService.resolveUserWithPreferences(user);
+    }
+    return user;
   }
 
   static final Map<String, String?> _tmdbPosterCache = {};
@@ -282,8 +297,14 @@ class UserRepository {
   }
 
   /// Get list of users following the given user
-  Future<List<User>> getFollowers(String userId) async {
-    final response = await _api.get(ApiEndpoints.followers(userId));
+  Future<List<User>> getFollowers(String userId, {int limit = 100, String? query}) async {
+    final response = await _api.get(
+      ApiEndpoints.followers(userId),
+      queryParameters: {
+        'limit': limit,
+        if (query != null && query.trim().isNotEmpty) 'q': query.trim().replaceAll('@', ''),
+      },
+    );
     final data = response.data;
     final List<dynamic> list;
     if (data is Map<String, dynamic> && data['followers'] is List) {
@@ -302,8 +323,14 @@ class UserRepository {
   }
 
   /// Get list of users the given user is following
-  Future<List<User>> getFollowing(String userId) async {
-    final response = await _api.get(ApiEndpoints.following(userId));
+  Future<List<User>> getFollowing(String userId, {int limit = 100, String? query}) async {
+    final response = await _api.get(
+      ApiEndpoints.following(userId),
+      queryParameters: {
+        'limit': limit,
+        if (query != null && query.trim().isNotEmpty) 'q': query.trim().replaceAll('@', ''),
+      },
+    );
     final data = response.data;
     final List<dynamic> list;
     if (data is Map<String, dynamic> && data['following'] is List) {
@@ -319,6 +346,21 @@ class UserRepository {
           : item;
       return User.fromJson(userJson as Map<String, dynamic>);
     }).toList();
+  }
+
+  /// Get follow status relative to current user
+  Future<({bool isFollowing, bool isRequested})> getFollowStatus(String userId) async {
+    try {
+      final response = await _api.get(ApiEndpoints.followStatus(userId));
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return (
+          isFollowing: data['isFollowing'] == true,
+          isRequested: data['isRequested'] == true,
+        );
+      }
+    } catch (_) {}
+    return (isFollowing: false, isRequested: false);
   }
 
   /// Fetch follow statistics (followersCount, followingCount) for any user
@@ -354,8 +396,9 @@ class UserRepository {
 
 
   /// Follow or request to follow a user
-  Future<void> followUser(String userId) async {
-    await _api.post(ApiEndpoints.followUser(userId));
+  Future<Map<String, dynamic>> followUser(String userId) async {
+    final response = await _api.post(ApiEndpoints.followUser(userId));
+    return response.data is Map<String, dynamic> ? response.data as Map<String, dynamic> : {};
   }
 
   /// Unfollow or cancel follow request
@@ -490,5 +533,96 @@ class UserRepository {
       return response.data as Map<String, dynamic>;
     }
     return <String, dynamic>{'message': 'Import complete!'};
+  }
+
+  /// Permanently delete account and all data (Apple Guideline 5.1.1(v))
+  Future<bool> deleteAccount() async {
+    try {
+      final response = await _api.delete(ApiEndpoints.deleteAccount);
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to delete account: $e');
+      rethrow;
+    }
+  }
+
+  /// Block a user (Apple Guideline 1.2)
+  Future<bool> blockUser(String userId) async {
+    try {
+      final response = await _api.post(ApiEndpoints.blockUser(userId));
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to block user: $e');
+      rethrow;
+    }
+  }
+
+  /// Unblock a user
+  Future<bool> unblockUser(String userId) async {
+    try {
+      final response = await _api.delete(ApiEndpoints.blockUser(userId));
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to unblock user: $e');
+      rethrow;
+    }
+  }
+
+  /// Get list of blocked user IDs
+  Future<List<String>> getBlockedUserIds() async {
+    try {
+      final response = await _api.get(ApiEndpoints.myBlocks);
+      if (response.data is Map<String, dynamic>) {
+        final list = response.data['blockedUserIds'];
+        if (list is List) {
+          return list.map((e) => e.toString()).toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to get blocked users: $e');
+      return [];
+    }
+  }
+
+  /// Get detailed list of blocked accounts with user profile info
+  Future<List<Map<String, dynamic>>> getBlockedAccounts() async {
+    try {
+      final response = await _api.get(ApiEndpoints.myBlocks);
+      if (response.data is Map<String, dynamic>) {
+        final rawBlocks = response.data['blocks'];
+        if (rawBlocks is List) {
+          return rawBlocks.map((b) => Map<String, dynamic>.from(b as Map)).toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to get blocked accounts: $e');
+      return [];
+    }
+  }
+
+  /// Submit a content report (Apple Guideline 1.2)
+  Future<bool> submitReport({
+    required String targetType,
+    required String targetId,
+    required String reason,
+    String? details,
+  }) async {
+    try {
+      final response = await _api.post(
+        ApiEndpoints.reports,
+        data: {
+          'targetType': targetType,
+          'targetId': targetId,
+          'reason': reason,
+          if (details != null && details.isNotEmpty) 'details': details,
+        },
+      );
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      debugPrint('[UserRepository] Failed to submit report: $e');
+      rethrow;
+    }
   }
 }

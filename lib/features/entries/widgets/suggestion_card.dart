@@ -9,19 +9,25 @@ import '../screens/add_entry_sheet.dart';
 import '../screens/entries_screen.dart';
 import '../../search/repositories/search_repository.dart';
 import 'wh_entry_grid_card.dart';
+import 'suggestion_details_modal.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../profile/services/honey_badge_service.dart';
+import '../../../core/utils/share_helper.dart';
 
 
 class SuggestionCard extends ConsumerStatefulWidget {
   final GroupedSuggestion group;
   final VoidCallback onRefresh;
   final Function(int tmdbId, String mediaType, User? suggestor)? onTapMedia;
+  final bool isSent;
 
   const SuggestionCard({
     super.key,
     required this.group,
     required this.onRefresh,
     this.onTapMedia,
+    this.isSent = false,
   });
 
   @override
@@ -30,7 +36,7 @@ class SuggestionCard extends ConsumerStatefulWidget {
 
 class _SuggestionCardState extends ConsumerState<SuggestionCard> {
 
-  Future<void> _handleAddToWatching(String title) async {
+  Future<void> _handleAddToWatching(String title, [String? posterPath]) async {
     final firstSuggestor = widget.group.suggestors.isNotEmpty ? widget.group.suggestors.first : null;
     final isTv = widget.group.mediaType == 'tv';
     String effectiveTitle = title.trim();
@@ -47,6 +53,9 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
             (details['original_name'] as String?);
         if (realTitle != null && realTitle.trim().isNotEmpty) {
           effectiveTitle = realTitle.trim();
+        }
+        if (posterPath == null || posterPath.isEmpty) {
+          posterPath = details['poster_path'] as String?;
         }
       } catch (_) {}
     }
@@ -75,15 +84,39 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
         'title': effectiveTitle.isNotEmpty && effectiveTitle != 'Untitled' ? effectiveTitle : cleanTitle,
         'type': isTv ? 'TV_SHOW' : 'MOVIE',
         'isWatching': true,
-        'startedAt': DateTime.now().toIso8601String(),
+        'startedAt': DateTime.now().toUtc().toIso8601String(),
         if (firstSuggestor != null) 'suggestedByUserId': firstSuggestor.id,
       });
 
       ref.read(entriesProvider(true).notifier).addEntry(entry);
 
+      final currentUserId = ref.read(authStateProvider).value?.user?.id;
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        HoneyBadgeService.awardBadgeLocally(currentUserId, 'suggestion_starter');
+      }
+
       await Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)));
       if (mounted) {
-        WHAlert.showSuccess(context, 'Moved "$cleanTitle" to Currently Watching! 🎬');
+        final currentUser = ref.read(authStateProvider).value?.user;
+        WHAlert.showSuccessWithAction(
+          context,
+          message: 'Moved "$cleanTitle" to Currently Watching.',
+          actionLabel: 'Share',
+          actionIcon: Icons.share_rounded,
+          onAction: () {
+            ShareHelper.shareCompletedWatch(
+              context: context,
+              title: cleanTitle,
+              posterPath: posterPath,
+              tmdbId: widget.group.tmdbId,
+              mediaType: isTv ? 'tv' : 'movie',
+              userDisplayName: currentUser?.displayName ?? currentUser?.username,
+              username: currentUser?.username,
+              userAvatarUrl: currentUser?.profilePictureUrl,
+              shareMode: StoryShareMode.watching,
+            );
+          },
+        );
         widget.onRefresh();
       }
     } catch (e) {
@@ -179,9 +212,11 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
 
     final confirm = await WHAlert.confirm(
       context,
-      title: 'Dismiss Suggestion',
-      message: 'Dismiss recommendation for "$cleanTitle"?',
-      confirmText: 'Dismiss',
+      title: widget.isSent ? 'Delete Sent Suggestion' : 'Dismiss Suggestion',
+      message: widget.isSent
+          ? 'Delete your recommendation for "$cleanTitle"?'
+          : 'Dismiss recommendation for "$cleanTitle"?',
+      confirmText: widget.isSent ? 'Delete' : 'Dismiss',
       severity: WHAlertSeverity.danger,
       icon: Icons.delete_outline_rounded,
     );
@@ -191,7 +226,12 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       final suggRepo = ref.read(suggestionsRepositoryProvider);
       await Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)));
       if (mounted) {
-        WHAlert.showSuccess(context, 'Dismissed recommendation for "$cleanTitle"');
+        WHAlert.showSuccess(
+          context,
+          widget.isSent
+              ? 'Removed recommendation for "$cleanTitle"'
+              : 'Dismissed recommendation for "$cleanTitle"',
+        );
         widget.onRefresh();
       }
     } catch (e) {
@@ -200,7 +240,9 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
           context,
           AppErrorHandler.toUserFriendlyMessage(
             e,
-            defaultMessage: 'Could not dismiss suggestion. Please try again.',
+            defaultMessage: widget.isSent
+                ? 'Could not delete suggestion. Please try again.'
+                : 'Could not dismiss suggestion. Please try again.',
           ),
         );
       }
@@ -221,12 +263,32 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
     final posterPath = detailsAsync.value?['poster_path'] as String?;
     final voteAvg = (detailsAsync.value?['vote_average'] as num?)?.toDouble();
 
-    final suggestors = widget.group.suggestors;
-    final firstSuggestor = suggestors.isNotEmpty ? suggestors.first : null;
-    final suggestorDisplay = firstSuggestor != null
-        ? (suggestors.length > 1
-            ? '${firstSuggestor.username} (+${suggestors.length - 1})'
-            : firstSuggestor.username)
+    final List<User> effectiveRecipients = widget.group.recipients.isNotEmpty
+        ? widget.group.recipients
+        : widget.group.suggestions.map((s) => s.recipient).whereType<User>().toList();
+
+    final User? displayUser = widget.isSent
+        ? (effectiveRecipients.isNotEmpty ? effectiveRecipients.first : null)
+        : (widget.group.suggestors.isNotEmpty ? widget.group.suggestors.first : null);
+
+    final String? truncatedUsername = displayUser != null
+        ? (displayUser.username.length > 10
+            ? '${displayUser.username.substring(0, 10)}...'
+            : displayUser.username)
+        : null;
+
+    final int extraCount = widget.isSent
+        ? (effectiveRecipients.length > 1 ? effectiveRecipients.length - 1 : 0)
+        : (widget.group.suggestors.length > 1 ? widget.group.suggestors.length - 1 : 0);
+
+    final String? userDisplay = displayUser != null
+        ? (widget.isSent
+            ? (extraCount > 0
+                ? 'To: @$truncatedUsername (+$extraCount)'
+                : 'To: @$truncatedUsername')
+            : (extraCount > 0
+                ? '$truncatedUsername (+$extraCount)'
+                : truncatedUsername))
         : null;
 
     final firstSuggestion = widget.group.suggestions.isNotEmpty ? widget.group.suggestions.first : null;
@@ -241,6 +303,20 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
         ? suggestionsWithComments.first.message!.trim()
         : null;
 
+    void openDetails() {
+      SuggestionDetailsModal.show(
+        context,
+        group: widget.group,
+        isSent: widget.isSent,
+        title: title,
+        posterPath: posterPath,
+        onMoveToWatching: () => _handleAddToWatching(title, posterPath),
+        onMarkWatched: () => _handleMarkAsWatched(title, posterPath),
+        onDelete: () => _handleDelete(title),
+        onViewDetails: () => widget.onTapMedia?.call(tmdbId, mediaType, widget.isSent ? null : displayUser),
+      );
+    }
+
     return WHEntryGridCard(
       tmdbId: tmdbId,
       title: title,
@@ -249,15 +325,17 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       mode: WHEntryCardMode.suggestion,
       rating: voteAvg,
       suggestedAt: suggestedDate,
-      suggestedByUsername: suggestorDisplay,
-      suggestedByAvatarUrl: firstSuggestor?.profilePictureUrl,
+      suggestedByUsername: userDisplay,
+      suggestedByAvatarUrl: displayUser?.profilePictureUrl,
       suggestionComment: firstComment,
       suggestionCommentCount: suggestionsWithComments.length,
-      onTap: () => widget.onTapMedia?.call(tmdbId, mediaType, firstSuggestor),
+      onSuggestionDetails: openDetails,
+      onTap: () => widget.onTapMedia?.call(tmdbId, mediaType, widget.isSent ? null : displayUser),
       onMoveToWatchingWithTitle: (resolvedTitle) => _handleAddToWatching(
         resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
+        posterPath,
       ),
-      onMoveToWatching: () => _handleAddToWatching(title),
+      onMoveToWatching: () => _handleAddToWatching(title, posterPath),
       onMarkWatchedWithTitle: (resolvedTitle) => _handleMarkAsWatched(
         resolvedTitle.isNotEmpty && resolvedTitle != 'Untitled' ? resolvedTitle : title,
         posterPath,

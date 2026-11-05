@@ -6,6 +6,8 @@ import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/user_repository.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../auth/providers/auth_provider.dart';
+import 'add_friends_sheet.dart';
 
 class FollowListSheet extends ConsumerStatefulWidget {
   final String userId;
@@ -244,10 +246,31 @@ class _FollowListSheetState extends ConsumerState<FollowListSheet> {
               const SizedBox(height: 6),
               Text(
                 widget.isFollowers
-                    ? 'Share your profile with friends to build your hive!'
-                    : 'Discover other cinephiles to see what they are watching.',
+                    ? 'Share your profile or find friends to build your hive.'
+                    : 'Follow other members to see what they are watching.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  final currentUser = ref.read(authStateProvider).value?.user;
+                  if (currentUser != null) {
+                    AddFriendsSheet.show(context, user: currentUser);
+                  } else {
+                    context.push('/search');
+                  }
+                },
+                icon: const Icon(Icons.person_search_rounded, size: 18),
+                label: const Text('Find Friends to Follow'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),

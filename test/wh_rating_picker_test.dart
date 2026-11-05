@@ -5,7 +5,7 @@ import 'package:watchhive_mobile/shared/widgets/wh_rating_picker.dart';
 void main() {
   group('WHRatingPicker Tests', () {
     test('getMoodInfo returns accurate sentiment and color', () {
-      expect(WHRatingPicker.getMoodInfo(0.0).text, contains('Tap or drag stars'));
+      expect(WHRatingPicker.getMoodInfo(0.0).text, contains('Slide checkpoints to rate movie'));
       expect(WHRatingPicker.getMoodInfo(2.0).text, contains('Disaster'));
       expect(WHRatingPicker.getMoodInfo(4.0).text, contains('Poor'));
       expect(WHRatingPicker.getMoodInfo(5.0).text, contains('Mediocre'));
@@ -15,8 +15,8 @@ void main() {
       expect(WHRatingPicker.getMoodInfo(10.0).text, contains('Masterpiece'));
     });
 
-    testWidgets('renders score and reacts to preset chips', (tester) async {
-      double currentRating = 0.0;
+    testWidgets('renders score and handles rating updates and reset', (tester) async {
+      double currentRating = 8.5;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -35,27 +35,19 @@ void main() {
         ),
       );
 
-      expect(find.text('—.—'), findsOneWidget);
-      expect(find.text('/ 10'), findsOneWidget);
-
-      // Tap preset chip '8.5 Great'
-      final greatPreset = find.text('🔥 Great');
-      expect(greatPreset, findsOneWidget);
-      await tester.tap(greatPreset);
-      await tester.pumpAndSettle();
-
-      expect(currentRating, 8.5);
       expect(find.text('8.5'), findsOneWidget);
-      expect(find.text('Excellent / Highly Recommended 🔥'), findsOneWidget);
+      expect(find.text('/ 10'), findsOneWidget);
+      expect(find.text('Excellent / Highly Recommended'), findsOneWidget);
+      expect(find.text('QUICK SNAP PRESETS'), findsNothing);
 
-      // Tap Increment (+0.5) button
-      final addBtn = find.byTooltip('+0.5');
-      expect(addBtn, findsOneWidget);
-      await tester.tap(addBtn);
+      // Tap Reset button
+      final resetBtn = find.text('Reset');
+      expect(resetBtn, findsOneWidget);
+      await tester.tap(resetBtn);
       await tester.pumpAndSettle();
 
-      expect(currentRating, 9.0);
-      expect(find.text('9.0'), findsOneWidget);
+      expect(currentRating, 0.0);
+      expect(find.text('—.—'), findsOneWidget);
     });
   });
 }

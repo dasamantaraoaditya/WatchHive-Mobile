@@ -8,9 +8,14 @@ export 'wh_button.dart';
 export 'wh_text_field.dart';
 export 'wh_logo_header.dart';
 export 'wh_brand_logo.dart';
+export 'wh_app_logo_loader.dart';
 export 'wh_rating_picker.dart';
 export 'wh_quick_add_fab.dart';
 export 'wh_skeleton.dart';
+export 'wh_bee_loader.dart';
+export 'wh_filter_bar.dart';
+export 'wh_google_button.dart';
+export 'ugc_moderation_dialog.dart';
 
 
 class TMDBPosterImage extends StatelessWidget {
@@ -69,16 +74,7 @@ class WHAvatar extends StatelessWidget {
 
   const WHAvatar({super.key, this.imageUrl, this.name, this.radius = 20});
 
-  @override
-  Widget build(BuildContext context) {
-    final resolvedUrl = ApiEndpoints.resolveAvatarUrl(imageUrl);
-    if (resolvedUrl.isNotEmpty) {
-      return CircleAvatar(
-        radius: radius,
-        backgroundImage: CachedNetworkImageProvider(resolvedUrl),
-        backgroundColor: AppColors.surfaceElevated,
-      );
-    }
+  Widget _buildFallback() {
     return CircleAvatar(
       radius: radius,
       backgroundColor: AppColors.primary.withValues(alpha: 0.2),
@@ -92,6 +88,24 @@ class WHAvatar extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedUrl = ApiEndpoints.resolveAvatarUrl(imageUrl);
+    if (resolvedUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: resolvedUrl,
+        imageBuilder: (context, imageProvider) => CircleAvatar(
+          radius: radius,
+          backgroundImage: imageProvider,
+          backgroundColor: AppColors.surfaceElevated,
+        ),
+        placeholder: (context, url) => _buildFallback(),
+        errorWidget: (context, url, error) => _buildFallback(),
+      );
+    }
+    return _buildFallback();
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:watchhive_mobile/core/api/api_client.dart';
 import 'package:watchhive_mobile/core/api/api_endpoints.dart';
+import 'package:watchhive_mobile/features/entries/widgets/platform_logo_badge.dart';
 import 'package:watchhive_mobile/features/entries/widgets/wh_entry_grid_card.dart';
 import 'package:watchhive_mobile/features/profile/repositories/user_repository.dart';
 import 'package:watchhive_mobile/shared/models/user.dart';
@@ -201,7 +202,7 @@ void main() {
       );
 
       expect(find.text('IMAX Cinema'), findsOneWidget);
-      expect(find.byIcon(Icons.location_on_outlined), findsOneWidget);
+      expect(find.byType(PlatformBrandLogo), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
     });

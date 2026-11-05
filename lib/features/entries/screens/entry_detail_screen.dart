@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/navigation_extensions.dart';
 import '../../../shared/models/entry.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -10,7 +11,10 @@ import '../../feed/screens/feed_screen.dart';
 import '../../feed/repositories/feed_repository.dart';
 import '../../feed/widgets/comments_sheet.dart';
 import '../../feed/widgets/wh_feed_card.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
+import '../../../core/utils/share_helper.dart';
 
 class EntryDetailScreen extends ConsumerStatefulWidget {
   final String entryId;
@@ -89,7 +93,10 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
         setState(() {
           _isLoading = false;
           if (_entry == null) {
-            _errorMessage = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+            _errorMessage = AppErrorHandler.toUserFriendlyMessage(
+              e,
+              defaultMessage: 'This post is no longer available or has been deleted.',
+            );
           }
         });
       }
@@ -122,7 +129,11 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
           _likesCount = prevCount;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update like: $e')),
+          SnackBar(
+            content: Text(
+              AppErrorHandler.toUserFriendlyMessage(e, defaultMessage: 'Unable to update like. Please try again.'),
+            ),
+          ),
         );
       }
     }
@@ -151,6 +162,10 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(authStateProvider).value?.user;
+    final isOwnPost = currentUser != null &&
+        _entry != null &&
+        ((_entry!.user?.id != null && _entry!.user!.id == currentUser.id) ||
+            _entry!.userId == currentUser.id);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -170,6 +185,34 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
             color: AppColors.textPrimary,
           ),
         ),
+        actions: [
+          if (_entry != null && isOwnPost)
+            IconButton(
+              icon: const Icon(Icons.share_outlined, color: AppColors.textPrimary),
+              tooltip: 'Share Watch',
+              onPressed: () {
+                ShareHelper.shareCompletedWatch(
+                  context: context,
+                  title: _entry!.title,
+                  posterPath: _entry!.posterPath,
+                  backdropPath: _entry!.backdropPath,
+                  rating: _entry!.isWatching ? null : _entry!.rating,
+                  review: _entry!.isWatching ? null : _entry!.review,
+                  tmdbId: _entry!.tmdbId > 0 ? _entry!.tmdbId : null,
+                  mediaType: (_entry!.type == 'TV_SHOW' || _entry!.type == 'EPISODE') ? 'tv' : 'movie',
+                  userDisplayName: _entry!.user?.displayName ?? _entry!.user?.username,
+                  username: _entry!.user?.username,
+                  userAvatarUrl: _entry!.user?.profilePictureUrl,
+                  shareMode: _entry!.isWatching ? StoryShareMode.watching : StoryShareMode.logged,
+                );
+              },
+            ),
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: AppColors.textSecondary),
+            tooltip: 'About Watch Post',
+            onPressed: () => ScreenGuideDialog.show(context, ScreenGuideType.feed),
+          ),
+        ],
       ),
       body: _buildBody(currentUser?.id),
     );
@@ -177,46 +220,84 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
 
   Widget _buildBody(String? currentUserId) {
     if (_isLoading && _entry == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
+      return const WHSkeletonFeed(itemCount: 1);
     }
 
     if (_errorMessage != null && _entry == null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
-              const SizedBox(height: 16),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                ),
+                child: const Icon(Icons.movie_filter_outlined, size: 36, color: AppColors.primary),
+              ),
+              const SizedBox(height: 20),
               const Text(
-                'Post not found',
+                'Post Unavailable',
                 style: TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
+                  letterSpacing: -0.5,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 _errorMessage!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: _loadEntry,
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
+                  height: 1.4,
                 ),
-                label: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 28),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/feed');
+                      }
+                    },
+                    icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: AppColors.border),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    label: const Text('Back to Feed', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _loadEntry,
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    ),
+                    label: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ),
             ],
           ),
@@ -244,6 +325,7 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
         children: [
           WHFeedCard(
             entry: entryToDisplay,
+            initiallyExpandedReview: true,
             isLiked: _isLiked,
             isOwnEntry: currentUserId == entryToDisplay.userId,
             onLike: _toggleLike,

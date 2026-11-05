@@ -7,6 +7,7 @@ import '../../../core/api/api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/wh_alert.dart';
 import '../../search/repositories/search_repository.dart';
+import 'platform_logo_badge.dart';
 
 enum WHEntryCardMode {
   watching,
@@ -32,6 +33,7 @@ class WHEntryGridCard extends ConsumerWidget {
   final int suggestionCommentCount;
   final String? watchLocation;
   final List<String> tags;
+  final bool isPendingSync;
   final VoidCallback onTap;
   final VoidCallback? onMoveToWatching;
   final void Function(String resolvedTitle)? onMoveToWatchingWithTitle;
@@ -40,6 +42,7 @@ class WHEntryGridCard extends ConsumerWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final void Function(String resolvedTitle)? onDeleteWithTitle;
+  final VoidCallback? onSuggestionDetails;
 
   const WHEntryGridCard({
     super.key,
@@ -59,6 +62,7 @@ class WHEntryGridCard extends ConsumerWidget {
     this.suggestionCommentCount = 0,
     this.watchLocation,
     this.tags = const [],
+    this.isPendingSync = false,
     required this.onTap,
     this.onMoveToWatching,
     this.onMoveToWatchingWithTitle,
@@ -67,7 +71,43 @@ class WHEntryGridCard extends ConsumerWidget {
     this.onEdit,
     this.onDelete,
     this.onDeleteWithTitle,
+    this.onSuggestionDetails,
   });
+
+  /// Formats and truncates suggested-by usernames to 10 characters max followed by '...'.
+  static String formatSuggestedBy(String raw) {
+    if (raw.isEmpty) return raw;
+
+    String text = raw.trim();
+    String prefix = '';
+    String suffix = '';
+
+    if (text.startsWith('To: @')) {
+      prefix = 'To: @';
+      text = text.substring(5).trim();
+    } else if (text.startsWith('To: ')) {
+      prefix = 'To: @';
+      text = text.substring(4).trim();
+      if (text.startsWith('@')) {
+        text = text.substring(1).trim();
+      }
+    } else if (text.startsWith('@')) {
+      prefix = '@';
+      text = text.substring(1).trim();
+    } else {
+      prefix = '@';
+    }
+
+    // Check for suffix like "(+2)" or " (+1)"
+    final parenIndex = text.indexOf('(');
+    if (parenIndex != -1) {
+      suffix = ' ${text.substring(parenIndex).trim()}';
+      text = text.substring(0, parenIndex).trim();
+    }
+
+    final truncatedUser = text.length > 10 ? '${text.substring(0, 10)}...' : text;
+    return '$prefix$truncatedUser$suffix';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -91,7 +131,9 @@ class WHEntryGridCard extends ConsumerWidget {
         ? initialPosterPath
         : tmdbPoster;
 
-    final voteAvg = (detailsAsync?.value?['vote_average'] as num?)?.toDouble() ?? rating;
+    final effectiveUserRating = (rating != null && rating! > 0) ? rating : null;
+    final tmdbScore = (detailsAsync?.value?['vote_average'] as num?)?.toDouble();
+    final displayRating = effectiveUserRating ?? (tmdbScore != null && tmdbScore > 0 ? tmdbScore : null);
     final releaseDate = (detailsAsync?.value?['release_date'] as String?) ??
         (detailsAsync?.value?['first_air_date'] as String?);
     final year = releaseDate != null && releaseDate.length >= 4 ? releaseDate.substring(0, 4) : null;
@@ -189,7 +231,7 @@ class WHEntryGridCard extends ConsumerWidget {
                         border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
                       ),
                       child: Text(
-                        normalizedType == 'tv' ? '📺 TV' : '🎬 Movie',
+                        normalizedType == 'tv' ? 'TV' : 'MOVIE',
                         style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 10,
@@ -199,6 +241,42 @@ class WHEntryGridCard extends ConsumerWidget {
                       ),
                     ),
                   ),
+
+                  // Pending Sync Badge
+                  if (isPendingSync)
+                    Positioned(
+                      top: 32,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD97706),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.sync_rounded, color: Colors.white, size: 10),
+                            SizedBox(width: 3),
+                            Text(
+                              'Pending Sync',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                   // Top-Right Badge: Mode-Dependent (Watching, Rating, or Suggested By)
                   if (mode == WHEntryCardMode.watching)
@@ -233,31 +311,48 @@ class WHEntryGridCard extends ConsumerWidget {
                     Positioned(
                       top: 8,
                       right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('💡 ', style: TextStyle(fontSize: 8)),
-                            Text(
-                              '@$suggestedByUsername',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.amber,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onSuggestionDetails,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (suggestedByAvatarUrl != null && suggestedByAvatarUrl!.isNotEmpty) ...[
+                                CircleAvatar(
+                                  radius: 6,
+                                  backgroundColor: Colors.amber,
+                                  backgroundImage: NetworkImage(suggestedByAvatarUrl!),
+                                ),
+                                const SizedBox(width: 4),
+                              ] else
+                                const Text('💡 ', style: TextStyle(fontSize: 8)),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 105),
+                                child: Text(
+                                  formatSuggestedBy(suggestedByUsername!),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.amber,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     )
-                  else if (voteAvg != null)
+                  else if (displayRating != null)
                     Positioned(
                       top: 8,
                       right: 8,
@@ -274,7 +369,7 @@ class WHEntryGridCard extends ConsumerWidget {
                             const Icon(Icons.star_rounded, color: AppColors.primary, size: 12),
                             const SizedBox(width: 3),
                             Text(
-                              voteAvg.toStringAsFixed(1),
+                              displayRating.toStringAsFixed(1),
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 10,
@@ -332,13 +427,18 @@ class WHEntryGridCard extends ConsumerWidget {
                           const SizedBox(height: 3),
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTap: () {
+                            onTap: onSuggestionDetails ?? () {
                               final sender = (suggestedByUsername != null && suggestedByUsername!.isNotEmpty)
-                                  ? '@$suggestedByUsername'
+                                  ? (suggestedByUsername!.startsWith('To: ') || suggestedByUsername!.startsWith('@')
+                                      ? suggestedByUsername!
+                                      : '@$suggestedByUsername')
                                   : 'Friend';
+                              final alertTitle = (suggestedByUsername != null && suggestedByUsername!.startsWith('To: '))
+                                  ? 'Note $sender'
+                                  : 'Suggestion from $sender';
                               WHAlert.alert(
                                 context,
-                                title: 'Suggestion from $sender',
+                                title: alertTitle,
                                 message: '"${suggestionComment!.trim()}"',
                                 icon: Icons.lightbulb_outline_rounded,
                               );
@@ -465,9 +565,11 @@ class WHEntryGridCard extends ConsumerWidget {
                     break;
                 }
 
-                final dateText = effectiveDate != null
-                    ? DateFormat('MMM d, yyyy').format(effectiveDate)
-                    : (year ?? '');
+                final dateText = (mode == WHEntryCardMode.history && watchedAt == null)
+                    ? 'Watched'
+                    : (effectiveDate != null
+                        ? DateFormat('MMM d, yyyy').format(effectiveDate)
+                        : (year ?? 'Watched'));
 
                 return Padding(
                   padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),
@@ -508,8 +610,11 @@ class WHEntryGridCard extends ConsumerWidget {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.location_on_outlined, size: 9, color: AppColors.primaryDark),
-                                    const SizedBox(width: 2),
+                                    PlatformBrandLogo(
+                                      platform: watchLocation!.trim(),
+                                      size: 11,
+                                    ),
+                                    const SizedBox(width: 3),
                                     ConstrainedBox(
                                       constraints: const BoxConstraints(maxWidth: 55),
                                       child: Text(
@@ -520,7 +625,7 @@ class WHEntryGridCard extends ConsumerWidget {
                                           fontFamily: 'Inter',
                                           fontSize: 9,
                                           fontWeight: FontWeight.w800,
-                                          color: AppColors.primaryDark,
+                                          color: Color(0xFF2D2926),
                                         ),
                                       ),
                                     ),
@@ -533,7 +638,8 @@ class WHEntryGridCard extends ConsumerWidget {
                       ),
 
                       // Three-Dots Context Menu Button
-                      if (onMoveToWatching != null ||
+                      if (onSuggestionDetails != null ||
+                          onMoveToWatching != null ||
                           onMoveToWatchingWithTitle != null ||
                           onMarkWatched != null ||
                           onMarkWatchedWithTitle != null ||
@@ -550,6 +656,17 @@ class WHEntryGridCard extends ConsumerWidget {
                             side: const BorderSide(color: AppColors.border),
                           ),
                           itemBuilder: (_) => [
+                            if (onSuggestionDetails != null)
+                              const PopupMenuItem(
+                                value: 'details',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primary),
+                                    SizedBox(width: 10),
+                                    Text('Suggestion Details', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                                  ],
+                                ),
+                              ),
                             if (onMoveToWatching != null || onMoveToWatchingWithTitle != null)
                               const PopupMenuItem(
                                 value: 'watching',
@@ -603,6 +720,10 @@ class WHEntryGridCard extends ConsumerWidget {
                               ),
                           ],
                           onSelected: (value) {
+                            if (value == 'details') {
+                              onSuggestionDetails?.call();
+                              return;
+                            }
                             final resolved = displayTitle.isNotEmpty && displayTitle != 'Untitled'
                                 ? displayTitle
                                 : ((tmdbTitle != null && tmdbTitle.isNotEmpty && tmdbTitle != 'Untitled') ? tmdbTitle : title);

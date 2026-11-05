@@ -180,5 +180,37 @@ void main() {
       expect(authState.isAuthenticated, isTrue);
       expect(authState.user?.username, equals('moviebuff'));
     });
+
+    test('Instantly restores authenticated session from cached user without blocking on network', () async {
+      final cachedUser = User(
+        id: 'u-cached',
+        username: 'fastbuff',
+        email: 'fast@watchhive.com',
+        createdAt: DateTime(2025, 1, 1),
+      );
+
+      FlutterSecureStorage.setMockInitialValues({
+        'wh_access_token': 'valid_access',
+        'wh_refresh_token': 'valid_refresh',
+      });
+      final authManager = AuthManager();
+      await authManager.saveUser(cachedUser);
+
+      final container = ProviderContainer(
+        overrides: [
+          authManagerProvider.overrideWithValue(authManager),
+          authRepositoryProvider.overrideWithValue(
+            MockAuthRepoThrowingNetworkError(authManager),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final authState = await container.read(authStateProvider.future);
+
+      expect(authState.isAuthenticated, isTrue);
+      expect(authState.user?.id, equals('u-cached'));
+      expect(authState.user?.username, equals('fastbuff'));
+    });
   });
 }

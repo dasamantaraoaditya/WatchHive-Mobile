@@ -9,22 +9,26 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/search_repository.dart';
 import '../../profile/repositories/user_repository.dart';
 import '../../../core/utils/error_handler.dart';
+import '../../onboarding/widgets/screen_guide_dialog.dart';
+import '../../auth/providers/auth_provider.dart';
 
 enum TrendingFilter {
-  allTrending('🔥 All Trending', 'all', 'trending'),
-  trendingMovies('🎬 Movies', 'movie', 'trending'),
-  trendingTv('📺 TV Shows', 'tv', 'trending'),
-  popularMovies('⭐ Popular Movies', 'movie', 'popular'),
-  popularTv('📺 Popular TV', 'tv', 'popular');
+  forYou('For You ✨', 'all', 'for_you'),
+  allTrending('All Trending', 'all', 'trending'),
+  trendingMovies('Movies', 'movie', 'trending'),
+  trendingTv('TV Shows', 'tv', 'trending'),
+  popularMovies('Popular Movies', 'movie', 'popular'),
+  popularTv('Popular TV', 'tv', 'popular');
 
   final String label;
   final String mediaType;
-  final String category; // 'trending' | 'popular'
+  final String category; // 'for_you' | 'trending' | 'popular'
   const TrendingFilter(this.label, this.mediaType, this.category);
 }
 
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
+  final int initialTab;
+  const SearchScreen({super.key, this.initialTab = 0});
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -38,6 +42,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   Timer? _debounceTimer;
 
   List<MediaResult> _mediaResults = [];
+  String? _smartCorrectedQuery;
   List<User> _userResults = [];
   List<MediaResult> _discoveryMedia = [];
   List<User> _suggestedUsers = [];
@@ -53,19 +58,31 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, 1),
+    );
     _loadInitialDiscovery();
     _focusNode.addListener(() {
       if (mounted) setState(() {});
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _focusNode.requestFocus();
-      }
-    });
+    if (widget.initialTab == 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _focusNode.requestFocus();
+        }
+      });
+    }
   }
 
   Future<void> _loadInitialDiscovery() async {
+    final user = ref.read(authStateProvider).value?.user;
+    if (user != null && user.hasSubstantivePreferences) {
+      _selectedFilter = TrendingFilter.forYou;
+    } else {
+      _selectedFilter = TrendingFilter.allTrending;
+    }
     _loadDiscoveryMedia(_selectedFilter);
     _loadSuggestedUsers();
     _loadCommunityBuzz();
@@ -80,7 +97,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   }
 
   Future<void> _loadCommunityBuzz() async {
-    final list = await ref.read(searchRepositoryProvider).getCommunityTrending();
+    final list =
+        await ref.read(searchRepositoryProvider).getCommunityTrending();
     if (mounted) {
       setState(() => _communityBuzz = list);
     }
@@ -96,10 +114,40 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
       final repo = ref.read(searchRepositoryProvider);
       final List<MediaResult> results;
 
-      if (filter.category == 'popular') {
+      if (filter.category == 'for_you') {
+        final trending = await repo.getTrending(mediaType: 'all', timeWindow: 'week');
+        final popMovies = await repo.getPopular(type: 'movie');
+        final popTv = await repo.getPopular(type: 'tv');
+
+        final user = ref.read(authStateProvider).value?.user;
+        final preferredLangs = user?.savedLanguages.map((l) => l.toLowerCase()).toSet() ?? {};
+        final preferredGenres = user?.savedGenreIds.toSet() ?? {};
+
+        final map = <int, MediaResult>{};
+        for (final m in [...trending, ...popMovies, ...popTv]) {
+          map[m.id] = m;
+        }
+
+        final matched = <MediaResult>[];
+        final others = <MediaResult>[];
+
+        for (final m in map.values) {
+          final langMatch = m.originalLanguage != null && preferredLangs.contains(m.originalLanguage);
+          final genreMatch = m.genreIds.any((id) => preferredGenres.contains(id));
+          if (langMatch || genreMatch) {
+            matched.add(m);
+          } else {
+            others.add(m);
+          }
+        }
+
+        matched.sort((a, b) => (b.voteAverage ?? 0).compareTo(a.voteAverage ?? 0));
+        results = matched.isNotEmpty ? [...matched, ...others] : others;
+      } else if (filter.category == 'popular') {
         results = await repo.getPopular(type: filter.mediaType);
       } else {
-        results = await repo.getTrending(mediaType: filter.mediaType, timeWindow: 'week');
+        results = await repo.getTrending(
+            mediaType: filter.mediaType, timeWindow: 'week');
       }
 
       if (mounted) {
@@ -115,7 +163,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
 
   Future<void> _loadSuggestedUsers() async {
     try {
-      final results = await ref.read(searchRepositoryProvider).getSuggestedUsers();
+      final results =
+          await ref.read(searchRepositoryProvider).getSuggestedUsers();
       if (mounted) {
         setState(() {
           _suggestedUsers = results;
@@ -138,6 +187,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
       setState(() {
         _mediaResults = [];
         _userResults = [];
+        _smartCorrectedQuery = null;
         _isSearching = false;
       });
       return;
@@ -154,13 +204,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
     if (!mounted) return;
     setState(() => _isSearching = true);
     try {
+      final repo = ref.read(searchRepositoryProvider);
       final futures = await Future.wait([
-        ref.read(searchRepositoryProvider).searchMedia(trimmedQuery),
-        ref.read(searchRepositoryProvider).searchUsers(trimmedQuery),
+        repo.searchMediaSmart(trimmedQuery),
+        repo.searchUsers(trimmedQuery),
       ]);
       if (mounted) {
+        final smartMedia = futures[0] as SmartMediaSearchResult;
         setState(() {
-          _mediaResults = futures[0] as List<MediaResult>;
+          _mediaResults = smartMedia.results;
+          _smartCorrectedQuery =
+              smartMedia.isSmartCorrected ? smartMedia.correctedQuery : null;
           _userResults = futures[1] as List<User>;
           _isSearching = false;
         });
@@ -172,6 +226,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
 
   void _onSubmittedSearch(String query) {
     _debounceTimer?.cancel();
+    _focusNode.unfocus();
     final trimmed = query.trim();
     if (trimmed.isNotEmpty) {
       ref.read(searchRepositoryProvider).addRecentSearch(trimmed);
@@ -191,7 +246,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
       _query = term;
     });
     _onSubmittedSearch(term);
-    _focusNode.requestFocus();
+    _focusNode.unfocus();
   }
 
   @override
@@ -208,14 +263,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
     final showResults = _query.trim().length >= 2;
 
     return PopScope(
-      canPop: _query.trim().isEmpty,
+      canPop: _query.trim().isEmpty && !_focusNode.hasFocus,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
+        if (_focusNode.hasFocus) {
+          _focusNode.unfocus();
+          return;
+        }
         if (_query.trim().isNotEmpty) {
           _debounceTimer?.cancel();
           _searchController.clear();
           _onQueryChanged('');
-          _focusNode.requestFocus();
         }
       },
       child: Scaffold(
@@ -224,6 +282,32 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
           backgroundColor: AppColors.background,
           elevation: 0,
           scrolledUnderElevation: 0,
+          leading: (showResults || _focusNode.hasFocus)
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                      color: AppColors.textPrimary, size: 20),
+                  tooltip: 'Clear search',
+                  onPressed: () {
+                    _focusNode.unfocus();
+                    if (_query.isNotEmpty) {
+                      _debounceTimer?.cancel();
+                      _searchController.clear();
+                      _onQueryChanged('');
+                    }
+                  },
+                )
+              : (Navigator.of(context).canPop()
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                          color: AppColors.textPrimary, size: 20),
+                      tooltip: 'Back',
+                      onPressed: () {
+                        if (Navigator.of(context).canPop()) {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                    )
+                  : null),
           title: Row(
             children: [
               Container(
@@ -253,179 +337,258 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
               ),
             ],
           ),
-        ),
-        body: Column(
-          children: [
-            Expanded(
-              child: showResults
-                  ? Column(
-                      children: [
-                        Container(
-                          decoration: const BoxDecoration(
-                            color: AppColors.background,
-                            border: Border(
-                              bottom: BorderSide(color: AppColors.border, width: 0.8),
-                            ),
-                          ),
-                          child: TabBar(
-                            controller: _tabController,
-                            indicatorColor: AppColors.primary,
-                            indicatorWeight: 3,
-                            labelColor: AppColors.primary,
-                            unselectedLabelColor: AppColors.textMuted,
-                            labelStyle: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
-                            ),
-                            tabs: [
-                              Tab(text: 'Media (${_mediaResults.length})'),
-                              Tab(text: 'People (${_userResults.length})'),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          child: TabBarView(
-                            controller: _tabController,
-                            children: [
-                              _isSearching
-                                  ? const WHSkeletonMediaSearchList(count: 6)
-                                  : _MediaResultsList(
-                                      results: _mediaResults,
-                                      onSelectMedia: (m) => ref
-                                          .read(searchRepositoryProvider)
-                                          .addRecentSearch(m.title),
-                                    ),
-                              _isSearching
-                                  ? const WHSkeletonUserList(count: 6)
-                                  : _UserResultsList(
-                                      users: _userResults,
-                                      onSelectUser: (u) => ref
-                                          .read(searchRepositoryProvider)
-                                          .addRecentSearch(u.username),
-                                    ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    )
-                  : _DiscoveryView(
-                      discoveryMedia: _discoveryMedia,
-                      suggestedUsers: _suggestedUsers,
-                      communityBuzz: _communityBuzz,
-                      recentSearches: _recentSearches,
-                      selectedFilter: _selectedFilter,
-                      isDiscoveryLoading: _isDiscoveryLoading,
-                      isSuggestedUsersLoading: _isSuggestedUsersLoading,
-                      onFilterChanged: _loadDiscoveryMedia,
-                      onRefreshUsers: _loadSuggestedUsers,
-                      onSelectRecentSearch: _selectSearchTerm,
-                      onRemoveRecentSearch: (query) async {
-                        await ref
-                            .read(searchRepositoryProvider)
-                            .removeRecentSearch(query);
-                        _loadRecentSearches();
-                      },
-                      onClearRecentSearches: () async {
-                        await ref
-                            .read(searchRepositoryProvider)
-                            .clearRecentSearches();
-                        _loadRecentSearches();
-                      },
-                    ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.qr_code_scanner_rounded,
+                  color: AppColors.primary),
+              tooltip: 'Scan Hive Code / Movie',
+              onPressed: () {
+                _focusNode.unfocus();
+                context.push('/scanner');
+              },
             ),
-            _buildBottomSearchBox(),
+            IconButton(
+              icon: const Icon(Icons.help_outline_rounded,
+                  color: AppColors.textSecondary),
+              tooltip: 'About Explore & Search',
+              onPressed: () {
+                _focusNode.unfocus();
+                ScreenGuideDialog.show(context, ScreenGuideType.search);
+              },
+            ),
+            const SizedBox(width: 4),
           ],
+        ),
+        body: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            if (_focusNode.hasFocus) {
+              _focusNode.unfocus();
+            }
+          },
+          child: Column(
+            children: [
+              _buildTopSearchBox(),
+              if (showResults)
+                Container(
+                  decoration: const BoxDecoration(
+                    color: AppColors.background,
+                    border: Border(
+                      bottom: BorderSide(
+                          color: AppColors.border, width: 0.8),
+                    ),
+                  ),
+                  child: TabBar(
+                    controller: _tabController,
+                    indicatorColor: AppColors.primary,
+                    indicatorWeight: 3,
+                    labelColor: AppColors.primary,
+                    unselectedLabelColor: AppColors.textMuted,
+                    labelStyle: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                    tabs: [
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.movie_outlined, size: 16),
+                            const SizedBox(width: 6),
+                            Text('Movies & Shows (${_mediaResults.length})'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.people_alt_outlined, size: 16),
+                            const SizedBox(width: 6),
+                            Text('Friends & People (${_userResults.length})'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Expanded(
+                child: showResults
+                    ? TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _isSearching
+                              ? const WHSkeletonMediaSearchList(count: 6)
+                              : _MediaResultsList(
+                                  results: _mediaResults,
+                                  correctedQuery: _smartCorrectedQuery,
+                                  onSelectMedia: (m) => ref
+                                      .read(searchRepositoryProvider)
+                                      .addRecentSearch(m.title),
+                                ),
+                          _isSearching
+                              ? const WHSkeletonUserList(count: 6)
+                              : _UserResultsList(
+                                  users: _userResults,
+                                  onSelectUser: (u) => ref
+                                      .read(searchRepositoryProvider)
+                                      .addRecentSearch(u.username),
+                                ),
+                        ],
+                      )
+                    : _DiscoveryView(
+                        discoveryMedia: _discoveryMedia,
+                        suggestedUsers: _suggestedUsers,
+                        communityBuzz: _communityBuzz,
+                        recentSearches: _recentSearches,
+                        selectedFilter: _selectedFilter,
+                        isDiscoveryLoading: _isDiscoveryLoading,
+                        isSuggestedUsersLoading: _isSuggestedUsersLoading,
+                        onFilterChanged: _loadDiscoveryMedia,
+                        onRefreshUsers: _loadSuggestedUsers,
+                        onSelectRecentSearch: _selectSearchTerm,
+                        onRemoveRecentSearch: (query) async {
+                          await ref
+                              .read(searchRepositoryProvider)
+                              .removeRecentSearch(query);
+                          _loadRecentSearches();
+                        },
+                        onClearRecentSearches: () async {
+                          await ref
+                              .read(searchRepositoryProvider)
+                              .clearRecentSearches();
+                          _loadRecentSearches();
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBottomSearchBox() {
+  Widget _buildTopSearchBox() {
     final hasFocus = _focusNode.hasFocus;
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: const Border(
-          top: BorderSide(color: AppColors.border, width: 0.8),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(
+          bottom: BorderSide(color: AppColors.border, width: 0.8),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
-          ),
-        ],
       ),
-      child: SafeArea(
-        top: false,
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceElevated,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: hasFocus ? AppColors.primary : AppColors.border,
-              width: hasFocus ? 1.4 : 1.0,
-            ),
-          ),
-          child: TextField(
-            controller: _searchController,
-            focusNode: _focusNode,
-            autofocus: true,
-            onChanged: _onQueryChanged,
-            onSubmitted: _onSubmittedSearch,
-            textInputAction: TextInputAction.search,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Search movies, TV shows, cinephiles...',
-              hintStyle: const TextStyle(
-                fontFamily: 'Inter',
-                color: AppColors.textMuted,
-                fontSize: 14,
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: hasFocus ? AppColors.primary : AppColors.border,
+                  width: hasFocus ? 1.4 : 1.0,
+                ),
               ),
-              border: InputBorder.none,
-              prefixIcon: Icon(
-                Icons.search_rounded,
-                color: hasFocus ? AppColors.primary : AppColors.textMuted,
-                size: 22,
-              ),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_isSearching)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primary,
+              child: TextField(
+                controller: _searchController,
+                focusNode: _focusNode,
+                autofocus: false,
+                onChanged: _onQueryChanged,
+                onSubmitted: _onSubmittedSearch,
+                textInputAction: TextInputAction.search,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search movies, shows, friends & people...',
+                  hintStyle: const TextStyle(
+                    fontFamily: 'Inter',
+                    color: AppColors.textMuted,
+                    fontSize: 14,
+                  ),
+                  border: InputBorder.none,
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: hasFocus ? AppColors.primary : AppColors.textMuted,
+                    size: 22,
+                  ),
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_query.isEmpty && !hasFocus)
+                        IconButton(
+                          icon: const Icon(Icons.qr_code_scanner_rounded,
+                              color: AppColors.primary, size: 21),
+                          tooltip: 'Scan QR Code',
+                          onPressed: () {
+                            _focusNode.unfocus();
+                            context.push('/scanner');
+                          },
                         ),
-                      ),
-                    ),
-                  if (_query.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.clear_rounded, color: AppColors.textMuted, size: 20),
-                      onPressed: () {
-                        _debounceTimer?.cancel();
-                        _searchController.clear();
-                        _onQueryChanged('');
-                        _focusNode.requestFocus();
-                      },
-                    ),
-                ],
+                      if (_isSearching)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: WHBeeSpinner(size: 16),
+                        ),
+                      if (_query.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.clear_rounded,
+                              color: AppColors.textMuted, size: 20),
+                          tooltip: 'Clear',
+                          onPressed: () {
+                            _debounceTimer?.cancel();
+                            _searchController.clear();
+                            _onQueryChanged('');
+                          },
+                        ),
+                      if (hasFocus)
+                        IconButton(
+                          icon: const Icon(Icons.keyboard_hide_rounded,
+                              color: AppColors.primary, size: 22),
+                          tooltip: 'Hide keyboard',
+                          onPressed: () => _focusNode.unfocus(),
+                        ),
+                    ],
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                ),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             ),
           ),
-        ),
+          if (hasFocus || _query.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                _focusNode.unfocus();
+                if (_query.isNotEmpty) {
+                  _debounceTimer?.cancel();
+                  _searchController.clear();
+                  _onQueryChanged('');
+                }
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -434,10 +597,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
 class _MediaResultsList extends StatelessWidget {
   final List<MediaResult> results;
   final Function(MediaResult) onSelectMedia;
+  final String? correctedQuery;
 
   const _MediaResultsList({
     required this.results,
     required this.onSelectMedia,
+    this.correctedQuery,
   });
 
   @override
@@ -447,20 +612,68 @@ class _MediaResultsList extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.movie_filter_outlined, size: 48, color: AppColors.textMuted),
+            Icon(Icons.movie_filter_outlined,
+                size: 48, color: AppColors.textMuted),
             SizedBox(height: 12),
-            Text('No movies or series found', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
+            Text('No movies or series found',
+                style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: AppColors.textPrimary)),
             SizedBox(height: 4),
-            Text('Try searching with another title', style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
+            Text('Try searching with another title or keyword',
+                style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
           ],
         ),
       );
     }
     return ListView.builder(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.all(16),
-      itemCount: results.length,
+      itemCount: results.length + (correctedQuery != null ? 1 : 0),
       itemBuilder: (context, i) {
-        final media = results[i];
+        if (correctedQuery != null && i == 0) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
+              border:
+                  Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.auto_awesome_rounded,
+                    color: AppColors.primary, size: 16),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                          color: AppColors.textPrimary),
+                      children: [
+                        const TextSpan(text: 'Showing nearest results for '),
+                        TextSpan(
+                          text: '"$correctedQuery"',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final index = correctedQuery != null ? i - 1 : i;
+        final media = results[index];
         return _MediaTile(
           media: media,
           onTap: () {
@@ -489,16 +702,24 @@ class _UserResultsList extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.person_search_rounded, size: 48, color: AppColors.textMuted),
+            Icon(Icons.person_search_rounded,
+                size: 48, color: AppColors.textMuted),
             SizedBox(height: 12),
-            Text('No users found', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
+            Text('No friends or people found',
+                style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: AppColors.textPrimary)),
             SizedBox(height: 4),
-            Text('Try searching with another username or name', style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
+            Text('Try searching by friend\'s name or @username',
+                style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
           ],
         ),
       );
     }
     return ListView.builder(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: users.length,
       itemBuilder: (context, i) {
@@ -540,7 +761,10 @@ class _UserTile extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              WHAvatar(imageUrl: user.profilePictureUrl, name: user.name, radius: 24),
+              WHAvatar(
+                  imageUrl: user.profilePictureUrl,
+                  name: user.name,
+                  radius: 24),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -563,25 +787,50 @@ class _UserTile extends StatelessWidget {
                         ),
                         if (user.isPrivate) ...[
                           const SizedBox(width: 6),
-                          const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.textMuted),
+                          const Icon(Icons.lock_outline_rounded,
+                              size: 14, color: AppColors.textMuted),
                         ],
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      '@${user.username}',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.primary,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          '@${user.username}',
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        if (user.isFollower) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Follows you',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     if (user.bio != null && user.bio!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         user.bio!,
-                        style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textMuted),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -589,7 +838,8 @@ class _UserTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppColors.textMuted),
             ],
           ),
         ),
@@ -630,6 +880,7 @@ class _DiscoveryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: [
         // 1. Recent Searches Section (if any)
         if (recentSearches.isNotEmpty) ...[
@@ -641,7 +892,8 @@ class _DiscoveryView extends StatelessWidget {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.history_rounded, size: 18, color: AppColors.textMuted),
+                      Icon(Icons.history_rounded,
+                          size: 18, color: AppColors.textMuted),
                       SizedBox(width: 6),
                       Text(
                         'Recent Searches',
@@ -684,15 +936,20 @@ class _DiscoveryView extends StatelessWidget {
                     child: InputChip(
                       label: Text(
                         term,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary),
                       ),
                       backgroundColor: AppColors.surface,
                       selectedColor: AppColors.primary.withValues(alpha: 0.2),
                       side: const BorderSide(color: AppColors.border),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
                       onPressed: () => onSelectRecentSearch(term),
                       onDeleted: () => onRemoveRecentSearch(term),
-                      deleteIcon: const Icon(Icons.close_rounded, size: 14, color: AppColors.textMuted),
+                      deleteIcon: const Icon(Icons.close_rounded,
+                          size: 14, color: AppColors.textMuted),
                     ),
                   );
                 },
@@ -701,7 +958,7 @@ class _DiscoveryView extends StatelessWidget {
           ),
         ],
 
-        // 2. Suggested Cinephiles Section
+        // 2. Suggested Friends & People Section
         if (suggestedUsers.isNotEmpty || isSuggestedUsersLoading) ...[
           const SliverPadding(
             padding: EdgeInsets.fromLTRB(16, 20, 16, 10),
@@ -711,7 +968,7 @@ class _DiscoveryView extends StatelessWidget {
                   Icon(Icons.stars_rounded, color: AppColors.primary, size: 20),
                   SizedBox(width: 8),
                   Text(
-                    'Suggested Cinephiles 🐝',
+                    'Friends & People to Follow',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 17,
@@ -730,14 +987,15 @@ class _DiscoveryView extends StatelessWidget {
           else
             SliverToBoxAdapter(
               child: SizedBox(
-                height: 156,
+                height: 178,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: suggestedUsers.length,
                   itemBuilder: (context, i) {
                     final user = suggestedUsers[i];
-                    return _SuggestedUserCard(user: user, onRefresh: onRefreshUsers);
+                    return _SuggestedUserCard(
+                        user: user, onRefresh: onRefreshUsers);
                   },
                 ),
               ),
@@ -751,10 +1009,11 @@ class _DiscoveryView extends StatelessWidget {
             sliver: SliverToBoxAdapter(
               child: Row(
                 children: [
-                  Icon(Icons.trending_up_rounded, color: AppColors.primary, size: 20),
+                  Icon(Icons.trending_up_rounded,
+                      color: AppColors.primary, size: 20),
                   SizedBox(width: 8),
                   Text(
-                    'Buzzing in the Hive 🐝',
+                    'Popular in the Community',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 17,
@@ -780,14 +1039,19 @@ class _DiscoveryView extends StatelessWidget {
                   return Container(
                     margin: const EdgeInsets.only(right: 8),
                     child: ActionChip(
-                      avatar: const Icon(Icons.bolt_rounded, size: 14, color: AppColors.primary),
+                      avatar: const Icon(Icons.bolt_rounded,
+                          size: 14, color: AppColors.primary),
                       label: Text(
                         '$title · $contextText',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary),
                       ),
                       backgroundColor: AppColors.surface,
                       side: const BorderSide(color: AppColors.border),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
                       onPressed: () => onSelectRecentSearch(title),
                     ),
                   );
@@ -806,7 +1070,8 @@ class _DiscoveryView extends StatelessWidget {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.local_fire_department_rounded, color: Colors.deepOrangeAccent, size: 22),
+                    Icon(Icons.local_fire_department_rounded,
+                        color: Colors.deepOrangeAccent, size: 22),
                     SizedBox(width: 8),
                     Text(
                       'Trending & Popular',
@@ -855,12 +1120,14 @@ class _DiscoveryView extends StatelessWidget {
                       fontFamily: 'Inter',
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: isSelected ? Colors.black : AppColors.textSecondary,
+                      color:
+                          isSelected ? Colors.black : AppColors.textSecondary,
                     ),
                     side: BorderSide(
                       color: isSelected ? AppColors.primary : AppColors.border,
                     ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
                   ),
                 );
               }).toList(),
@@ -893,14 +1160,24 @@ class _DiscoveryView extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.movie_creation_outlined, size: 48, color: AppColors.textMuted),
+                  const Icon(Icons.movie_creation_outlined,
+                      size: 48, color: AppColors.textMuted),
                   const SizedBox(height: 12),
-                  const Text('No trending titles available', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
+                  const Text('No trending titles available',
+                      style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: AppColors.textPrimary)),
                   const SizedBox(height: 4),
                   TextButton.icon(
                     onPressed: () => onFilterChanged(selectedFilter),
-                    icon: const Icon(Icons.refresh_rounded, color: AppColors.primary, size: 18),
-                    label: const Text('Retry Loading', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                    icon: const Icon(Icons.refresh_rounded,
+                        color: AppColors.primary, size: 18),
+                    label: const Text('Retry Loading',
+                        style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -946,19 +1223,68 @@ class _SuggestedUserCard extends ConsumerStatefulWidget {
 
 class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
   bool _isFollowing = false;
+  bool _isRequested = false;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isFollowing = widget.user.isFollowing;
+    _isRequested = widget.user.isRequested;
+  }
+
+  @override
+  void didUpdateWidget(covariant _SuggestedUserCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.isFollowing != widget.user.isFollowing) {
+      _isFollowing = widget.user.isFollowing;
+    }
+    if (oldWidget.user.isRequested != widget.user.isRequested) {
+      _isRequested = widget.user.isRequested;
+    }
+  }
 
   Future<void> _toggleFollow() async {
     setState(() => _isLoading = true);
     try {
-      if (_isFollowing) {
+      if (_isFollowing || _isRequested) {
         await ref.read(userRepositoryProvider).unfollowUser(widget.user.id);
-        setState(() => _isFollowing = false);
-      } else {
-        await ref.read(userRepositoryProvider).followUser(widget.user.id);
-        setState(() => _isFollowing = true);
+        final wasRequested = _isRequested;
+        setState(() {
+          _isFollowing = false;
+          _isRequested = false;
+        });
         if (mounted) {
-          WHAlert.showSuccess(context, 'Followed @${widget.user.username}! ✨');
+          WHAlert.showInfo(
+              context,
+              wasRequested
+                  ? 'Follow request cancelled'
+                  : 'Unfollowed @${widget.user.username}');
+        }
+      } else {
+        final res =
+            await ref.read(userRepositoryProvider).followUser(widget.user.id);
+        final status = res['status']?.toString().toLowerCase();
+        final isPrivate = widget.user.isPrivate ||
+            widget.user.privacyLevel == 'FOLLOWERS_ONLY' ||
+            widget.user.privacyLevel == 'PRIVATE';
+        final isReq = status == 'requested' || (status == null && isPrivate);
+        setState(() {
+          if (isReq) {
+            _isRequested = true;
+            _isFollowing = false;
+          } else {
+            _isFollowing = true;
+            _isRequested = false;
+          }
+        });
+        if (mounted) {
+          if (isReq) {
+            WHAlert.showSuccess(
+                context, 'Follow request sent to @${widget.user.username}.');
+          } else {
+            WHAlert.showSuccess(context, 'Following @${widget.user.username}.');
+          }
         }
       }
     } catch (e) {
@@ -999,7 +1325,10 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            WHAvatar(imageUrl: widget.user.profilePictureUrl, name: widget.user.name, radius: 22),
+            WHAvatar(
+                imageUrl: widget.user.profilePictureUrl,
+                name: widget.user.name,
+                radius: 22),
             const SizedBox(height: 6),
             Text(
               widget.user.name,
@@ -1013,7 +1342,7 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              '@${widget.user.username}',
+              '@${widget.user.username.length > 10 ? '${widget.user.username.substring(0, 10)}...' : widget.user.username}',
               style: const TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 10,
@@ -1022,23 +1351,76 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
+            if (widget.user.suggestionReason != null && widget.user.suggestionReason!.isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      widget.user.suggestionReason!.contains('mutual')
+                          ? Icons.group_outlined
+                          : widget.user.suggestionReason!.contains('Follows')
+                              ? Icons.how_to_reg_outlined
+                              : widget.user.suggestionReason!.contains('movie') || widget.user.suggestionReason!.contains('taste')
+                                  ? Icons.movie_outlined
+                                  : Icons.stars_rounded,
+                      size: 10,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 3),
+                    Flexible(
+                      child: Text(
+                        widget.user.suggestionReason!,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 6),
             SizedBox(
               width: double.infinity,
               height: 26,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _isFollowing ? AppColors.surfaceElevated : AppColors.primary,
-                  foregroundColor: _isFollowing ? AppColors.textPrimary : Colors.black,
+                  backgroundColor: _isFollowing
+                      ? AppColors.surfaceElevated
+                      : _isRequested
+                          ? Colors.amber.shade100
+                          : AppColors.primary,
+                  foregroundColor: _isFollowing
+                      ? AppColors.textPrimary
+                      : _isRequested
+                          ? Colors.amber.shade900
+                          : Colors.black,
                   elevation: 0,
                   padding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: _isLoading ? null : _toggleFollow,
                 child: _isLoading
-                    ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                    ? const WHBeeSpinner(size: 12)
                     : Text(
-                        _isFollowing ? 'Following' : 'Follow',
+                        _isFollowing
+                            ? 'Following'
+                            : _isRequested
+                                ? 'Requested'
+                                : 'Follow',
                         style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 11,
@@ -1054,13 +1436,19 @@ class _SuggestedUserCardState extends ConsumerState<_SuggestedUserCard> {
   }
 }
 
-class _MediaPosterCard extends StatelessWidget {
+class _MediaPosterCard extends ConsumerWidget {
   final MediaResult media;
   final VoidCallback onTap;
   const _MediaPosterCard({required this.media, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authStateProvider).value?.user;
+    final preferredLangs = user?.savedLanguages.map((l) => l.toLowerCase()).toSet() ?? {};
+    final preferredGenres = user?.savedGenreIds.toSet() ?? {};
+    final match = (media.originalLanguage != null && preferredLangs.contains(media.originalLanguage)) ||
+        media.genreIds.any((g) => preferredGenres.contains(g));
+
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
@@ -1074,7 +1462,7 @@ class _MediaPosterCard extends StatelessWidget {
               height: double.infinity,
               borderRadius: 0,
             ),
-            // Top badges (Media type & Rating)
+            // Top badges (Media type, Taste Match, & Rating)
             Positioned(
               top: 8,
               left: 8,
@@ -1082,26 +1470,60 @@ class _MediaPosterCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      media.mediaType == 'tv' ? '📺 TV' : '🎬 MOVIE',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 9,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          media.mediaType == 'tv' ? 'TV' : 'MOVIE',
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (match) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.auto_awesome, size: 9, color: Colors.black),
+                              SizedBox(width: 2),
+                              Text(
+                                'TASTE',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.black,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   if (media.voteAverage != null && media.voteAverage! > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(6),
@@ -1109,7 +1531,8 @@ class _MediaPosterCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.star_rounded, size: 10, color: Colors.black),
+                          const Icon(Icons.star_rounded,
+                              size: 10, color: Colors.black),
                           const SizedBox(width: 2),
                           Text(
                             media.voteAverage!.toStringAsFixed(1),
@@ -1193,7 +1616,8 @@ class _MediaTile extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 12),
         child: Row(
           children: [
-            TMDBPosterImage(posterPath: media.posterPath, width: 56, height: 80),
+            TMDBPosterImage(
+                posterPath: media.posterPath, width: 56, height: 80),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -1201,12 +1625,17 @@ class _MediaTile extends StatelessWidget {
                 children: [
                   Text(
                     media.title,
-                    style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${media.mediaType == "movie" ? "🎬 Movie" : "📺 TV Show"} · ${media.year}',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    '${media.mediaType == "movie" ? "Movie" : "TV Series"} · ${media.year}',
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textMuted),
                   ),
                   if (media.voteAverage != null && media.voteAverage! > 0) ...[
                     const SizedBox(height: 4),
@@ -1222,4 +1651,3 @@ class _MediaTile extends StatelessWidget {
     );
   }
 }
-
