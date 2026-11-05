@@ -278,7 +278,7 @@ class _EntriesScreenState extends ConsumerState<EntriesScreen>
     final currentUserId = ref.watch(authStateProvider).value?.user?.id;
     if (currentUserId == null || currentUserId.isEmpty) {
       return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
+        child: WHBeeLoader(size: WHBeeLoaderSize.small, message: 'Loading rankings...'),
       );
     }
     return UserRankingsTab(userId: currentUserId);

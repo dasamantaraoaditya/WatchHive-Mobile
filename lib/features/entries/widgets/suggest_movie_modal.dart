@@ -620,11 +620,7 @@ class _SuggestMovieModalState extends ConsumerState<SuggestMovieModal> {
                               suffixIcon: _isSearchingFriends
                                   ? const Padding(
                                       padding: EdgeInsets.all(12),
-                                      child: SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                                      ),
+                                      child: WHBeeSpinner(size: 14),
                                     )
                                   : (_friendSearchQuery.isNotEmpty
                                       ? IconButton(

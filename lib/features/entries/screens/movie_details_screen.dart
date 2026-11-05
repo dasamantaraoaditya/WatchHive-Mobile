@@ -1180,11 +1180,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                   _toggleWatchlist();
                                 },
                                 icon: _isWatchlistLoading
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                                      )
+                                    ? const WHBeeSpinner(size: 16)
                                     : Icon(
                                         _inWatchlist ? Icons.bookmark_added_rounded : Icons.bookmark_add_outlined,
                                         size: 19,
@@ -1304,14 +1300,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                               ),
                                               child: _isTransitioning
                                                   ? const Center(
-                                                      child: SizedBox(
-                                                        width: 14,
-                                                        height: 14,
-                                                        child: CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                          color: Color(0xFF2D2926),
-                                                        ),
-                                                      ),
+                                                      child: WHBeeSpinner(size: 14),
                                                     )
                                                   : const Icon(
                                                       Icons.play_arrow_rounded,
