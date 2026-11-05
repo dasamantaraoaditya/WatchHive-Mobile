@@ -6,8 +6,6 @@ import '../theme/app_colors.dart';
 import '../../features/auth/screens/splash_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
-import '../../features/auth/screens/forgot_password_screen.dart';
-import '../../features/auth/screens/reset_password_screen.dart';
 import '../../features/auth/screens/verify_email_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_shell.dart';
@@ -202,18 +200,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/forgot-password',
-        builder: (context, state) {
-          final email = state.uri.queryParameters['email'];
-          return ForgotPasswordScreen(initialEmail: email);
-        },
+        redirect: (context, state) => '/login',
       ),
       GoRoute(
         path: '/reset-password',
-        builder: (context, state) {
-          final token = state.uri.queryParameters['token'];
-          final email = state.uri.queryParameters['email'];
-          return ResetPasswordScreen(initialToken: token, initialEmail: email);
-        },
+        redirect: (context, state) => '/login',
       ),
       GoRoute(
         path: '/verify-email',

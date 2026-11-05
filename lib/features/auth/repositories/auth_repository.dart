@@ -30,6 +30,35 @@ class AuthRepository {
     return user;
   }
 
+  Future<Map<String, dynamic>> requestEmailOtp(String email) async {
+    final response = await _api.post(
+      ApiEndpoints.requestEmailOtp,
+      data: {'email': email.trim().toLowerCase()},
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<User> verifyEmailOtp({
+    required String email,
+    required String code,
+  }) async {
+    final response = await _api.post(
+      ApiEndpoints.verifyEmailOtp,
+      data: {
+        'email': email.trim().toLowerCase(),
+        'code': code.trim(),
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    await _authManager.saveTokens(
+      accessToken: data['accessToken'] as String,
+      refreshToken: data['refreshToken'] as String,
+    );
+    final user = User.fromJson(data['user'] as Map<String, dynamic>);
+    await _authManager.saveUser(user);
+    return user;
+  }
+
   Future<Map<String, dynamic>> register({
     required String username,
     required String email,

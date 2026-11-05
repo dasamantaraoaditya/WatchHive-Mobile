@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,52 +22,37 @@ class SignupScreen extends ConsumerStatefulWidget {
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
   bool _isLoading = false;
   bool _isHandlingPostAuth = false;
 
   @override
   void dispose() {
-    _usernameController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _register() async {
+  Future<void> _sendEmailCode() async {
     if (_isLoading || _isHandlingPostAuth) return;
-    if (!_formKey.currentState!.validate()) return;
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+      WHAlert.showWarning(context, 'Please enter a valid email address');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      final email = _emailController.text.trim();
-      final res = await ref.read(authStateProvider.notifier).register(
-            username: _usernameController.text.trim(),
-            email: email,
-            password: _passwordController.text,
-          );
+      await ref.read(authStateProvider.notifier).requestEmailOtp(email);
       if (mounted) {
         WHAlert.showSuccess(
           context,
-          res['message']?.toString() ?? 'Please enter the 6-digit code sent to your email.',
+          'A 6-digit verification code has been sent to $email.',
         );
         context.push('/verify-email', extra: {'email': email});
       }
     } catch (e) {
       if (mounted) {
-        if (e is DioException && e.response?.data is Map) {
-          final data = e.response!.data as Map;
-          if (data['code'] == 'email_already_registered') {
-            WHAlert.showWarning(
-              context,
-              'This email is already registered. Please sign in.',
-            );
-            return;
-          }
-        }
         WHAlert.showError(context, _parseError(e));
       }
     } finally {
@@ -81,7 +65,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (str.contains('7:') || str.contains('network_error') || str.contains('socketexception')) {
       return 'Network error during Google Sign-In. Please check your internet connection.';
     } else if (str.contains('10:') || str.contains('developer_error') || str.contains('12500')) {
-      return 'Google Sign-In is temporarily unavailable on this device. Please sign up with your email and password.';
+      return 'Google Sign-In is temporarily unavailable on this device. Please sign up with an email code.';
     } else if (str.contains('concurrent')) {
       return 'Google Sign-In is already in progress. Please wait a moment.';
     } else if (str.contains('sign_in_canceled') || str.contains('canceled')) {
@@ -165,7 +149,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         if (mounted) {
           WHAlert.showError(
             context,
-            'Google Sign-In could not be completed. Please try again or sign up with your email and password.',
+            'Google Sign-In could not be completed. Please try again or sign up with an email code.',
           );
         }
         return;
@@ -203,7 +187,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         if (mounted) {
           WHAlert.showError(
             context,
-            'Apple Sign-In could not be completed. Please try again or sign up with your email and password.',
+            'Apple Sign-In could not be completed. Please try again or sign up with an email code.',
           );
         }
         return;
@@ -303,7 +287,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
-                            'or register with email',
+                            'or register with email code',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: AppColors.textMuted,
                                   fontWeight: FontWeight.w500,
@@ -314,77 +298,44 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       ]),
                       const SizedBox(height: 24),
 
-                      // Username
-                      WHTextField(
-                        controller: _usernameController,
-                        label: 'Username',
-                        hint: 'yourname',
-                        textInputAction: TextInputAction.next,
-                        autofillHints: const [AutofillHints.newUsername],
-                        autocorrect: false,
-                        enableSuggestions: false,
-                        textCapitalization: TextCapitalization.none,
-                        validator: (v) {
-                          if (v == null || v.isEmpty) return 'Username is required';
-                          if (v.length < 3) return 'At least 3 characters';
-                          if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(v)) {
-                            return 'Only letters, numbers and underscores';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
                       // Email
                       WHTextField(
                         controller: _emailController,
-                        label: 'Email',
+                        label: 'Email Address',
                         hint: 'you@example.com',
                         keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
+                        textInputAction: TextInputAction.done,
                         autofillHints: const [AutofillHints.email],
                         autocorrect: false,
                         enableSuggestions: false,
                         textCapitalization: TextCapitalization.none,
+                        onSubmitted: (_) => _sendEmailCode(),
                         validator: (v) {
-                          if (v == null || v.isEmpty) return 'Email is required';
-                          if (!v.contains('@')) return 'Enter a valid email';
+                          if (v == null || v.trim().isEmpty) return 'Please enter your email address';
+                          if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim())) {
+                            return 'Please enter a valid email address';
+                          }
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
-                      // Password
-                      WHTextField(
-                        controller: _passwordController,
-                        label: 'Password',
-                        hint: 'Min. 8 characters',
-                        obscureText: _obscurePassword,
-                        textInputAction: TextInputAction.done,
-                        autofillHints: const [AutofillHints.newPassword],
-                        autocorrect: false,
-                        enableSuggestions: false,
-                        onSubmitted: (_) => _register(),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                            color: AppColors.textMuted,
-                            size: 20,
-                          ),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      Text(
+                        'No password needed. We will send a 6-digit verification code to activate your account.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                          color: AppColors.textMuted.withValues(alpha: 0.9),
+                          height: 1.4,
                         ),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) return 'Password is required';
-                          if (v.length < 8) return 'At least 8 characters';
-                          return null;
-                        },
+                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
 
                       WHButton(
-                        label: 'Create Account',
+                        label: 'Continue with Email Code',
                         isLoading: _isLoading,
-                        onPressed: _register,
+                        onPressed: _sendEmailCode,
                       ),
                       const SizedBox(height: 20),
 
