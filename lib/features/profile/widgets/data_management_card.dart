@@ -159,6 +159,9 @@ class DataManagementCardState extends ConsumerState<DataManagementCard> {
           previewData: previewData,
           defaultToCurrentYear: _defaultToCurrentYear,
           onConfirm: (readyPayload) async {
+            if (readyPayload.containsKey('defaultToCurrentYear')) {
+              _defaultToCurrentYear = readyPayload['defaultToCurrentYear'] as bool? ?? false;
+            }
             setState(() => _isImporting = true);
             try {
               final importRes = await repo.importData(readyPayload);
@@ -472,139 +475,74 @@ class DataManagementCardState extends ConsumerState<DataManagementCard> {
               ),
             ] else ...[
               // ─── IMPORT VIEW (Compact & AI First) ──────────────────
-              // 1. Format with AI card (Shifted Above)
+              // 1. Format with AI (Compact space-efficient bar)
               Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.black),
-                        ),
-                        const SizedBox(width: 10),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Format Your History with AI',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Have unformatted notes or a text list? Copy our prompt into ChatGPT, Claude, or Gemini to instantly convert into importable JSON.',
-                                style: TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.35),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.black,
-                          backgroundColor: _copiedAiPrompt ? AppColors.success.withValues(alpha: 0.15) : AppColors.surface,
-                          side: BorderSide(color: _copiedAiPrompt ? AppColors.success : AppColors.primary),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () {
-                          Clipboard.setData(const ClipboardData(text: DataParserService.aiImportPrompt));
-                          setState(() => _copiedAiPrompt = true);
-                          Future.delayed(const Duration(seconds: 2), () {
-                            if (mounted) setState(() => _copiedAiPrompt = false);
-                          });
-                        },
-                        icon: Icon(
-                          _copiedAiPrompt ? Icons.check_circle_rounded : Icons.content_copy_rounded,
-                          size: 15,
-                          color: _copiedAiPrompt ? AppColors.success : Colors.black,
-                        ),
-                        label: Text(
-                          _copiedAiPrompt ? 'Prompt Copied! ✨' : 'Copy AI Formatting Prompt',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: _copiedAiPrompt ? AppColors.success : Colors.black,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // 2. Default to current year toggle
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceHighest.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 32,
-                      height: 32,
+                      width: 28,
+                      height: 28,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primaryDark),
+                      child: const Icon(Icons.auto_awesome_rounded, size: 15, color: Colors.black),
                     ),
                     const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Default to current year if no date',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _defaultToCurrentYear
-                                ? 'Items without a date will default to ${DateTime.now().year}'
-                                : 'Off by default — no watch date will be recorded',
-                            style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-                          ),
-                        ],
+                    const Expanded(
+                      child: Text(
+                        'Format watch notes with AI',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
-                    Switch.adaptive(
-                      value: _defaultToCurrentYear,
-                      activeTrackColor: AppColors.primary,
-                      onChanged: (val) => setState(() => _defaultToCurrentYear = val),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () {
+                        Clipboard.setData(const ClipboardData(text: DataParserService.aiImportPrompt));
+                        setState(() => _copiedAiPrompt = true);
+                        Future.delayed(const Duration(seconds: 2), () {
+                          if (mounted) setState(() => _copiedAiPrompt = false);
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(9),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _copiedAiPrompt ? AppColors.success : AppColors.primary,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _copiedAiPrompt ? Icons.check_circle_rounded : Icons.content_copy_rounded,
+                              size: 13,
+                              color: _copiedAiPrompt ? Colors.white : Colors.black,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _copiedAiPrompt ? 'Copied!' : 'Copy Prompt',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: _copiedAiPrompt ? Colors.white : Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),

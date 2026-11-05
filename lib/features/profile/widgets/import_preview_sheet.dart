@@ -46,6 +46,7 @@ class _ImportPreviewSheetState extends State<ImportPreviewSheet> {
   late List<dynamic> _lists;
   String _activeFilter = 'all'; // 'all', 'unmatched', 'matched'
   bool _showDuplicates = false;
+  late bool _defaultToCurrentYear;
 
   @override
   void initState() {
@@ -53,6 +54,7 @@ class _ImportPreviewSheetState extends State<ImportPreviewSheet> {
     final rawList = widget.previewData['entries'] as List? ?? [];
     _entries = rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
     _lists = widget.previewData['lists'] as List? ?? [];
+    _defaultToCurrentYear = widget.defaultToCurrentYear;
   }
 
   int get _matchedCount => _entries.where((e) => e['matchStatus'] == 'MATCHED').length;
@@ -93,7 +95,7 @@ class _ImportPreviewSheetState extends State<ImportPreviewSheet> {
     final readyPayload = <String, dynamic>{
       'entries': toImportEntries,
       'lists': _lists,
-      'defaultToCurrentYear': widget.defaultToCurrentYear,
+      'defaultToCurrentYear': _defaultToCurrentYear,
     };
 
     Navigator.of(context).pop(true);
@@ -215,11 +217,11 @@ class _ImportPreviewSheetState extends State<ImportPreviewSheet> {
                     const SizedBox(width: 8),
                     _buildBadge(
                       icon: Icons.calendar_today_rounded,
-                      label: widget.defaultToCurrentYear
+                      label: _defaultToCurrentYear
                           ? '$_noDateCount Default to ${DateTime.now().year}'
                           : '$_noDateCount No Date',
-                      color: widget.defaultToCurrentYear ? AppColors.primaryDark : AppColors.warning,
-                      bgColor: widget.defaultToCurrentYear
+                      color: _defaultToCurrentYear ? AppColors.primaryDark : AppColors.warning,
+                      bgColor: _defaultToCurrentYear
                           ? AppColors.primary.withValues(alpha: 0.15)
                           : AppColors.warning.withValues(alpha: 0.12),
                     ),
@@ -241,6 +243,59 @@ class _ImportPreviewSheetState extends State<ImportPreviewSheet> {
                   const SizedBox(width: 8),
                   _buildFilterTab('unmatched', 'Unmatched ($_unmatchedCount)'),
                 ],
+              ],
+            ),
+          ),
+
+          // Default to Current Year Toggle Bar
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primaryDark),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Default to current year (${DateTime.now().year})',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        _noDateCount > 0
+                            ? '$_noDateCount items have no watch date'
+                            : 'Applies to items without a watch date',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Transform.scale(
+                  scale: 0.8,
+                  child: Switch.adaptive(
+                    value: _defaultToCurrentYear,
+                    activeThumbColor: Colors.black,
+                    activeTrackColor: AppColors.primary,
+                    onChanged: (val) {
+                      setState(() => _defaultToCurrentYear = val);
+                    },
+                  ),
+                ),
               ],
             ),
           ),
