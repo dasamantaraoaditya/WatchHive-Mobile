@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/smart_suggest.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../entries/repositories/suggestions_repository.dart';
 import '../../entries/repositories/watchlist_repository.dart';
@@ -311,27 +312,9 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
 
                 if (isLoading && items.isEmpty) {
                   return const Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                        ),
-                        SizedBox(width: 10),
-                        Flexible(
-                          child: Text(
-                            'Analyzing your hive taste...',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: WHBeeSpinner(
+                      size: 16,
+                      message: 'Analyzing your hive taste...',
                     ),
                   );
                 }

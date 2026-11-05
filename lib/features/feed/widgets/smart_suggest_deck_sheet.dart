@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/smart_suggest.dart';
+import '../../../shared/widgets/shared_widgets.dart';
 import '../../entries/repositories/suggestions_repository.dart';
 import '../../entries/repositories/watchlist_repository.dart';
 import '../../entries/screens/add_entry_sheet.dart';
@@ -280,20 +281,9 @@ class _SmartSuggestDeckSheetState extends ConsumerState<SmartSuggestDeckSheet> {
                   ? const Padding(
                       padding: EdgeInsets.symmetric(vertical: 80),
                       child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CircularProgressIndicator(color: AppColors.primary),
-                            SizedBox(height: 16),
-                            Text(
-                              'Analyzing your hive taste...',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
+                        child: WHBeeLoader(
+                          size: WHBeeLoaderSize.medium,
+                          message: 'Analyzing your hive taste...',
                         ),
                       ),
                     )

@@ -567,11 +567,7 @@ class _PendingFollowRequestsCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     if (isLoading)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                      )
+                      const WHBeeSpinner(size: 20)
                     else
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -802,11 +798,7 @@ class _NotificationTile extends StatelessWidget {
                             ),
                           )
                         : isActionLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                              )
+                            ? const WHBeeSpinner(size: 20)
                             : Row(
                                 children: [
                                   ElevatedButton.icon(

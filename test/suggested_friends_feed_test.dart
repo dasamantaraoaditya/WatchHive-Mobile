@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:watchhive_mobile/features/feed/widgets/feed_add_friends_card.dart';
 import 'package:watchhive_mobile/shared/models/user.dart';
+import 'package:watchhive_mobile/shared/widgets/wh_bee_loader.dart';
 
 void main() {
   group('FeedAddFriendsCard with Suggested Friends Tests', () {
@@ -124,7 +125,7 @@ void main() {
         ),
       );
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(WHBeeSpinner), findsOneWidget);
     });
 
     testWidgets('shows Following state when user is in followingMap and handles toggle tap', (tester) async {

@@ -390,14 +390,7 @@ class _FeedAddFriendsCardState extends State<FeedAddFriendsCard> {
                                           ),
                                         ),
                                         child: isLoadingFollow
-                                            ? const SizedBox(
-                                                width: 12,
-                                                height: 12,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 1.5,
-                                                  color: Colors.green,
-                                                ),
-                                              )
+                                            ? const WHBeeSpinner(size: 12)
                                             : const Row(
                                                 mainAxisAlignment: MainAxisAlignment.center,
                                                 children: [
@@ -432,14 +425,7 @@ class _FeedAddFriendsCardState extends State<FeedAddFriendsCard> {
                                           ),
                                         ),
                                         child: isLoadingFollow
-                                            ? const SizedBox(
-                                                width: 12,
-                                                height: 12,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 1.5,
-                                                  color: Colors.black,
-                                                ),
-                                              )
+                                            ? const WHBeeSpinner(size: 12)
                                             : const Row(
                                                 mainAxisAlignment: MainAxisAlignment.center,
                                                 children: [

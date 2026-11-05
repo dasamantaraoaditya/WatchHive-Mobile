@@ -7,6 +7,7 @@ import 'package:watchhive_mobile/features/entries/widgets/wh_entry_grid_card.dar
 import 'package:watchhive_mobile/features/profile/widgets/offline_sync_card.dart';
 import 'package:watchhive_mobile/shared/models/entry.dart';
 import 'package:watchhive_mobile/shared/widgets/offline_banner.dart';
+import 'package:watchhive_mobile/shared/widgets/wh_bee_loader.dart';
 
 void main() {
   group('Offline Storage Service Tests', () {
@@ -200,7 +201,7 @@ void main() {
       );
 
       expect(find.text('Syncing 2 offline changes...'), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(WHBeeSpinner), findsOneWidget);
     });
 
     testWidgets('OfflineStatusBar renders sync completed state',

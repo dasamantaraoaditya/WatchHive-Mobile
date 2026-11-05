@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import 'wh_bee_loader.dart';
 
 class WHSortOption {
   final String value;
@@ -197,14 +198,7 @@ class WHFilterBar extends StatelessWidget {
                     ),
                     prefixIcon: isLoading
                         ? const Center(
-                            child: SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primary,
-                              ),
-                            ),
+                            child: WHBeeSpinner(size: 14),
                           )
                         : const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
                     suffixIcon: search.isNotEmpty

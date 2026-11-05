@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import 'wh_bee_loader.dart';
 
 class WHGoogleSignInButton extends StatelessWidget {
   final VoidCallback? onPressed;
@@ -51,14 +52,7 @@ class WHGoogleSignInButton extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: isLoading
                   ? const Center(
-                      child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4285F4)),
-                        ),
-                      ),
+                      child: WHBeeSpinner(size: 20),
                     )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
