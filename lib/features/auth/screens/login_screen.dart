@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,8 +25,6 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
   bool _isLoading = false;
   bool _isHandlingPostAuth = false;
 
@@ -48,41 +45,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void dispose() {
     _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
+  Future<void> _sendEmailCode() async {
     if (_isLoading || _isHandlingPostAuth) return;
-    if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
-      WHAlert.showWarning(context, 'Please enter both your email and password');
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+      WHAlert.showWarning(context, 'Please enter a valid email address');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(authStateProvider.notifier).login(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
-      if (mounted && ref.read(authStateProvider).value?.isAuthenticated == true) {
-        await _handlePostAuthFlow();
+      await ref.read(authStateProvider.notifier).requestEmailOtp(email);
+      if (mounted) {
+        WHAlert.showSuccess(
+          context,
+          'A 6-digit login code has been sent to $email.',
+        );
+        context.push('/verify-email', extra: {'email': email});
       }
     } catch (e) {
       if (mounted) {
-        if (e is DioException && e.response?.data is Map) {
-          final data = e.response!.data as Map;
-          if (data['code'] == 'email_not_verified') {
-            final unverifiedEmail = (data['email'] ?? _emailController.text.trim()).toString();
-            WHAlert.showWarning(
-              context,
-              'Your email is not verified yet. Please enter the 6-digit verification code.',
-            );
-            context.push('/verify-email', extra: {'email': unverifiedEmail});
-            return;
-          }
-        }
         WHAlert.showError(context, _parseError(e));
       }
     } finally {
@@ -136,7 +122,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (mounted) {
           WHAlert.showError(
             context,
-            'Google Sign-In could not be completed. Please try again or sign in with your email and password.',
+            'Google Sign-In could not be completed. Please try again or continue with an email code.',
           );
         }
         return;
@@ -174,7 +160,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (mounted) {
           WHAlert.showError(
             context,
-            'Apple Sign-In could not be completed. Please try again or sign in with your email and password.',
+            'Apple Sign-In could not be completed. Please try again or continue with an email code.',
           );
         }
         return;
@@ -249,7 +235,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (str.contains('7:') || str.contains('network_error') || str.contains('socketexception')) {
       return 'Network error during Google Sign-In. Please check your internet connection.';
     } else if (str.contains('10:') || str.contains('developer_error') || str.contains('12500')) {
-      return 'Google Sign-In is temporarily unavailable on this device. Please sign in with your email and password.';
+      return 'Google Sign-In is temporarily unavailable on this device. Please continue with an email code.';
     } else if (str.contains('concurrent')) {
       return 'Google Sign-In is already in progress. Please wait a moment.';
     } else if (str.contains('sign_in_canceled') || str.contains('canceled')) {
@@ -261,10 +247,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String _parseError(dynamic error) {
     final message = AppErrorHandler.toUserFriendlyMessage(
       error,
-      defaultMessage: 'Unable to sign in. Please verify your credentials and try again.',
+      defaultMessage: 'Unable to sign in. Please try again.',
     );
     if (message.toLowerCase().contains('validation failed')) {
-      return 'Please enter a valid email or username and password.';
+      return 'Please enter a valid email address.';
     }
     return message;
   }
@@ -326,7 +312,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
-                            'or continue with email',
+                            'or continue with email code',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: AppColors.textMuted,
                                   fontWeight: FontWeight.w500,
@@ -337,99 +323,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ]),
                       const SizedBox(height: 24),
 
-                      // Email or Username
+                      // Email Address
                       WHTextField(
                         controller: _emailController,
-                        label: 'Email or Username',
-                        hint: 'you@example.com or username',
+                        label: 'Email Address',
+                        hint: 'you@example.com',
                         keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        autofillHints: const [AutofillHints.username, AutofillHints.email],
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.email],
                         autocorrect: false,
                         enableSuggestions: false,
                         textCapitalization: TextCapitalization.none,
+                        onSubmitted: (_) => _sendEmailCode(),
                         validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'Please enter your email or username';
-                          if (v.contains('@') && !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim())) {
+                          if (v == null || v.trim().isEmpty) return 'Please enter your email address';
+                          if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim())) {
                             return 'Please enter a valid email address';
                           }
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
-
-                      // Password
-                      WHTextField(
-                        controller: _passwordController,
-                        label: 'Password',
-                        hint: '••••••••',
-                        obscureText: _obscurePassword,
-                        textInputAction: TextInputAction.done,
-                        autofillHints: const [AutofillHints.password],
-                        autocorrect: false,
-                        enableSuggestions: false,
-                        onSubmitted: (_) => _login(),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                            color: AppColors.textMuted,
-                            size: 20,
-                          ),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                        ),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) return 'Password is required';
-                          return null;
-                        },
-                      ),
                       const SizedBox(height: 12),
 
-                      // Forgot Password
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {
-                            final currentEmail = _emailController.text.trim();
-                            final query = currentEmail.isNotEmpty ? '?email=${Uri.encodeComponent(currentEmail)}' : '';
-                            context.push('/forgot-password$query');
-                          },
-                          child: const Text('Forgot password?'),
+                      Text(
+                        'No password needed. We will send a 6-digit verification code to sign in or create your account.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                          color: AppColors.textMuted.withValues(alpha: 0.9),
+                          height: 1.4,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
 
-                      // Login Button
+                      // Send Code Button
                       WHButton(
-                        label: 'Sign In',
+                        label: 'Send Login Code',
                         isLoading: _isLoading,
-                        onPressed: _login,
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Bottom Redirection to Sign Up
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "Don't have an account? ",
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                          ),
-                          GestureDetector(
-                            onTap: () => context.push('/signup'),
-                            child: const Text(
-                              'Sign up',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        ],
+                        onPressed: _sendEmailCode,
                       ),
                       const SizedBox(height: 24),
 

@@ -9,8 +9,13 @@ class MockAuthRepository extends Fake implements AuthRepository {
   bool verifyEmailCalled = false;
   String? lastVerifyToken;
   String? lastVerifyEmail;
+  bool verifyEmailOtpCalled = false;
+  String? lastVerifyOtpEmail;
+  String? lastVerifyOtpCode;
   bool resendVerificationCalled = false;
   String? lastResendEmail;
+  bool requestEmailOtpCalled = false;
+  String? lastRequestEmail;
   bool shouldFailVerify = false;
 
   @override
@@ -31,6 +36,33 @@ class MockAuthRepository extends Fake implements AuthRepository {
       followingCount: 0,
       createdAt: DateTime(2025, 1, 1),
     );
+  }
+
+  @override
+  Future<User> verifyEmailOtp({required String email, required String code}) async {
+    verifyEmailOtpCalled = true;
+    lastVerifyOtpEmail = email;
+    lastVerifyOtpCode = code;
+
+    if (shouldFailVerify) {
+      throw Exception('Invalid or expired verification code.');
+    }
+
+    return User(
+      id: 'verified_user_1',
+      username: 'honeybee',
+      displayName: 'Honey Bee',
+      email: email,
+      followingCount: 0,
+      createdAt: DateTime(2025, 1, 1),
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> requestEmailOtp(String email) async {
+    requestEmailOtpCalled = true;
+    lastRequestEmail = email;
+    return {'message': '6-digit login code sent'};
   }
 
   @override
@@ -63,7 +95,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Verify Your Email'), findsOneWidget);
+      expect(find.text('Enter 6-Digit Code'), findsOneWidget);
       expect(find.textContaining('bee@watchershive.com'), findsOneWidget);
       expect(find.byType(TextFormField), findsNWidgets(6));
       expect(find.text('Verify & Enter Hive'), findsOneWidget);
@@ -87,9 +119,9 @@ void main() {
       }
       await tester.pump();
 
-      expect(mockAuthRepository.verifyEmailCalled, isTrue);
-      expect(mockAuthRepository.lastVerifyToken, '123456');
-      expect(mockAuthRepository.lastVerifyEmail, 'bee@watchershive.com');
+      expect(mockAuthRepository.verifyEmailOtpCalled, isTrue);
+      expect(mockAuthRepository.lastVerifyOtpCode, '123456');
+      expect(mockAuthRepository.lastVerifyOtpEmail, 'bee@watchershive.com');
     });
 
     testWidgets('resend code button triggers resendVerification', (tester) async {

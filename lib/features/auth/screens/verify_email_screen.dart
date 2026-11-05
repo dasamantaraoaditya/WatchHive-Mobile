@@ -146,14 +146,21 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     });
 
     try {
-      await ref.read(authStateProvider.notifier).verifyEmail(
-            token: codeToVerify,
-            email: email.isNotEmpty ? email : null,
-          );
+      if (email.isNotEmpty) {
+        await ref.read(authStateProvider.notifier).verifyEmailOtp(
+              email: email,
+              code: codeToVerify,
+            );
+      } else {
+        await ref.read(authStateProvider.notifier).verifyEmail(
+              token: codeToVerify,
+              email: null,
+            );
+      }
 
       if (mounted) {
         setState(() {
-          _successMessage = 'Account verified! Preparing your hive...';
+          _successMessage = 'Authentication successful! Preparing your hive...';
         });
         await _handlePostAuthFlow();
       }
@@ -164,6 +171,8 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
           final data = e.response!.data as Map;
           if (data['error'] is String) {
             msg = data['error'];
+          } else if (data['message'] is String) {
+            msg = data['message'];
           }
         }
         setState(() {
@@ -214,12 +223,12 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     });
 
     try {
-      await ref.read(authStateProvider.notifier).resendVerification(email);
+      await ref.read(authStateProvider.notifier).requestEmailOtp(email);
       if (mounted) {
         _startCooldownTimer();
         WHAlert.showSuccess(
           context,
-          'A new 6-digit verification code has been sent to your email.',
+          'A new 6-digit login code has been sent to your email.',
         );
       }
     } catch (e) {
@@ -283,7 +292,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Verify Your Email',
+                'Enter 6-Digit Code',
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 26,
@@ -296,8 +305,8 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
               const SizedBox(height: 8),
               Text(
                 email.isNotEmpty
-                    ? "We've sent a 6-digit verification code to $email. Enter it below to activate your account."
-                    : 'Enter the 6-digit code sent to your email address to activate your account.',
+                    ? "We've sent a 6-digit login code to $email. Enter it below to continue."
+                    : 'Enter the 6-digit code sent to your email address to sign in or create your account.',
                 style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 14,

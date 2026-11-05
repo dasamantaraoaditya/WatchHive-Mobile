@@ -224,7 +224,7 @@ class ScreenGuideData {
               icon: Icons.tune_rounded,
               title: 'Preferences & Settings',
               description:
-                  'Adjust your streaming providers, privacy controls, password, or notification options.',
+                  'Adjust your streaming providers, privacy controls, account security, or notification options.',
             ),
           ],
           proTip: 'Tap any Honey Badge to view your current level progress and requirements for the next tier!',

@@ -130,7 +130,7 @@ void main() {
       // Normal login form must be visible
       expect(find.text('Welcome back'), findsOneWidget);
       expect(find.text('Sign in to continue tracking'), findsOneWidget);
-      expect(find.text('Sign In'), findsOneWidget);
+      expect(find.text('Send Login Code'), findsOneWidget);
       expect(find.text('Signing you in...'), findsNothing);
     });
   });

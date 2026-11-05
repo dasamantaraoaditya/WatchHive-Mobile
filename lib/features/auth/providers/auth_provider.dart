@@ -177,6 +177,38 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     }
   }
 
+  Future<Map<String, dynamic>> requestEmailOtp(String email) async {
+    try {
+      final res = await ref.read(authRepositoryProvider).requestEmailOtp(email);
+      return res;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
+  }
+
+  Future<void> verifyEmailOtp({
+    required String email,
+    required String code,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      final rawUser = await ref.read(authRepositoryProvider).verifyEmailOtp(
+            email: email,
+            code: code,
+          );
+      final user = await ref
+          .read(onboardingServiceProvider)
+          .resolveUserWithPreferences(rawUser);
+      await ref.read(authManagerProvider).saveUser(user);
+      unawaited(syncDeviceToken());
+      state = AsyncData(AuthState(user: user, isAuthenticated: true));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
+  }
+
   Future<void> verifyEmail({
     required String token,
     String? email,
