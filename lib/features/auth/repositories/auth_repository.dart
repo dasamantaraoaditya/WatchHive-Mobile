@@ -15,10 +15,17 @@ class AuthRepository {
 
   AuthRepository(this._api, this._authManager);
 
+  String _cleanEmail(String email) {
+    return email
+        .replaceAll(RegExp(r'[\u0000-\u001F\u007F\u00A0\u2000-\u200D\u2028\u2029\u202F\u205F\u2060\u3000\uFEFF\s]+'), '')
+        .trim()
+        .toLowerCase();
+  }
+
   Future<User> login({required String email, required String password}) async {
     final response = await _api.post(
       ApiEndpoints.login,
-      data: {'email': email, 'password': password},
+      data: {'email': _cleanEmail(email), 'password': password},
     );
     final data = response.data as Map<String, dynamic>;
     await _authManager.saveTokens(
@@ -33,7 +40,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> requestEmailOtp(String email) async {
     final response = await _api.post(
       ApiEndpoints.requestEmailOtp,
-      data: {'email': email.trim().toLowerCase()},
+      data: {'email': _cleanEmail(email)},
     );
     return response.data as Map<String, dynamic>;
   }
@@ -45,7 +52,7 @@ class AuthRepository {
     final response = await _api.post(
       ApiEndpoints.verifyEmailOtp,
       data: {
-        'email': email.trim().toLowerCase(),
+        'email': _cleanEmail(email),
         'code': code.trim(),
       },
     );
@@ -66,7 +73,7 @@ class AuthRepository {
   }) async {
     final response = await _api.post(
       ApiEndpoints.register,
-      data: {'username': username, 'email': email, 'password': password},
+      data: {'username': username.trim(), 'email': _cleanEmail(email), 'password': password},
     );
     return response.data as Map<String, dynamic>;
   }
@@ -79,7 +86,7 @@ class AuthRepository {
       ApiEndpoints.verifyEmail,
       data: {
         'token': token.trim(),
-        if (email != null && email.isNotEmpty) 'email': email.trim().toLowerCase(),
+        if (email != null && email.isNotEmpty) 'email': _cleanEmail(email),
       },
     );
     final data = response.data as Map<String, dynamic>;
@@ -95,7 +102,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> resendVerification(String email) async {
     final response = await _api.post(
       ApiEndpoints.resendVerification,
-      data: {'email': email.trim().toLowerCase()},
+      data: {'email': _cleanEmail(email)},
     );
     return response.data as Map<String, dynamic>;
   }
@@ -127,7 +134,7 @@ class AuthRepository {
       data: {
         'identityToken': identityToken,
         'userIdentifier': userIdentifier,
-        'email': email,
+        'email': email != null ? _cleanEmail(email) : null,
         'givenName': givenName,
         'familyName': familyName,
       },
@@ -152,7 +159,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> forgotPassword(String email) async {
     final response = await _api.post(
       ApiEndpoints.forgotPassword,
-      data: {'email': email.trim().toLowerCase()},
+      data: {'email': _cleanEmail(email)},
     );
     if (response.data is Map<String, dynamic>) {
       final data = response.data as Map<String, dynamic>;
@@ -176,7 +183,7 @@ class AuthRepository {
         ApiEndpoints.resetPassword,
         data: {
           'token': token.trim(),
-          'email': email.trim().toLowerCase(),
+          'email': _cleanEmail(email),
           'newPassword': newPassword,
         },
       );
