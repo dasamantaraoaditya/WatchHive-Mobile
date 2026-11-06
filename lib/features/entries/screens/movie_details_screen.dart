@@ -30,6 +30,7 @@ import '../../onboarding/widgets/screen_guide_dialog.dart';
 import '../../../core/utils/share_helper.dart';
 import '../widgets/friends_watched_bar.dart';
 import '../widgets/friends_who_watched_sheet.dart';
+import '../repositories/episode_repository.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -94,6 +95,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
   Map<String, dynamic>? _seasonDetails;
   bool _isSeasonLoading = false;
   final Map<int, Map<String, dynamic>> _seasonCache = {};
+  ShowProgress? _showProgress;
+  List<FriendShowProgress> _friendsShowProgress = [];
+  String? _togglingEpisodeKey;
 
   @override
   void initState() {
@@ -321,6 +325,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
 
         // Initialize first TV season if TV show
         if (isTv) {
+          _loadEpisodeProgress();
           final seasons = details['seasons'] as List<dynamic>? ?? [];
           if (seasons.isNotEmpty) {
             final validSeason = seasons.firstWhere(
@@ -367,6 +372,103 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       }
     } catch (e) {
       if (mounted) setState(() => _isSeasonLoading = false);
+    }
+  }
+
+  Future<void> _loadEpisodeProgress() async {
+    try {
+      final prog = await ref.read(episodeRepositoryProvider).getShowProgress(widget.tmdbId);
+      final friends = await ref.read(episodeRepositoryProvider).getFriendsProgress(widget.tmdbId);
+      if (mounted) {
+        setState(() {
+          _showProgress = prog;
+          _friendsShowProgress = friends;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleEpisodeWatch(int seasonNum, int epNum, {int? epId, String? epName}) async {
+    final key = '$seasonNum-$epNum';
+    if (_togglingEpisodeKey != null) return;
+    HapticFeedback.lightImpact();
+
+    setState(() => _togglingEpisodeKey = key);
+
+    final isCurrentlyWatched = _showProgress?.watchedEpisodes.any(
+          (w) => w.seasonNumber == seasonNum && w.episodeNumber == epNum,
+        ) ??
+        false;
+
+    try {
+      final res = await ref.read(episodeRepositoryProvider).toggleEpisodeWatch(
+            tmdbId: widget.tmdbId,
+            seasonNumber: seasonNum,
+            episodeNumber: epNum,
+            episodeId: epId,
+            episodeName: epName,
+            isWatched: !isCurrentlyWatched,
+          );
+      if (mounted) {
+        setState(() => _showProgress = res);
+      }
+    } catch (_) {
+      if (mounted) {
+        WHAlert.showError(context, 'Failed to update episode.');
+      }
+    } finally {
+      if (mounted) setState(() => _togglingEpisodeKey = null);
+    }
+  }
+
+  Future<void> _catchUpToEpisode(int seasonNum, int epNum) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Catch Up to S$seasonNum E$epNum?',
+          style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w900),
+        ),
+        content: Text(
+          'Mark all episodes from Season 1 Episode 1 up to Season $seasonNum Episode $epNum as watched?',
+          style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Mark Watched', style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final res = await ref.read(episodeRepositoryProvider).batchCatchUp(
+              tmdbId: widget.tmdbId,
+              upToSeason: seasonNum,
+              upToEpisode: epNum,
+            );
+        if (mounted) {
+          setState(() => _showProgress = res);
+          WHAlert.showSuccess(context, 'Caught up to Season $seasonNum Episode $epNum! 🐝');
+        }
+      } catch (_) {
+        if (mounted) {
+          WHAlert.showError(context, 'Failed to catch up episodes.');
+        }
+      }
     }
   }
 
@@ -1886,7 +1988,71 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                               padding: EdgeInsets.only(top: 8),
                               child: WHSkeletonEpisodeList(count: 3),
                             )
-                          else if (_seasonDetails?['episodes'] != null && (_seasonDetails!['episodes'] as List).isNotEmpty)
+                          else if (_seasonDetails?['episodes'] != null && (_seasonDetails!['episodes'] as List).isNotEmpty) ...[
+                            // Season Progress Bar
+                            Builder(
+                              builder: (context) {
+                                final epList = _seasonDetails!['episodes'] as List;
+                                final totalInSeason = epList.length;
+                                final watchedInSeason = epList.where((e) {
+                                  final epNum = (e as Map<String, dynamic>)['episode_number'] as int? ?? 0;
+                                  return _showProgress?.watchedEpisodes.any(
+                                        (w) => w.seasonNumber == _selectedSeasonNumber && w.episodeNumber == epNum,
+                                      ) ??
+                                      false;
+                                }).length;
+                                final seasonPct = totalInSeason > 0 ? ((watchedInSeason / totalInSeason) * 100).round() : 0;
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Season ${_selectedSeasonNumber ?? 1} Progress',
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                          Text(
+                                            '$watchedInSeason / $totalInSeason eps ($seasonPct%)',
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.primaryDark,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: LinearProgressIndicator(
+                                          value: totalInSeason > 0 ? (watchedInSeason / totalInSeason).clamp(0.0, 1.0) : 0,
+                                          backgroundColor: AppColors.border,
+                                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                          minHeight: 5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+
                             ListView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
@@ -1900,13 +2066,25 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                 final epAirDate = ep['air_date'] as String?;
                                 final epRating = (ep['vote_average'] as num?)?.toDouble();
 
+                                final isWatched = _showProgress?.watchedEpisodes.any(
+                                      (w) => w.seasonNumber == _selectedSeasonNumber && w.episodeNumber == epNum,
+                                    ) ??
+                                    false;
+                                final isToggling = _togglingEpisodeKey == '$_selectedSeasonNumber-$epNum';
+
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 12),
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: AppColors.surfaceElevated,
+                                    color: isWatched
+                                        ? AppColors.primary.withValues(alpha: 0.08)
+                                        : AppColors.surfaceElevated,
                                     borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: AppColors.border),
+                                    border: Border.all(
+                                      color: isWatched
+                                          ? AppColors.primary.withValues(alpha: 0.35)
+                                          : AppColors.border,
+                                    ),
                                   ),
                                   child: Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1938,16 +2116,18 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                                   decoration: BoxDecoration(
-                                                    color: AppColors.primary.withValues(alpha: 0.2),
+                                                    color: isWatched
+                                                        ? AppColors.primary
+                                                        : AppColors.primary.withValues(alpha: 0.2),
                                                     borderRadius: BorderRadius.circular(4),
                                                   ),
                                                   child: Text(
                                                     'EP $epNum',
-                                                    style: const TextStyle(
+                                                    style: TextStyle(
                                                       fontFamily: 'Inter',
                                                       fontSize: 9,
                                                       fontWeight: FontWeight.w800,
-                                                      color: AppColors.primary,
+                                                      color: isWatched ? Colors.black : AppColors.primary,
                                                     ),
                                                   ),
                                                 ),
@@ -1993,11 +2173,152 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                                           ],
                                         ),
                                       ),
+                                      const SizedBox(width: 8),
+
+                                      // Episode Watch Actions
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          GestureDetector(
+                                            onTap: isToggling
+                                                ? null
+                                                : () => _toggleEpisodeWatch(
+                                                      _selectedSeasonNumber ?? 1,
+                                                      epNum,
+                                                      epId: ep['id'] as int?,
+                                                      epName: epName,
+                                                    ),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: isWatched ? AppColors.primary : AppColors.surface,
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: isWatched ? AppColors.primary : AppColors.border,
+                                                ),
+                                              ),
+                                              child: isToggling
+                                                  ? const WHBeeSpinner(size: 11)
+                                                  : Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(
+                                                          isWatched ? Icons.check_rounded : Icons.add_rounded,
+                                                          size: 13,
+                                                          color: isWatched ? Colors.black : AppColors.textPrimary,
+                                                        ),
+                                                        const SizedBox(width: 2),
+                                                        Text(
+                                                          isWatched ? 'Watched' : 'Mark',
+                                                          style: TextStyle(
+                                                            fontFamily: 'Inter',
+                                                            fontSize: 10,
+                                                            fontWeight: FontWeight.w800,
+                                                            color: isWatched ? Colors.black : AppColors.textPrimary,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                            ),
+                                          ),
+                                          if (!isWatched) ...[
+                                            const SizedBox(height: 4),
+                                            GestureDetector(
+                                              onTap: () => _catchUpToEpisode(_selectedSeasonNumber ?? 1, epNum),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(4),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.surface,
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(color: AppColors.border),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.fast_forward_rounded,
+                                                  size: 12,
+                                                  color: AppColors.textMuted,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
                                     ],
                                   ),
                                 );
                               },
-                            )
+                            ),
+
+                            // Friends Watching TV Progress
+                            if (_friendsShowProgress.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              const Divider(height: 1, color: AppColors.border),
+                              const SizedBox(height: 12),
+                              const Text(
+                                '🐝 Friends Watching This Show',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textMuted,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _friendsShowProgress.map((fp) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surface,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: AppColors.border),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        WHAvatar(
+                                          imageUrl: fp.user.profilePictureUrl,
+                                          name: fp.user.name,
+                                          radius: 10,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          fp.user.name,
+                                          style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        if (fp.currentSeason != null) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary.withValues(alpha: 0.2),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              'S${fp.currentSeason} E${fp.currentEpisode}',
+                                              style: const TextStyle(
+                                                fontFamily: 'Inter',
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w800,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ]
                           else
                             const Padding(
                               padding: EdgeInsets.all(16),
