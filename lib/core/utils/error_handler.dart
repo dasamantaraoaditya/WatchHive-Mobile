@@ -118,6 +118,8 @@ class AppErrorHandler {
             return 'The uploaded image or file is too large. Please choose a smaller one.';
           } else if (statusCode == 422) {
             return 'The submitted data was incomplete or invalid.';
+          } else if (statusCode == 423) {
+            return 'Account temporarily locked due to consecutive failed login attempts. Please try again in 15 minutes or reset your password.';
           } else if (statusCode == 429) {
             return 'Too many requests. Please slow down and try again in a few seconds.';
           } else if (statusCode >= 500) {

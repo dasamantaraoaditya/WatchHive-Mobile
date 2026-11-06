@@ -32,6 +32,10 @@ class Entry {
   final bool isPendingSync;
   final bool postToFeed;
   final bool hasExactWatchDate;
+  final int? currentSeason;
+  final int? currentEpisode;
+  final int totalEpisodesWatched;
+  final int? totalEpisodesCount;
 
   const Entry({
     required this.id,
@@ -49,6 +53,10 @@ class Entry {
     this.isWatching = false,
     this.startedAt,
     this.completedAt,
+    this.currentSeason,
+    this.currentEpisode,
+    this.totalEpisodesWatched = 0,
+    this.totalEpisodesCount,
     this.watchLocation,
     required this.createdAt,
     this.updatedAt,
@@ -168,6 +176,10 @@ class Entry {
       completedAt: dataMap['completedAt'] != null
           ? DateTime.tryParse(dataMap['completedAt'].toString())?.toLocal()
           : null,
+      currentSeason: (dataMap['currentSeason'] as num?)?.toInt() ?? (dataMap['current_season'] as num?)?.toInt(),
+      currentEpisode: (dataMap['currentEpisode'] as num?)?.toInt() ?? (dataMap['current_episode'] as num?)?.toInt(),
+      totalEpisodesWatched: (dataMap['totalEpisodesWatched'] as num?)?.toInt() ?? (dataMap['total_episodes_watched'] as num?)?.toInt() ?? 0,
+      totalEpisodesCount: (dataMap['totalEpisodesCount'] as num?)?.toInt() ?? (dataMap['total_episodes_count'] as num?)?.toInt(),
       watchLocation: dataMap['watchLocation'] as String?,
       createdAt: dataMap['createdAt'] != null
           ? (DateTime.tryParse(dataMap['createdAt'].toString())?.toLocal() ?? DateTime.now())
@@ -229,6 +241,10 @@ class Entry {
     bool? isWatching,
     DateTime? startedAt,
     DateTime? completedAt,
+    int? currentSeason,
+    int? currentEpisode,
+    int? totalEpisodesWatched,
+    int? totalEpisodesCount,
     String? watchLocation,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -262,6 +278,10 @@ class Entry {
       isWatching: isWatching ?? this.isWatching,
       startedAt: startedAt ?? this.startedAt,
       completedAt: completedAt ?? this.completedAt,
+      currentSeason: currentSeason ?? this.currentSeason,
+      currentEpisode: currentEpisode ?? this.currentEpisode,
+      totalEpisodesWatched: totalEpisodesWatched ?? this.totalEpisodesWatched,
+      totalEpisodesCount: totalEpisodesCount ?? this.totalEpisodesCount,
       watchLocation: watchLocation ?? this.watchLocation,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

@@ -1,3 +1,5 @@
+export 'episode_progress.dart';
+
 class Notification {
   final String id;
   final String userId;

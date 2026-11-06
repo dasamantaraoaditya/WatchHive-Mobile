@@ -9,6 +9,7 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../repositories/entries_repository.dart';
 import 'add_entry_sheet.dart';
 import '../widgets/quick_currently_watching_sheet.dart';
+import '../widgets/continue_watching_carousel.dart';
 import '../widgets/suggestions_tab.dart';
 import '../widgets/watchlist_tab.dart';
 import '../widgets/wh_entry_grid_card.dart';
@@ -416,6 +417,11 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
 
     return Column(
       children: [
+        if (widget.isWatching)
+          ContinueWatchingCarousel(
+            onProgressUpdated: () => ref.read(entriesProvider(true).notifier).refresh(),
+          ),
+
         // FilterBar matching web specifications
         WHFilterBar(
           search: _search,
@@ -525,6 +531,8 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
                                         watchLocation: entry.watchLocation,
                                         tags: entry.tags,
                                         isPendingSync: entry.isPendingSync,
+                                        currentSeason: entry.currentSeason,
+                                        currentEpisode: entry.currentEpisode,
                                         onTap: () => context.push(
                                           '/details/${entry.type == "MOVIE" ? "movie" : "tv"}/${entry.tmdbId}',
                                           extra: entry,

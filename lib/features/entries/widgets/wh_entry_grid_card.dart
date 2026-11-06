@@ -34,6 +34,8 @@ class WHEntryGridCard extends ConsumerWidget {
   final String? watchLocation;
   final List<String> tags;
   final bool isPendingSync;
+  final int? currentSeason;
+  final int? currentEpisode;
   final VoidCallback onTap;
   final VoidCallback? onMoveToWatching;
   final void Function(String resolvedTitle)? onMoveToWatchingWithTitle;
@@ -63,6 +65,8 @@ class WHEntryGridCard extends ConsumerWidget {
     this.watchLocation,
     this.tags = const [],
     this.isPendingSync = false,
+    this.currentSeason,
+    this.currentEpisode,
     required this.onTap,
     this.onMoveToWatching,
     this.onMoveToWatchingWithTitle,
@@ -219,26 +223,50 @@ class WHEntryGridCard extends ConsumerWidget {
                     ),
                   ),
 
-                  // Top-Left Category Badge (🎬 Movie / 📺 TV)
+                  // Top-Left Category Badge (🎬 Movie / 📺 TV) & Episode Progress Badge
                   Positioned(
                     top: 8,
                     left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.75),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
-                      ),
-                      child: Text(
-                        normalizedType == 'tv' ? 'TV' : 'MOVIE',
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                          ),
+                          child: Text(
+                            normalizedType == 'tv' ? 'TV' : 'MOVIE',
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
                         ),
-                      ),
+                        if (currentSeason != null && currentEpisode != null) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'S$currentSeason • E$currentEpisode',
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
 
