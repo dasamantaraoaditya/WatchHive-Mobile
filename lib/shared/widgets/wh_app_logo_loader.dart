@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import 'wh_bee_loader.dart';
 
 /// Standalone pulsing/breathing WatchersHive logo badge with soft golden glow.
 class WHAppLogoBadge extends StatefulWidget {
@@ -264,15 +265,7 @@ class _WHAppLogoLoaderState extends State<WHAppLogoLoader>
           ],
           if (widget.showSpinner) ...[
             const SizedBox(height: 18),
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                backgroundColor: Color(0x33FFB700),
-              ),
-            ),
+            const WHBeeSpinner(size: 26),
           ],
           if (widget.message != null && widget.message!.isNotEmpty) ...[
             const SizedBox(height: 12),

@@ -279,11 +279,17 @@ class _SmartSuggestDeckSheetState extends ConsumerState<SmartSuggestDeckSheet> {
             Flexible(
               child: _isLoading
                   ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 80),
-                      child: Center(
-                        child: WHBeeLoader(
-                          size: WHBeeLoaderSize.medium,
-                          message: 'Analyzing your hive taste...',
+                      padding: EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                      child: WHSkeleton(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            WHSkeletonBox(width: double.infinity, height: 340, borderRadius: 24),
+                            SizedBox(height: 16),
+                            WHSkeletonBox(width: 220, height: 22, borderRadius: 8),
+                            SizedBox(height: 8),
+                            WHSkeletonBox(width: 150, height: 14, borderRadius: 6),
+                          ],
                         ),
                       ),
                     )
