@@ -109,7 +109,43 @@ class _ContinueWatchingCarouselState extends ConsumerState<ContinueWatchingCarou
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading || _items.isEmpty) {
+    if (_isLoading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  WHSkeletonBox(width: 20, height: 20, shape: BoxShape.circle),
+                  SizedBox(width: 8),
+                  WHSkeletonBox(width: 140, height: 16, borderRadius: 4),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 154,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: 3,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (_, __) => const WHSkeletonBox(
+                  width: 260,
+                  height: 154,
+                  borderRadius: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_items.isEmpty) {
       return const SizedBox.shrink();
     }
 

@@ -134,7 +134,7 @@ class User {
       username: json['username'] as String? ?? '',
       email: json['email'] as String?,
       displayName: json['displayName'] as String?,
-      profilePictureUrl: json['profilePictureUrl'] as String?,
+      profilePictureUrl: json['profilePictureUrl'] as String? ?? json['avatarUrl'] as String? ?? json['profile_picture_url'] as String?,
       bio: json['bio'] as String?,
       location: parsedLocation,
       isPrivate: json['isPrivate'] as bool? ?? false,
