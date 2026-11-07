@@ -11,8 +11,6 @@ import '../../../shared/widgets/wh_button.dart';
 import '../../../shared/widgets/wh_logo_header.dart';
 import '../../../shared/widgets/wh_text_field.dart';
 import '../../../shared/widgets/wh_bee_loader.dart';
-import '../../onboarding/services/onboarding_service.dart';
-import '../../onboarding/widgets/watch_preferences_onboarding_dialog.dart';
 import '../providers/auth_provider.dart';
 
 class VerifyEmailScreen extends ConsumerStatefulWidget {
@@ -190,25 +188,8 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     if (_isHandlingPostAuth) return;
     _isHandlingPostAuth = true;
 
-    try {
-      final user = ref.read(authStateProvider).value?.user;
-      if (user != null) {
-        final onboardingService = ref.read(onboardingServiceProvider);
-        final shouldPrompt = await onboardingService.shouldPromptUser(user);
-        if (shouldPrompt && mounted) {
-          onboardingService.markPrompted(user.id);
-          await WatchPreferencesOnboardingDialog.show(context);
-          await onboardingService.markPreferencesCompleted(user.id);
-        }
-      }
-      if (mounted) {
-        context.go('/feed');
-      }
-    } catch (e) {
-      debugPrint('[VerifyEmailScreen] Post-auth preferences check error: $e');
-      if (mounted) {
-        context.go('/feed');
-      }
+    if (mounted) {
+      context.go('/feed');
     }
   }
 

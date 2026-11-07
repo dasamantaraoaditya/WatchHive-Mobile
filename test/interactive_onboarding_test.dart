@@ -15,50 +15,35 @@ void main() {
   });
 
   group('InteractiveOnboardingStep Model Tests', () {
-    test('contains 8 curated steps covering the complete user journey', () {
+    test('contains 3 focused steps covering the essential value journey', () {
       const steps = InteractiveOnboardingStep.steps;
-      expect(steps.length, equals(8));
+      expect(steps.length, equals(3));
 
-      // 1. Feed
-      expect(steps[0].stepBadge, contains('COMMUNITY FEED'));
+      // 1. Quick Log (+) Focus
+      expect(steps[0].stepBadge, contains('QUICK LOG'));
       expect(steps[0].route, equals('/feed'));
-      expect(steps[0].title, contains('Community & Feed'));
+      expect(steps[0].title, contains('Track What You Watch'));
+      expect(steps[0].target, equals(OnboardingTarget.quickAddFab));
+      expect(steps[0].secondaryActionLabel, isNotNull);
+      expect(steps[0].secondaryActionLabel, contains('Try Logging Now'));
 
-      // 2. First Watch Entry
-      expect(steps[1].stepBadge, contains('FIRST WATCH ENTRY'));
-      expect(steps[1].secondaryActionLabel, isNotNull);
-      expect(steps[1].secondaryActionLabel, contains('Log a Movie Now'));
+      // 2. Entries & Watchlist Focus
+      expect(steps[1].stepBadge, contains('ENTRIES & WATCHLIST'));
+      expect(steps[1].route, equals('/entries'));
+      expect(steps[1].title, contains('Your Watchlist & History'));
+      expect(steps[1].target, equals(OnboardingTarget.entriesTab));
 
-      // 3. Quick Add FAB
-      expect(steps[2].stepBadge, contains('QUICK SHORTCUT'));
-      expect(steps[2].title, contains('Quick Add'));
-
-      // 4. Entries Vault
-      expect(steps[3].stepBadge, contains('ENTRIES & VAULT'));
-      expect(steps[3].route, equals('/entries'));
-
-      // 5. Friend Suggestions
-      expect(steps[4].stepBadge, contains('FRIEND SUGGESTIONS'));
-      expect(steps[4].route, contains('suggestions'));
-
-      // 6. Rankings & Stacks
-      expect(steps[5].stepBadge, contains('RANKINGS & STACKS'));
-      expect(steps[5].route, contains('rankings'));
-
-      // 7. Data Migration & Privacy
-      expect(steps[6].stepBadge, contains('DATA MIGRATION & PRIVACY'));
-      expect(steps[6].route, equals('/profile'));
-      expect(steps[6].description, contains('Letterboxd'));
-
-      // 8. Discover Friends & Search
-      expect(steps[7].stepBadge, contains('DISCOVER & CONNECT'));
-      expect(steps[7].route, equals('/search'));
-      expect(steps[7].primaryActionLabel, contains('Finish'));
+      // 3. Discover & Connect Focus
+      expect(steps[2].stepBadge, contains('DISCOVER & CONNECT'));
+      expect(steps[2].route, equals('/feed'));
+      expect(steps[2].title, contains('Discover & Share'));
+      expect(steps[2].target, equals(OnboardingTarget.feedCommunity));
+      expect(steps[2].primaryActionLabel, contains('Personalize'));
     });
   });
 
   group('OnboardingGuideNotifier State Tests', () {
-    test('transitions through steps and dismisses when tour is completed', () async {
+    test('transitions through 3 steps and dismisses when tour is completed', () async {
       final tourService = TourService();
       final notifier = OnboardingGuideNotifier(tourService);
 
@@ -73,17 +58,18 @@ void main() {
       );
 
       expect(notifier.state.isActive, isTrue);
-      expect(notifier.state.currentStep.title, contains('Community & Feed'));
+      expect(notifier.state.currentStep.title, contains('Track What You Watch'));
       expect(notifier.state.isLastStep, isFalse);
 
       // Advance to step 1
       notifier.state = notifier.state.copyWith(currentStepIndex: 1);
-      expect(notifier.state.currentStep.title, contains('Record What You Have Watched'));
+      expect(notifier.state.currentStep.title, contains('Your Watchlist & History'));
+      expect(notifier.state.isLastStep, isFalse);
 
-      // Advance to last step (step 7)
-      notifier.state = notifier.state.copyWith(currentStepIndex: 7);
+      // Advance to last step (step 2)
+      notifier.state = notifier.state.copyWith(currentStepIndex: 2);
       expect(notifier.state.isLastStep, isTrue);
-      expect(notifier.state.currentStep.title, contains('Find Friends'));
+      expect(notifier.state.currentStep.title, contains('Discover & Share'));
 
       // Dismiss tour
       await notifier.dismissTour();
@@ -132,8 +118,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify Step 1 is rendered
-      expect(find.text('STEP 1 OF 8 · COMMUNITY FEED'), findsOneWidget);
-      expect(find.text('Your Hive Community & Feed'), findsOneWidget);
+      expect(find.text('STEP 1 OF 3 · QUICK LOG'), findsOneWidget);
+      expect(find.text('Track What You Watch'), findsOneWidget);
       expect(find.text('Skip Tour'), findsOneWidget);
 
       // Tap Skip Tour
@@ -141,7 +127,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Overlay should be dismissed
-      expect(find.text('STEP 1 OF 8 · COMMUNITY FEED'), findsNothing);
+      expect(find.text('STEP 1 OF 3 · QUICK LOG'), findsNothing);
       expect(container.read(onboardingGuideProvider).isActive, isFalse);
     });
   });

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:watchhive_mobile/features/auth/providers/auth_provider.dart';
 import 'package:watchhive_mobile/features/auth/screens/login_screen.dart';
+import 'package:watchhive_mobile/shared/widgets/wh_app_logo_loader.dart';
 import 'package:watchhive_mobile/features/auth/screens/splash_screen.dart';
 import 'package:watchhive_mobile/shared/models/user.dart';
 
@@ -56,7 +57,7 @@ void main() {
 
       // Verify loader indicator and "Signing you in..." text are present
       expect(find.text('Signing you in...'), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(WHAppLogoLoader), findsOneWidget);
 
       // Complete the auth check
       completer.complete(const AuthState(isAuthenticated: true));
@@ -102,7 +103,7 @@ void main() {
 
       // Should show the reassuring loader rather than the login form
       expect(find.text('Signing you in...'), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(WHAppLogoLoader), findsOneWidget);
       // Login form inputs should not be visible to confuse the user
       expect(find.text('Welcome back'), findsNothing);
       expect(find.text('Sign In'), findsNothing);

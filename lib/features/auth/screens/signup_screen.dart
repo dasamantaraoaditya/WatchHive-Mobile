@@ -10,8 +10,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/utils/error_handler.dart';
-import '../../onboarding/services/onboarding_service.dart';
-import '../../onboarding/widgets/watch_preferences_onboarding_dialog.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -84,21 +82,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Future<void> _handlePostAuthFlow() async {
     if (_isHandlingPostAuth) return;
     _isHandlingPostAuth = true;
-
-    try {
-      final user = ref.read(authStateProvider).value?.user;
-      if (user != null) {
-        final onboardingService = ref.read(onboardingServiceProvider);
-        final shouldPrompt = await onboardingService.shouldPromptUser(user);
-        if (shouldPrompt && mounted) {
-          onboardingService.markPrompted(user.id);
-          await WatchPreferencesOnboardingDialog.show(context);
-          await onboardingService.markPreferencesCompleted(user.id);
-        }
-      }
-    } catch (e) {
-      debugPrint('[SignupScreen] Post-auth preferences check error: $e');
-    }
 
     if (mounted) {
       context.go('/feed');
