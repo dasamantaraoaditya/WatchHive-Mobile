@@ -1,0 +1,11 @@
+{
+  "quality-gate": {
+    "enabled": true,
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "echo '{\"injectSteps\": [{\"ephemeralMessage\": \"watchhive_mobile active. Remember the Golden Contrast Rule: NO white text on gold/cream, and use WHSkeletonBox as primary loader.\"}]}'"
+      }
+    ]
+  }
+}

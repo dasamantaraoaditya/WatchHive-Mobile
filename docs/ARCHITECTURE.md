@@ -53,9 +53,9 @@ lib/
 
 ## 🔐 2. Authentication & Identity Flow Architecture
 
-WatchHive implements an enterprise-grade identity architecture with mandatory email verification, cryptographically secure 6-digit OTP delivery via SMTP, and concurrent-safe preferences synchronization.
+WatchHive implements a **100% Passwordless Authentication Architecture**. Passwords have been phased out across all mobile clients, replacing credential-stuffing vulnerabilities and forgotten password friction with secure 6-digit Email OTP and Google/Apple Single Sign-On.
 
-### A. New User Registration & 6-Digit Email Verification Flow
+### A. Passwordless 6-Digit Email OTP Login & Registration Flow
 
 ```mermaid
 sequenceDiagram
@@ -66,47 +66,43 @@ sequenceDiagram
     participant API as WatchHive Backend
     participant Mail as SMTP Email Service
 
-    User->>App: Submits Signup Form (Name, Username, Email, Password)
-    App->>AuthRepo: register(username, email, password)
-    AuthRepo->>API: POST /api/v1/auth/register
-    API->>API: Hash password (bcrypt), create user (isEmailVerified = false)
-    API->>API: Generate secure 6-digit OTP (expires in 24h)
-    API->>Mail: Send Welcome Verification Email with 6-digit OTP
-    API-->>App: 201 Created (requiresVerification = true)
+    User->>App: Enters email address on Login Screen
+    App->>AuthRepo: requestEmailOtp(email)
+    AuthRepo->>API: POST /api/v1/auth/email-code/request
+    API->>API: Generate secure 6-digit OTP (expires in 10 mins)
+    API->>Mail: Send Verification Code Email with 6-digit OTP
+    API-->>App: 200 OK ({ isNewUser: boolean })
     App->>App: Navigate to `/verify-email?email=user@example.com`
-    User->>App: Enters 6-digit verification code
-    App->>AuthRepo: verifyEmail(token, email)
-    AuthRepo->>API: POST /api/v1/auth/verify-email
-    API->>API: Validate code & mark isEmailVerified = true
+    User->>App: Enters 6-digit code
+    App->>AuthRepo: verifyEmailOtp(email, code)
+    AuthRepo->>API: POST /api/v1/auth/email-code/verify
+    API->>API: Validate code & sign JWT tokens (isEmailVerified = true)
     API-->>App: 200 OK (JWT Access & Refresh Tokens + User Profile)
-    App->>App: Concurrency check: Show Preferences Onboarding (if new)
+    App->>App: Save tokens securely in flutter_secure_storage
+    App->>App: If isNewUser -> Prompt Preferences Onboarding
     App->>App: Navigate to `/feed`
 ```
 
-### B. Secure 6-Digit OTP Password Reset Flow
+### B. Single Sign-On (Google & Apple ID)
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor User
     participant App as Mobile Client
+    participant AuthRepo as AuthRepository
+    participant SSO as Google / Apple SDK
     participant API as WatchHive Backend
-    participant Mail as SMTP Email Service
 
-    User->>App: Taps "Forgot Password?" on Login Screen
-    App->>App: Navigate to `/forgot-password`
-    User->>App: Enters registered email address
-    App->>API: POST /api/v1/auth/forgot-password
-    API->>API: Check user exists (timing-attack resilient)
-    API->>API: Generate 6-digit OTP code (expires in 15 mins)
-    API->>Mail: Send Password Reset Email with OTP Code
-    API-->>App: 200 OK ("Password reset instructions sent")
-    App->>App: Navigate to `/reset-password?email=user@example.com`
-    User->>App: Enters 6-digit Code, New Password, & Confirms Password
-    App->>API: POST /api/v1/auth/reset-password
-    API->>API: Validate code expiry, verify hash, update password
-    API-->>App: 200 OK ("Password reset successfully")
-    App->>App: Show success toast and redirect to `/login`
+    User->>App: Taps "Continue with Google" or "Continue with Apple"
+    App->>SSO: Authenticate with platform SDK
+    SSO-->>App: Returns Identity Token
+    App->>AuthRepo: loginWithGoogle() / loginWithApple()
+    AuthRepo->>API: POST /api/v1/auth/google OR /api/v1/auth/apple
+    API->>API: Verify token with provider & resolve user
+    API-->>App: 200 OK (JWT Access & Refresh Tokens + User Profile)
+    App->>App: Save tokens in encrypted Keychain / Keystore
+    App->>App: Navigate to `/feed`
 ```
 
 ### C. Watch Preferences Synchronization & Concurrency Guards
@@ -194,6 +190,13 @@ sequenceDiagram
 - Generates high-resolution 1080x1920 graphic cards with movie backdrop, title, star rating, user review snippet, and clean hive QR code.
 - Restricted exclusively to the user's own watch entries (`isOwnEntry`).
 
+### B. Episode & TV Season Tracking Architecture
+- **Repository Layer (`EpisodeRepository`)**: Handles season drill-down, progress metrics, and watch toggles.
+- **Granular Episode Checklist**: Users mark individual episodes watched/unwatched with optimistic UI state changes.
+- **Batch Catch-Up (`batchCatchUp`)**: Single tap marks all preceding episodes up to S{x}E{y} as watched in one transactional call.
+- **Continue Watching Tray (`ContinueWatchingTray`)**: Surfaces in-progress series directly in the feed with the next up episode.
+- **Friends Who Watched & Friends Progress**: Queries `/shows/:tmdbId/friends-progress` to display which friends have watched the show and their current season/episode position.
+
 ---
 
 ## 🌐 6. Network & Security Architecture
@@ -202,7 +205,11 @@ sequenceDiagram
 - **Base URL Configuration**: Switchable via `.env`, `.env.staging`, and `.env.production`.
 - **JWT Interceptor**:
   - Intercepts outgoing requests to attach `Authorization: Bearer <access_token>`.
-  - On `401 Unauthorized`, queues failed requests, invokes `POST /api/auth/refresh-token`, updates the stored token, and retries original requests seamlessly.
+  - On `401 Unauthorized`, queues failed requests, invokes `POST /api/v1/auth/refresh`, updates the stored token, and retries original requests seamlessly.
+- **TMDb SWR Caching Interceptor**:
+  - Automatically caches TMDb endpoint responses in-memory for 10m to 7 days.
+  - Single-flight request deduplication awaits in-flight identical calls.
+  - Stale cache fallback ensures offline resilience.
 - **SSL / TLS**: All communication is enforced over HTTPS with strict TLS 1.3 protocol validation.
 
 ---
@@ -216,17 +223,14 @@ Declarative routing configured in [`lib/core/router/app_router.dart`](file:///Us
   | Route | Description | Auth Requirement |
   | :--- | :--- | :--- |
   | `/splash` | Cold launch & session restore router | Public |
-  | `/login` | Email/password, Google & Apple Sign-In | Unauthenticated only |
-  | `/signup` | User registration | Unauthenticated only |
-  | `/forgot-password` | Request 6-digit password reset OTP | Public |
-  | `/reset-password` | Enter 6-digit OTP & set new password | Public |
+  | `/login` | Passwordless Email OTP, Google & Apple Sign-In | Unauthenticated only |
   | `/verify-email` | 6-digit email confirmation OTP input | Public |
   | `/feed` | Main community swarm activity feed | Authenticated |
   | `/mindlens` | AI taste analytics & entropy quadrant | Authenticated |
   | `/entries` | User watch history, watchlist, stacks & suggestions | Authenticated |
   | `/search` | TMDb media search & user directory | Authenticated |
   | `/profile/:id` | User profile, follow stats, and activity | Authenticated |
-  | `/details/:mediaType/:tmdbId` | Movie & TV show detail page | Authenticated |
+  | `/details/:mediaType/:tmdbId` | Movie & TV show detail page | Public (Optional Auth) |
   | `/scanner` | QR code camera scanner for hive codes | Authenticated |
   | `/support` | Help center, FAQs, and ticket submission | Public |
   | `/privacy-policy` | Terms of service and privacy statement | Public |

@@ -487,6 +487,19 @@ class UserRepository {
     return jsonEncode(raw);
   }
 
+  /// Export complete user personal data archive (GDPR Article 20 - Data Portability)
+  Future<String> exportGdprArchive() async {
+    final response = await _api.get(
+      '/users/me/export',
+      options: Options(responseType: ResponseType.plain),
+    );
+    final raw = response.data;
+    if (raw is String) {
+      return raw;
+    }
+    return jsonEncode(raw);
+  }
+
   /// Import user data payload { "entries": [...], "lists": [...] }
   Future<Map<String, dynamic>> importData(Map<String, dynamic> payload) async {
     final body = <String, dynamic>{};

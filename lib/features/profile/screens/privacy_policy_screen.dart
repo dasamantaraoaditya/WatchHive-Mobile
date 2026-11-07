@@ -6,6 +6,7 @@ import '../../../core/utils/navigation_extensions.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   static final String webPrivacyPolicyUrl = WebUrls.privacyPolicy();
+  static final String webTermsOfServiceUrl = WebUrls.termsOfService();
   static const String contactEmail = 'watchershive@gmail.com';
 
   const PrivacyPolicyScreen({super.key});
@@ -24,6 +25,25 @@ class PrivacyPolicyScreen extends StatelessWidget {
       }
     }
   }
+
+  Future<void> _openWebTerms(BuildContext context) async {
+    final uri = Uri.parse(webTermsOfServiceUrl);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch web browser.')),
+        );
+      }
+    }
+  }
+
+
+
+
 
   Future<void> _sendEmail(BuildContext context) async {
     final uri = Uri.parse('mailto:$contactEmail?subject=WatchersHive%20Privacy%20Inquiry');
@@ -259,7 +279,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               number: '8',
               title: 'Your Data Rights & Deletion',
               content:
-                  'You retain complete ownership of your cinematic logs. At any time in the app, you can:\n• Export all your entries and reviews as JSON via Data Management.\n• Permanently delete your account and all associated logs in Settings.',
+                  'You retain complete ownership of your cinematic logs. Under GDPR (Art. 15–20) and CCPA, at any time in the app you can:\n• Export all your entries and reviews as JSON via Data Management.\n• Permanently delete your account and all associated logs in Settings (Apple Guideline 5.1.1 compliant).\n• We strictly do NOT sell or share your personal data with third-party advertisers.\n• Age requirement: Minimum 13 years old (COPPA compliant).',
             ),
 
             // 9. Non-Commercial Status & TMDb Attribution
@@ -274,6 +294,69 @@ class PrivacyPolicyScreen extends StatelessWidget {
             const SizedBox(height: 16),
             const Divider(height: 1, color: AppColors.border),
             const SizedBox(height: 20),
+
+            // Terms of Service & EULA Card
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.gavel_rounded, color: AppColors.primaryDark, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Terms of Service & EULA',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Review our acceptable use policy, UGC guidelines (Apple 1.2), non-commercial terms, and DMCA copyright notice.',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12.5,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textPrimary,
+                        side: const BorderSide(color: AppColors.border),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: () => _openWebTerms(context),
+                      icon: const Icon(Icons.open_in_new_rounded, size: 16, color: AppColors.primaryDark),
+                      label: const Text(
+                        'Read Full Terms of Service',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
 
             // Contact Us Card
             Container(

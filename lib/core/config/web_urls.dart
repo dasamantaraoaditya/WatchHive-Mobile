@@ -66,4 +66,8 @@ class WebUrls {
   /// URL for the WatchersHive privacy policy.
   /// Example: https://watchhive-web.vercel.app/watch-hive/privacy
   static String privacyPolicy() => '$baseUrl/watch-hive/privacy';
+
+  /// URL for the WatchersHive terms of service.
+  /// Example: https://watchhive-web.vercel.app/watch-hive/terms
+  static String termsOfService() => '$baseUrl/watch-hive/terms';
 }

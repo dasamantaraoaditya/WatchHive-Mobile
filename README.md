@@ -187,3 +187,16 @@ For an exhaustive, chapter-by-chapter walkthrough of all product capabilities, s
 14. **Mobile-Responsive UX & Touch Ergonomics**: Safe area insets, bottom sheets, keyboard avoidance.
 
 > 💡 **Developer Note:** All documentation files reside within `docs/` and are strictly excluded from client JS/CSS bundles and native mobile binaries, adding **0 bytes** to production release artifacts.
+
+---
+
+## 🤖 7. Agentic AI & Developer Optimizations (`.agents/`)
+
+This repository is optimized for AI pair programming with Antigravity:
+- **Project Context (`.agents/AGENTS.md`)**: Automatically supplies Flutter Riverpod 2.6, GoRouter 14, Dio TMDb SWR cache, and design tokens to avoid repetitive code exploration.
+- **Workflow Skills (`.agents/skills/`)**:
+  - `deploy`: Release building procedures for Android APK/AAB and iOS IPA/TestFlight.
+  - `test`: Flutter unit and widget testing with Riverpod `ProviderContainer` overrides.
+  - `new-feature`: Architectural checklist for adding clean features.
+- **Quality Hooks (`.agents/hooks.json`)**: Pre-execution contrast and loader rule reminders.
+
