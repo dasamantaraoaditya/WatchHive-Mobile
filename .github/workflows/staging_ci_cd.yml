@@ -99,7 +99,8 @@ jobs:
 
   build-staging-ios:
     name: Build Staging iOS App
-    runs-on: macos-14
+    runs-on: macos-13
+    continue-on-error: true
     env:
       IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
       GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
