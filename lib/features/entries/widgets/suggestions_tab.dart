@@ -13,7 +13,6 @@ import '../../feed/widgets/smart_suggest_deck_sheet.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../profile/widgets/add_friends_sheet.dart';
 import '../repositories/suggestions_repository.dart';
-import 'suggest_movie_modal.dart';
 import 'suggestion_card.dart';
 import 'smart_suggest_grid_card.dart';
 
@@ -603,20 +602,6 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                                     spacing: 10,
                                     runSpacing: 8,
                                     children: [
-                                      ElevatedButton.icon(
-                                        onPressed: () async {
-                                          await SuggestMovieModal.show(context);
-                                          _fetchSuggestions();
-                                        },
-                                        icon: const Icon(Icons.auto_awesome, size: 16),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.primary,
-                                          foregroundColor: Colors.black,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                        ),
-                                        label: const Text('Suggest to Friends', style: TextStyle(fontWeight: FontWeight.bold)),
-                                      ),
                                       OutlinedButton.icon(
                                         onPressed: () {
                                           final currentUser = ref.read(authStateProvider).value?.user;
@@ -712,39 +697,6 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                     icon: Icons.send_rounded,
                     label: 'Suggested',
                     badgeText: '${_sentGroups.length}',
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          InkWell(
-            onTap: () async {
-              await SuggestMovieModal.show(context);
-              _fetchSuggestions();
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              height: 36,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.auto_awesome, size: 13, color: AppColors.primaryDark),
-                  SizedBox(width: 3),
-                  Text(
-                    'Suggest',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primaryDark,
-                    ),
                   ),
                 ],
               ),

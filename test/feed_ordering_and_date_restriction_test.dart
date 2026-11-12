@@ -32,6 +32,15 @@ class _FakeFeedRepository implements FeedRepository {
 
   @override
   Future<void> unlikeEntry(String entryId) async {}
+
+  @override
+  Future<({List<User> users, int total, bool hasMore})> getEntryLikes(
+    String entryId, {
+    int limit = 3,
+    int offset = 0,
+  }) async {
+    return (users: <User>[], total: 0, hasMore: false);
+  }
 }
 
 void main() {

@@ -30,6 +30,7 @@ import '../../onboarding/widgets/screen_guide_dialog.dart';
 import '../../../core/utils/share_helper.dart';
 import '../widgets/friends_watched_bar.dart';
 import '../widgets/friends_who_watched_sheet.dart';
+import '../widgets/completion_review_sheet.dart';
 import '../repositories/episode_repository.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
@@ -400,6 +401,61 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         ) ??
         false;
 
+    // Detect if marking this episode watched completes the entire season or entire series
+    CompletionReviewSheetResult? reviewResult;
+    bool willCompleteSeries = false;
+    bool willCompleteSeason = false;
+
+    if (!isCurrentlyWatched) {
+      final totalShowEpisodes = (_details?['number_of_episodes'] as num?)?.toInt() ??
+          _showProgress?.totalEpisodesCount ??
+          0;
+      final totalWatchedBefore = _showProgress?.watchedEpisodes
+              .where((w) => !(w.seasonNumber == seasonNum && w.episodeNumber == epNum))
+              .length ??
+          0;
+      willCompleteSeries = totalShowEpisodes > 0 && (totalWatchedBefore + 1) >= totalShowEpisodes;
+
+      int seasonTotalEpisodes = 0;
+      if (_seasonDetails != null && (_seasonDetails!['season_number'] as num?)?.toInt() == seasonNum) {
+        seasonTotalEpisodes = (_seasonDetails!['episodes'] as List<dynamic>?)?.length ?? 0;
+      }
+      if (seasonTotalEpisodes == 0 && _details?['seasons'] is List) {
+        final seasonsList = _details!['seasons'] as List<dynamic>;
+        for (final s in seasonsList) {
+          if (s is Map && (s['season_number'] as num?)?.toInt() == seasonNum) {
+            seasonTotalEpisodes = (s['episode_count'] as num?)?.toInt() ?? 0;
+            break;
+          }
+        }
+      }
+      final watchedInSeason = _showProgress?.watchedEpisodes
+              .where((w) => w.seasonNumber == seasonNum && w.episodeNumber != epNum)
+              .length ??
+          0;
+      willCompleteSeason = seasonTotalEpisodes > 0 && (watchedInSeason + 1) >= seasonTotalEpisodes;
+
+      if (willCompleteSeries || willCompleteSeason) {
+        final showTitle = (_details?['name'] ?? _details?['title'] ?? _showProgress?.title ?? 'TV Series').toString();
+        final showPoster = _details?['poster_path'] as String? ?? _showProgress?.posterPath;
+
+        reviewResult = await CompletionReviewSheet.show(
+          context,
+          title: showTitle,
+          seasonNumber: seasonNum,
+          episodeNumber: epNum,
+          isSeriesComplete: willCompleteSeries,
+          posterPath: showPoster,
+        );
+
+        // User dismissed sheet without submitting or skipping
+        if (reviewResult == null) {
+          if (mounted) setState(() => _togglingEpisodeKey = null);
+          return;
+        }
+      }
+    }
+
     try {
       final res = await ref.read(episodeRepositoryProvider).toggleEpisodeWatch(
             tmdbId: widget.tmdbId,
@@ -408,9 +464,23 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
             episodeId: epId,
             episodeName: epName,
             isWatched: !isCurrentlyWatched,
+            rating: reviewResult?.skipped == true ? null : reviewResult?.rating,
+            review: reviewResult?.skipped == true ? null : reviewResult?.review,
+            postToFeed: reviewResult?.skipped == true ? false : (reviewResult?.postToFeed ?? false),
           );
       if (mounted) {
         setState(() => _showProgress = res);
+        _checkUserEntry();
+        ref.invalidate(entriesProvider(true));
+        ref.invalidate(entriesProvider(false));
+        if (reviewResult != null) {
+          WHAlert.showSuccess(
+            context,
+            willCompleteSeries
+                ? 'Series completed! 🏆 Honey stars logged.'
+                : 'Season $seasonNum completed! 🎉',
+          );
+        }
       }
     } catch (_) {
       if (mounted) {
@@ -462,7 +532,63 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
             );
         if (mounted) {
           setState(() => _showProgress = res);
-          WHAlert.showSuccess(context, 'Caught up to Season $seasonNum Episode $epNum! 🐝');
+          _checkUserEntry();
+          ref.invalidate(entriesProvider(true));
+          ref.invalidate(entriesProvider(false));
+
+          // Check if this catch-up completed the season or series
+          final totalShowEpisodes = (_details?['number_of_episodes'] as num?)?.toInt() ??
+              res.totalEpisodesCount ??
+              0;
+          final isSeriesDone = totalShowEpisodes > 0 && res.totalEpisodesWatched >= totalShowEpisodes;
+
+          int seasonTotalEpisodes = 0;
+          if (_seasonDetails != null && (_seasonDetails!['season_number'] as num?)?.toInt() == seasonNum) {
+            seasonTotalEpisodes = (_seasonDetails!['episodes'] as List<dynamic>?)?.length ?? 0;
+          }
+          if (seasonTotalEpisodes == 0 && _details?['seasons'] is List) {
+            final seasonsList = _details!['seasons'] as List<dynamic>;
+            for (final s in seasonsList) {
+              if (s is Map && (s['season_number'] as num?)?.toInt() == seasonNum) {
+                seasonTotalEpisodes = (s['episode_count'] as num?)?.toInt() ?? 0;
+                break;
+              }
+            }
+          }
+          final isSeasonDone = seasonTotalEpisodes > 0 && epNum >= seasonTotalEpisodes;
+
+          if (isSeriesDone || isSeasonDone) {
+            final showTitle = (_details?['name'] ?? _details?['title'] ?? res.title).toString();
+            final showPoster = _details?['poster_path'] as String? ?? res.posterPath;
+
+            final reviewResult = await CompletionReviewSheet.show(
+              context,
+              title: showTitle,
+              seasonNumber: seasonNum,
+              episodeNumber: epNum,
+              isSeriesComplete: isSeriesDone,
+              posterPath: showPoster,
+            );
+
+            if (reviewResult != null && !reviewResult.skipped && (reviewResult.rating != null || reviewResult.review != null)) {
+              if (_loggedEntry != null) {
+                await ref.read(entriesRepositoryProvider).updateEntry(_loggedEntry!.id, {
+                  if (reviewResult.rating != null) 'rating': reviewResult.rating,
+                  if (reviewResult.review != null) 'review': reviewResult.review,
+                  'postToFeed': reviewResult.postToFeed,
+                });
+                if (mounted) {
+                  _checkUserEntry();
+                  ref.invalidate(entriesProvider(true));
+                  ref.invalidate(entriesProvider(false));
+                }
+              }
+            }
+          }
+
+          if (mounted) {
+            WHAlert.showSuccess(context, 'Caught up to Season $seasonNum Episode $epNum! 🐝');
+          }
         }
       } catch (_) {
         if (mounted) {
