@@ -205,7 +205,7 @@ class _ContinueWatchingCarouselState extends ConsumerState<ContinueWatchingCarou
                 final next = item.nextEpisodeUp;
 
                 return GestureDetector(
-                  onTap: () => context.push('/movie/tv/${item.tmdbId}'),
+                  onTap: () => context.push('/details/tv/${item.tmdbId}'),
                   child: Container(
                     width: 275,
                     padding: const EdgeInsets.all(10),

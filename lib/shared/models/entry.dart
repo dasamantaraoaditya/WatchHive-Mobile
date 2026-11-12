@@ -149,6 +149,20 @@ class Entry {
         (countData?['comments'] as num?)?.toInt() ??
         0;
 
+    final parsedWatchedAt = dataMap['watchedAt'] != null
+        ? DateTime.tryParse(dataMap['watchedAt'].toString())?.toLocal()
+        : null;
+    final parsedCompletedAt = dataMap['completedAt'] != null
+        ? DateTime.tryParse(dataMap['completedAt'].toString())?.toLocal()
+        : null;
+    final isWatchingVal = dataMap['isWatching'] as bool? ?? false;
+    final hasExactWatchDate = (dataMap['watchedAt'] != null && dataMap['watchedAt'].toString().isNotEmpty) ||
+        (!isWatchingVal && parsedCompletedAt != null);
+    final effectiveWatchedAt = parsedWatchedAt ??
+        (!isWatchingVal && parsedCompletedAt != null ? parsedCompletedAt : null) ??
+        (json['timestamp'] != null ? DateTime.tryParse(json['timestamp'].toString())?.toLocal() : null) ??
+        DateTime.now();
+
     return Entry(
       id: json['id']?.toString() ?? dataMap['id']?.toString() ?? '',
       userId: dataMap['userId']?.toString() ?? '',
@@ -159,23 +173,19 @@ class Entry {
       tmdbId: parsedTmdbId,
       title: titleStr,
       type: dataMap['type'] as String? ?? (dataMap['media_type']?.toString().toUpperCase() == 'TV' ? 'TV_SHOW' : 'MOVIE'),
-      watchedAt: dataMap['watchedAt'] != null
-          ? (DateTime.tryParse(dataMap['watchedAt'].toString())?.toLocal() ?? DateTime.now())
-          : (json['timestamp'] != null ? (DateTime.tryParse(json['timestamp'].toString())?.toLocal() ?? DateTime.now()) : DateTime.now()),
-      hasExactWatchDate: dataMap['watchedAt'] != null && dataMap['watchedAt'].toString().isNotEmpty,
+      watchedAt: effectiveWatchedAt,
+      hasExactWatchDate: hasExactWatchDate,
       rating: dataMap['rating'] != null
           ? double.tryParse(dataMap['rating'].toString())
           : (isSuggestion && dataMap['vote_average'] != null ? double.tryParse(dataMap['vote_average'].toString()) : null),
       review: dataMap['review'] as String? ?? (isSuggestion && dataMap['overview'] != null ? dataMap['overview'].toString() : null),
       tags: (dataMap['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       isRewatch: dataMap['isRewatch'] as bool? ?? false,
-      isWatching: dataMap['isWatching'] as bool? ?? false,
+      isWatching: isWatchingVal,
       startedAt: dataMap['startedAt'] != null
           ? DateTime.tryParse(dataMap['startedAt'].toString())?.toLocal()
           : null,
-      completedAt: dataMap['completedAt'] != null
-          ? DateTime.tryParse(dataMap['completedAt'].toString())?.toLocal()
-          : null,
+      completedAt: parsedCompletedAt,
       currentSeason: (dataMap['currentSeason'] as num?)?.toInt() ?? (dataMap['current_season'] as num?)?.toInt(),
       currentEpisode: (dataMap['currentEpisode'] as num?)?.toInt() ?? (dataMap['current_episode'] as num?)?.toInt(),
       totalEpisodesWatched: (dataMap['totalEpisodesWatched'] as num?)?.toInt() ?? (dataMap['total_episodes_watched'] as num?)?.toInt() ?? 0,

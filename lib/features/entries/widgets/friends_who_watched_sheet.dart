@@ -9,6 +9,7 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../../feed/repositories/feed_repository.dart';
 import '../../feed/widgets/comments_sheet.dart';
+import '../../feed/widgets/likes_list_sheet.dart';
 
 /// Bottom sheet modal displaying all friends who have watched/reviewed
 /// a specific movie or show, with full ratings, moods, written reviews,
@@ -491,32 +492,63 @@ class _FriendsWhoWatchedSheetState extends ConsumerState<FriendsWhoWatchedSheet>
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             child: Row(
               children: [
-                InkWell(
-                  onTap: () => _toggleLike(entry),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkWell(
+                      onTap: () => _toggleLike(entry),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8, right: 3, top: 6, bottom: 6),
+                        child: Icon(
                           isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                           size: 16,
                           color: isLiked ? AppColors.error : AppColors.textMuted,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$likesCount',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: isLiked ? AppColors.error : AppColors.textMuted,
+                      ),
+                    ),
+                    if (likesCount > 0)
+                      InkWell(
+                        onTap: () => LikesListSheet.show(
+                          context,
+                          entryId: entry.id,
+                          entryTitle: entry.title,
+                          initialLikeCount: likesCount,
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                          child: Text(
+                            '$likesCount ${likesCount == 1 ? 'like' : 'likes'}',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: isLiked ? AppColors.error : AppColors.textPrimary,
+                              decoration: TextDecoration.underline,
+                              decorationColor: (isLiked ? AppColors.error : AppColors.primaryDark).withValues(alpha: 0.6),
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
+                      )
+                    else
+                      InkWell(
+                        onTap: () => _toggleLike(entry),
+                        borderRadius: BorderRadius.circular(6),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                          child: Text(
+                            '0',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(width: 8),
                 InkWell(

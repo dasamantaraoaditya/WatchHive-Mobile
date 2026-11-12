@@ -206,9 +206,28 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       _watchLocation = e.watchLocation ?? '';
       _locationController.text = _watchLocation;
       _tags = List<String>.from(e.tags);
-      _watchedDate = e.watchedAt.toLocal();
-      _hasWatchedDate = e.hasExactWatchDate;
-      _hasWatchedTime = e.hasExactWatchDate && (e.watchedAt.hour != 0 || e.watchedAt.minute != 0);
+
+      // Determine accurate watch date & time
+      if (widget.prefillIsWatching == false && e.isWatching) {
+        // User explicitly tapped "Mark as Completed" to complete a currently-watching entry
+        _watchedDate = DateTime.now();
+        _hasWatchedDate = true;
+        _hasWatchedTime = true;
+      } else if (!e.isWatching && e.completedAt != null) {
+        // Already completed entry with completedAt timestamp
+        _watchedDate = e.completedAt!.toLocal();
+        _hasWatchedDate = true;
+        _hasWatchedTime = (e.completedAt!.hour != 0 || e.completedAt!.minute != 0);
+      } else if (e.hasExactWatchDate) {
+        _watchedDate = e.watchedAt.toLocal();
+        _hasWatchedDate = true;
+        _hasWatchedTime = (e.watchedAt.hour != 0 || e.watchedAt.minute != 0);
+      } else {
+        _watchedDate = DateTime.now();
+        _hasWatchedDate = false;
+        _hasWatchedTime = false;
+      }
+
       if (_watchedDate.isAfter(DateTime.now())) {
         _watchedDate = DateTime.now();
       }
@@ -791,6 +810,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                 : DateFormat('yyyy-MM-dd').format(_watchedDate))
             : null,
         if (!_hasWatchedDate) 'unspecifiedDate': true,
+        if (!_isWatching && _hasWatchedDate) 'completedAt': _watchedDate.toUtc().toIso8601String(),
         if (_suggestedByUserId != null && _suggestedByUserId!.trim().isNotEmpty)
           'suggestedByUserId': _suggestedByUserId!.trim(),
         if (poster != null && poster.isNotEmpty) 'posterPath': poster,
@@ -1077,7 +1097,17 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                           children: [
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => setState(() => _isWatching = false),
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() {
+                                    if (_isWatching) {
+                                      _watchedDate = DateTime.now();
+                                      _hasWatchedDate = true;
+                                      _hasWatchedTime = true;
+                                    }
+                                    _isWatching = false;
+                                  });
+                                },
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   padding: const EdgeInsets.symmetric(vertical: 10),

@@ -17,6 +17,7 @@ import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../search/repositories/search_repository.dart';
 import '../../entries/widgets/platform_logo_badge.dart';
 import '../providers/feed_provider.dart';
+import 'likes_list_sheet.dart';
 import '../../../core/utils/share_helper.dart';
 
 
@@ -25,6 +26,7 @@ class WHFeedCard extends ConsumerStatefulWidget {
   final bool isLiked;
   final bool isOwnEntry;
   final VoidCallback onLike;
+  final VoidCallback? onLikesTap;
   final VoidCallback? onCommentTap;
   final VoidCallback onUserTap;
   final VoidCallback onMediaTap;
@@ -36,6 +38,7 @@ class WHFeedCard extends ConsumerStatefulWidget {
     required this.isLiked,
     required this.isOwnEntry,
     required this.onLike,
+    this.onLikesTap,
     this.onCommentTap,
     required this.onUserTap,
     required this.onMediaTap,
@@ -539,11 +542,64 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
             child: Row(
               children: [
                 if (!isSuggestion) ...[
-                  WHFeedActionButton(
-                    icon: isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                    label: '${entry.likesCount}',
-                    color: isLiked ? AppColors.error : AppColors.textMuted,
-                    onTap: onLike,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      InkWell(
+                        onTap: onLike,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 7, right: 3, top: 6, bottom: 6),
+                          child: Icon(
+                            isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            size: 17,
+                            color: isLiked ? AppColors.error : AppColors.textMuted,
+                          ),
+                        ),
+                      ),
+                      if (entry.likesCount > 0)
+                        InkWell(
+                          onTap: widget.onLikesTap ??
+                              () => LikesListSheet.show(
+                                    context,
+                                    entryId: entry.id,
+                                    entryTitle: entry.title,
+                                    initialLikeCount: entry.likesCount,
+                                  ),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                            child: Text(
+                              '${entry.likesCount} ${entry.likesCount == 1 ? 'like' : 'likes'}',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                color: isLiked ? AppColors.error : AppColors.textPrimary,
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.underline,
+                                decorationColor: (isLiked ? AppColors.error : AppColors.primaryDark).withValues(alpha: 0.6),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        InkWell(
+                          onTap: onLike,
+                          borderRadius: BorderRadius.circular(6),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                            child: Text(
+                              '0',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(width: 4),
                   WHFeedActionButton(

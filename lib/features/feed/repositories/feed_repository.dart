@@ -3,6 +3,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../shared/models/entry.dart';
 import '../../../shared/models/models.dart';
+import '../../../shared/models/user.dart';
 
 import '../../../core/services/offline_storage_service.dart';
 
@@ -91,5 +92,30 @@ class FeedRepository {
 
   Future<void> unlikeEntry(String entryId) async {
     await _api.delete(ApiEndpoints.likeEntry(entryId));
+  }
+
+  /// Fetch liked users for an entry in paginated batches (initial 3, then batches of 10).
+  Future<({List<User> users, int total, bool hasMore})> getEntryLikes(
+    String entryId, {
+    int limit = 3,
+    int offset = 0,
+  }) async {
+    final response = await _api.get(
+      ApiEndpoints.likeEntry(entryId),
+      queryParameters: {
+        'limit': limit,
+        'offset': offset,
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    final rawLikes = (data['likes'] as List<dynamic>?) ?? [];
+    final users = rawLikes
+        .map((e) => User.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final pagination = (data['pagination'] as Map<String, dynamic>?) ?? {};
+    final total = (pagination['total'] as num?)?.toInt() ?? users.length;
+    final hasMore = (pagination['hasMore'] as bool?) ??
+        (offset + users.length < total);
+    return (users: users, total: total, hasMore: hasMore);
   }
 }
