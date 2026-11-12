@@ -12,7 +12,7 @@ import '../screens/entries_screen.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/router/app_router.dart';
-import '../../../core/utils/share_helper.dart';
+import 'post_log_success_dialog.dart';
 
 class QuickCurrentlyWatchingSheet extends ConsumerStatefulWidget {
   const QuickCurrentlyWatchingSheet({super.key});
@@ -125,26 +125,19 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
             ? media.releaseDate!.substring(0, 4)
             : null;
 
-        WHAlert.showSuccessWithAction(
+        PostLogSuccessDialog.show(
           rootNavigatorKey.currentContext ?? context,
-          message: 'Added "$cleanTitle" to Currently Watching.',
-          actionLabel: 'Share',
-          actionIcon: Icons.share_rounded,
-          onAction: () {
-            ShareHelper.shareCompletedWatch(
-              context: rootNavigatorKey.currentContext,
-              title: cleanTitle,
-              posterPath: media.posterPath,
-              backdropPath: media.backdropPath,
-              tmdbId: media.id,
-              mediaType: media.mediaType,
-              releaseYear: year,
-              userDisplayName: currentUser?.displayName ?? currentUser?.username,
-              username: currentUser?.username,
-              userAvatarUrl: currentUser?.profilePictureUrl,
-              shareMode: StoryShareMode.watching,
-            );
-          },
+          title: cleanTitle,
+          tmdbId: media.id,
+          mediaType: media.mediaType,
+          posterPath: media.posterPath,
+          backdropPath: media.backdropPath,
+          releaseYear: year,
+          isWatching: true,
+          isEditing: false,
+          userDisplayName: currentUser?.displayName ?? currentUser?.username,
+          username: currentUser?.username,
+          userAvatarUrl: currentUser?.profilePictureUrl,
         );
       }
     } catch (e) {

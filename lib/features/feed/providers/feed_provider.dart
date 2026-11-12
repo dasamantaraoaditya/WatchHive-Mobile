@@ -163,7 +163,10 @@ class FeedNotifier extends StateNotifier<FeedState> {
       }
     } catch (_) {}
 
-    await loadFeed(isSilent: state.entries.isNotEmpty);
+    await loadFeed(
+      isRefresh: state.entries.isNotEmpty,
+      isSilent: state.entries.isNotEmpty,
+    );
   }
 
   void setNearTop(bool isNearTop) {

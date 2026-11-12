@@ -18,7 +18,7 @@ class SmartSuggestHeroCard extends ConsumerStatefulWidget {
 }
 
 class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
-  static const List<String> _modes = ['social', 'critic', 'explore'];
+  static const List<String> _modes = ['social', 'watchlist', 'explore'];
   late final PageController _pageController;
   int _currentModeIndex = 0;
 
@@ -26,7 +26,7 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
   final Map<String, int> _currentIndexByMode = {};
   final Map<String, bool> _isLoadingByMode = {
     'social': true,
-    'critic': true,
+    'watchlist': true,
     'explore': true,
   };
   bool _isDismissed = false;
@@ -37,7 +37,7 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _fetchPicksForMode('social');
-    _fetchPicksForMode('critic');
+    _fetchPicksForMode('watchlist');
     _fetchPicksForMode('explore');
   }
 
@@ -47,7 +47,7 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
     super.dispose();
   }
 
-  Future<void> _fetchPicksForMode(String mode) async {
+  Future<void> _fetchPicksForMode(String mode, {bool regenerate = false}) async {
     final auth = ref.read(authStateProvider).value ??
         await ref.read(authStateProvider.future).catchError((_) => const AuthState());
     if (!auth.isAuthenticated) {
@@ -67,11 +67,14 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
     try {
       final repo = ref.read(suggestionsRepositoryProvider);
       final user = ref.read(authStateProvider).value?.user;
+      final currentList = _itemsByMode[mode] ?? [];
       final res = await repo.getSmartSuggestions(
         mode: mode,
-        limit: 6,
+        limit: 10,
         languages: user?.savedLanguages,
         genres: user?.savedGenres,
+        excludeIds: regenerate ? currentList.map((e) => e.tmdbId).toList() : null,
+        seed: regenerate ? DateTime.now().millisecondsSinceEpoch : null,
       );
       if (mounted) {
         setState(() {
@@ -263,7 +266,7 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildModeButton(0, 'Social'),
-                    _buildModeButton(1, 'Critic'),
+                    _buildModeButton(1, 'Watchlist'),
                     _buildModeButton(2, 'Explore'),
                   ],
                 ),
@@ -501,6 +504,30 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
+                        // Regenerate button
+                        InkWell(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            _fetchPicksForMode(mode, regenerate: true);
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: const Icon(
+                              Icons.refresh,
+                              size: 17,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 6),
+
                         // Shuffle button
                         InkWell(
                           onTap: () => _handleShuffle(mode),

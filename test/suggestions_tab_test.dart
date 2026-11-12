@@ -134,8 +134,8 @@ void main() {
     expect(find.text('Suggestions'), findsOneWidget);
     expect(find.text('Suggested'), findsOneWidget);
 
-    // Verify Suggest button beside subtabs exists
-    expect(find.text('Suggest'), findsOneWidget);
+    // Verify Suggest button beside subtabs is removed
+    expect(find.text('Suggest'), findsNothing);
 
     // Verify counts
     expect(find.text('1'), findsNWidgets(2)); // 1 received, 1 sent

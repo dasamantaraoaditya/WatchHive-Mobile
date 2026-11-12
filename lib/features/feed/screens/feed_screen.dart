@@ -235,6 +235,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
     await Future.delayed(const Duration(milliseconds: 550));
     if (!mounted) return;
 
+    // Never auto-start if tour is already active or ran in this session
+    final guideState = ref.read(onboardingGuideProvider);
+    if (guideState.isActive || guideState.hasStartedThisSession) return;
+
     // Check if quick guide tour is needed for first-time users
     final tourService = ref.read(tourServiceProvider);
     final shouldShow = await tourService.shouldShowTour(userId);
@@ -404,6 +408,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                         final entry = feedState.entries[index];
                         final isLiked = feedState.likedEntryIds.contains(entry.id) || entry.isLiked;
                         return Padding(
+                          key: ValueKey(entry.id),
                           padding: const EdgeInsets.only(bottom: 12),
                           child: WHFeedCard(
                             entry: entry,

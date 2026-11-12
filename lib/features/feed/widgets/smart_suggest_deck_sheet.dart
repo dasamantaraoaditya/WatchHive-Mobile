@@ -55,7 +55,7 @@ class _SmartSuggestDeckSheetState extends ConsumerState<SmartSuggestDeckSheet> {
     super.dispose();
   }
 
-  Future<void> _fetchPicks() async {
+  Future<void> _fetchPicks({bool regenerate = false}) async {
     setState(() {
       _isLoading = true;
       _error = null;
@@ -66,9 +66,11 @@ class _SmartSuggestDeckSheetState extends ConsumerState<SmartSuggestDeckSheet> {
       final user = ref.read(authStateProvider).value?.user;
       final res = await repo.getSmartSuggestions(
         mode: _mode,
-        limit: 10,
+        limit: 12,
         languages: user?.savedLanguages,
         genres: user?.savedGenres,
+        excludeIds: regenerate ? _items.map((e) => e.tmdbId).toList() : null,
+        seed: regenerate ? DateTime.now().millisecondsSinceEpoch : null,
       );
       if (mounted) {
         setState(() {
@@ -252,6 +254,14 @@ class _SmartSuggestDeckSheetState extends ConsumerState<SmartSuggestDeckSheet> {
                     ),
                   ),
                   IconButton(
+                    icon: const Icon(Icons.refresh, size: 20, color: AppColors.textPrimary),
+                    tooltip: 'Regenerate',
+                    onPressed: _isLoading ? null : () {
+                      HapticFeedback.lightImpact();
+                      _fetchPicks(regenerate: true);
+                    },
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.close, size: 20, color: AppColors.textSecondary),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -266,9 +276,9 @@ class _SmartSuggestDeckSheetState extends ConsumerState<SmartSuggestDeckSheet> {
                 children: [
                   _buildModeChip('social', 'Hive Mind', Icons.group),
                   const SizedBox(width: 6),
-                  _buildModeChip('critic', 'Certified Gold', Icons.verified),
+                  _buildModeChip('watchlist', 'Watchlist Gems', Icons.bookmark),
                   const SizedBox(width: 6),
-                  _buildModeChip('explore', 'Palate Cleanser', Icons.cached),
+                  _buildModeChip('explore', 'Explore', Icons.explore),
                 ],
               ),
             ),

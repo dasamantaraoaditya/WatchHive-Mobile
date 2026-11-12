@@ -13,12 +13,14 @@ class OnboardingGuideState {
   final int currentStepIndex;
   final String userId;
   final bool isReplay;
+  final bool hasStartedThisSession;
 
   const OnboardingGuideState({
     this.isActive = false,
     this.currentStepIndex = 0,
     this.userId = '',
     this.isReplay = false,
+    this.hasStartedThisSession = false,
   });
 
   InteractiveOnboardingStep get currentStep {
@@ -37,12 +39,15 @@ class OnboardingGuideState {
     int? currentStepIndex,
     String? userId,
     bool? isReplay,
+    bool? hasStartedThisSession,
   }) {
     return OnboardingGuideState(
       isActive: isActive ?? this.isActive,
       currentStepIndex: currentStepIndex ?? this.currentStepIndex,
       userId: userId ?? this.userId,
       isReplay: isReplay ?? this.isReplay,
+      hasStartedThisSession:
+          hasStartedThisSession ?? this.hasStartedThisSession,
     );
   }
 }
@@ -57,41 +62,62 @@ class OnboardingGuideNotifier extends StateNotifier<OnboardingGuideState> {
   /// Starts the interactive guided tour for the given user.
   void startTour(BuildContext context,
       {required String userId, bool isReplay = false}) {
+    // Prevent re-entry / infinite loop when screens remount during navigation
+    if (!isReplay && (state.isActive || state.hasStartedThisSession)) {
+      return;
+    }
+
     state = OnboardingGuideState(
       isActive: true,
       currentStepIndex: 0,
       userId: userId,
       isReplay: isReplay,
+      hasStartedThisSession: true,
     );
 
-    // Navigate to step 1 route
+    // Mark completed immediately on start so route changes back to /feed never
+    // re-trigger the automatic first-time tour.
+    if (userId.isNotEmpty && !isReplay) {
+      _tourService.markTourCompleted(userId);
+    }
+
+    // Navigate to step 1 route if not already there
     final firstRoute = InteractiveOnboardingStep.steps.first.route;
-    context.go(firstRoute);
+    final currentLocation = GoRouterState.of(context).matchedLocation;
+    if (currentLocation != firstRoute) {
+      context.go(firstRoute);
+    }
   }
 
-  /// Advances to the next step and navigates to the target route.
+  /// Advances to the next step and navigates to the target route if needed.
   void nextStep(BuildContext context) {
     if (state.isLastStep) {
-      dismissTour(context: context);
+      dismissTour(context: context, returnToFeed: true);
       return;
     }
 
+    final currentRoute = state.currentStep.route;
     final nextIndex = state.currentStepIndex + 1;
     state = state.copyWith(currentStepIndex: nextIndex);
 
-    final nextStep = InteractiveOnboardingStep.steps[nextIndex];
-    context.go(nextStep.route);
+    final nextRoute = InteractiveOnboardingStep.steps[nextIndex].route;
+    if (nextRoute != currentRoute) {
+      context.go(nextRoute);
+    }
   }
 
   /// Moves back to the previous step.
   void previousStep(BuildContext context) {
     if (state.currentStepIndex <= 0) return;
 
+    final currentRoute = state.currentStep.route;
     final prevIndex = state.currentStepIndex - 1;
     state = state.copyWith(currentStepIndex: prevIndex);
 
-    final prevStep = InteractiveOnboardingStep.steps[prevIndex];
-    context.go(prevStep.route);
+    final prevRoute = InteractiveOnboardingStep.steps[prevIndex].route;
+    if (prevRoute != currentRoute) {
+      context.go(prevRoute);
+    }
   }
 
   /// Jumps to a specific step.
@@ -99,18 +125,30 @@ class OnboardingGuideNotifier extends StateNotifier<OnboardingGuideState> {
     const steps = InteractiveOnboardingStep.steps;
     if (stepIndex < 0 || stepIndex >= steps.length) return;
 
+    final currentRoute = state.currentStep.route;
     state = state.copyWith(currentStepIndex: stepIndex);
-    context.go(steps[stepIndex].route);
+
+    final targetRoute = steps[stepIndex].route;
+    if (targetRoute != currentRoute) {
+      context.go(targetRoute);
+    }
   }
 
   /// Dismisses and marks the tour completed.
   /// After onboarding is done, prompts preferences if the user hasn't set them yet.
-  Future<void> dismissTour({BuildContext? context}) async {
+  Future<void> dismissTour({
+    BuildContext? context,
+    bool returnToFeed = false,
+  }) async {
     final userId = state.userId;
-    state = state.copyWith(isActive: false);
+    state = state.copyWith(isActive: false, hasStartedThisSession: true);
 
     if (userId.isNotEmpty) {
       await _tourService.markTourCompleted(userId);
+    }
+
+    if (returnToFeed && context != null && context.mounted) {
+      context.go('/feed');
     }
 
     // Preferences should only come after the onboarding is done!

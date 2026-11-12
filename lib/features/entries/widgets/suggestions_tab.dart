@@ -75,7 +75,7 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
     }
   }
 
-  Future<void> _fetchSmartSuggestions() async {
+  Future<void> _fetchSmartSuggestions({bool regenerate = false}) async {
     setState(() => _isSmartLoading = true);
     try {
       final repo = ref.read(suggestionsRepositoryProvider);
@@ -85,6 +85,8 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
         limit: 16,
         languages: user?.savedLanguages,
         genres: user?.savedGenres,
+        excludeIds: regenerate ? _smartItems.map((e) => e.tmdbId).toList() : null,
+        seed: regenerate ? DateTime.now().millisecondsSinceEpoch : null,
       );
       if (mounted) {
         setState(() {
@@ -289,7 +291,7 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        await _fetchSmartSuggestions();
+        await _fetchSmartSuggestions(regenerate: true);
       },
       color: AppColors.primary,
       child: Column(
@@ -306,14 +308,31 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                       children: [
                         _buildSmartModeChip('social', 'Hive Mind', Icons.group),
                         const SizedBox(width: 6),
-                        _buildSmartModeChip('critic', 'Certified Gold', Icons.verified),
+                        _buildSmartModeChip('watchlist', 'Watchlist Gems', Icons.bookmark),
                         const SizedBox(width: 6),
-                        _buildSmartModeChip('explore', 'Palate Cleanser', Icons.cached),
+                        _buildSmartModeChip('explore', 'Explore', Icons.explore),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: _isSmartLoading ? null : () {
+                    HapticFeedback.lightImpact();
+                    _fetchSmartSuggestions(regenerate: true);
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const Icon(Icons.refresh, size: 16, color: AppColors.textPrimary),
+                  ),
+                ),
+                const SizedBox(width: 6),
                 InkWell(
                   onTap: () {
                     HapticFeedback.lightImpact();

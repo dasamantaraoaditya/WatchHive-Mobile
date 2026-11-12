@@ -31,6 +31,7 @@ import '../../../core/utils/share_helper.dart';
 import '../widgets/friends_watched_bar.dart';
 import '../widgets/friends_who_watched_sheet.dart';
 import '../widgets/completion_review_sheet.dart';
+import '../widgets/post_log_success_dialog.dart';
 import '../repositories/episode_repository.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
@@ -474,11 +475,28 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         ref.invalidate(entriesProvider(true));
         ref.invalidate(entriesProvider(false));
         if (reviewResult != null) {
-          WHAlert.showSuccess(
+          final currentUser = ref.read(authStateProvider).value?.user;
+          final showTitle = (_details?['name'] ?? _details?['title'] ?? res.title).toString();
+          final showPoster = _details?['poster_path']?.toString() ?? res.posterPath;
+          final showBackdrop = _details?['backdrop_path']?.toString();
+          final relDate = (_details?['first_air_date'] ?? _details?['release_date'])?.toString();
+          final year = (relDate != null && relDate.length >= 4) ? relDate.substring(0, 4) : null;
+
+          PostLogSuccessDialog.show(
             context,
-            willCompleteSeries
-                ? 'Series completed! 🏆 Honey stars logged.'
-                : 'Season $seasonNum completed! 🎉',
+            title: willCompleteSeries ? showTitle : '$showTitle (Season $seasonNum)',
+            tmdbId: widget.tmdbId,
+            mediaType: 'tv',
+            posterPath: showPoster,
+            backdropPath: showBackdrop,
+            releaseYear: year,
+            rating: reviewResult.skipped ? null : reviewResult.rating,
+            review: reviewResult.skipped ? null : reviewResult.review,
+            isWatching: false,
+            isEditing: true,
+            userDisplayName: currentUser?.displayName ?? currentUser?.username,
+            username: currentUser?.username,
+            userAvatarUrl: currentUser?.profilePictureUrl,
           );
         }
       }
@@ -680,26 +698,19 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         final relDate = (_details?['release_date'] ?? _details?['first_air_date'])?.toString();
         final year = (relDate != null && relDate.length >= 4) ? relDate.substring(0, 4) : null;
 
-        WHAlert.showSuccessWithAction(
+        PostLogSuccessDialog.show(
           context,
-          message: 'Moved "$title" to Currently Watching.',
-          actionLabel: 'Share',
-          actionIcon: Icons.share_rounded,
-          onAction: () {
-            ShareHelper.shareCompletedWatch(
-              context: context,
-              title: title,
-              posterPath: posterPath,
-              backdropPath: backdropPath,
-              tmdbId: widget.tmdbId,
-              mediaType: _effectiveIsTv ? 'tv' : 'movie',
-              releaseYear: year,
-              userDisplayName: currentUser?.displayName ?? currentUser?.username,
-              username: currentUser?.username,
-              userAvatarUrl: currentUser?.profilePictureUrl,
-              shareMode: StoryShareMode.watching,
-            );
-          },
+          title: title,
+          tmdbId: widget.tmdbId,
+          mediaType: _effectiveIsTv ? 'tv' : 'movie',
+          posterPath: posterPath,
+          backdropPath: backdropPath,
+          releaseYear: year,
+          isWatching: true,
+          isEditing: false,
+          userDisplayName: currentUser?.displayName ?? currentUser?.username,
+          username: currentUser?.username,
+          userAvatarUrl: currentUser?.profilePictureUrl,
         );
       }
     } catch (e) {

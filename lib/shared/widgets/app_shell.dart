@@ -96,34 +96,38 @@ class _AppShellState extends ConsumerState<AppShell> {
         if (didPop) return;
         ref.read(navigationHistoryProvider).handleBack(context);
       },
-      child: Scaffold(
-        body: Stack(
-          children: [
-            widget.child,
-            if (location != '/search') const WHQuickAddFAB(),
-            const InteractiveOnboardingOverlay(),
-          ],
-        ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.border, width: 1)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: _onItemTapped,
-          items: _navItems
-              .map(
-                (item) => BottomNavigationBarItem(
-                  icon: Icon(item.icon),
-                  activeIcon: Icon(item.activeIcon),
-                  label: item.label,
-                ),
-              )
-              .toList(),
-        ),
+      child: Stack(
+        children: [
+          Scaffold(
+            body: Stack(
+              children: [
+                widget.child,
+                if (location != '/search') const WHQuickAddFAB(),
+              ],
+            ),
+            bottomNavigationBar: Container(
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+              ),
+              child: BottomNavigationBar(
+                currentIndex: _currentIndex,
+                onTap: _onItemTapped,
+                items: _navItems
+                    .map(
+                      (item) => BottomNavigationBarItem(
+                        icon: Icon(item.icon),
+                        activeIcon: Icon(item.activeIcon),
+                        label: item.label,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ),
+          const InteractiveOnboardingOverlay(),
+        ],
       ),
-    ),
-  );
+    );
 }
 }
 

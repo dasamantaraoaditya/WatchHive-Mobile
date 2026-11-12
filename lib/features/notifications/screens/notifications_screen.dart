@@ -287,6 +287,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w800, fontSize: 18),
         ),
         actions: [
+          if (notifState.isLoading &&
+              (notifState.notifications.isNotEmpty || notifState.pendingRequests.isNotEmpty))
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6),
+              child: Center(child: WHBeeSpinner(size: 18)),
+            ),
           if (notifState.hasUnreadNotifications)
             TextButton(
               onPressed: () async {
