@@ -21,13 +21,13 @@ import '../../../core/utils/error_handler.dart';
 import '../../profile/repositories/user_repository.dart';
 import '../../search/repositories/search_repository.dart';
 import '../widgets/platform_logo_badge.dart';
+import '../widgets/post_log_success_dialog.dart';
 import '../../../core/services/connectivity_service.dart';
 import '../../../core/services/offline_sync_manager.dart';
 import '../../../core/services/offline_storage_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../profile/widgets/add_friends_sheet.dart';
 import '../../profile/services/honey_badge_service.dart';
-import '../../../core/utils/share_helper.dart';
 
 class _LocationPreset {
   final String label;
@@ -130,6 +130,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   String _watchLocation = '';
   List<String> _tags = [];
   DateTime _watchedDate = DateTime.now();
+  DateTime? _startedAt;
+  bool _isEditingStartedAt = false;
   bool _hasWatchedDate = true;
   bool _hasWatchedTime = true;
   bool _hasWatchedBefore = false;
@@ -206,6 +208,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       _watchLocation = e.watchLocation ?? '';
       _locationController.text = _watchLocation;
       _tags = List<String>.from(e.tags);
+      _startedAt = e.startedAt?.toLocal() ??
+          (e.isWatching && e.hasExactWatchDate ? e.watchedAt.toLocal() : null);
 
       // Determine accurate watch date & time
       if (widget.prefillIsWatching == false && e.isWatching) {
@@ -810,6 +814,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                 : DateFormat('yyyy-MM-dd').format(_watchedDate))
             : null,
         if (!_hasWatchedDate) 'unspecifiedDate': true,
+        if (!_isWatching && _startedAt != null) 'startedAt': _startedAt!.toUtc().toIso8601String(),
         if (!_isWatching && _hasWatchedDate) 'completedAt': _watchedDate.toUtc().toIso8601String(),
         if (_suggestedByUserId != null && _suggestedByUserId!.trim().isNotEmpty)
           'suggestedByUserId': _suggestedByUserId!.trim(),
@@ -877,53 +882,22 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
             targetContext,
             'Saved offline. Will sync automatically when reconnected.',
           );
-        } else if (wasCompleted) {
-          WHAlert.showSuccessWithAction(
-            targetContext,
-            message: isEditing ? 'Completed "$savedTitle".' : 'Logged "$savedTitle".',
-            actionLabel: 'Share Story',
-            actionIcon: Icons.share_rounded,
-            onAction: () {
-              ShareHelper.shareCompletedWatch(
-                context: rootNavigatorKey.currentContext,
-                title: savedTitle,
-                posterPath: savedPoster,
-                backdropPath: savedBackdrop,
-                rating: savedRating,
-                review: savedReview,
-                tmdbId: savedTmdbId,
-                mediaType: savedMediaType,
-                releaseYear: savedYear,
-                userDisplayName: currentUser?.displayName ?? currentUser?.username,
-                username: currentUser?.username,
-                userAvatarUrl: currentUser?.profilePictureUrl,
-                shareMode: StoryShareMode.logged,
-              );
-            },
-          );
         } else {
-          WHAlert.showSuccessWithAction(
+          PostLogSuccessDialog.show(
             targetContext,
-            message: isEditing ? 'Updated "$savedTitle".' : 'Started watching "$savedTitle".',
-            actionLabel: 'Share Story',
-            actionIcon: Icons.share_rounded,
-            onAction: () {
-              ShareHelper.shareCompletedWatch(
-                context: rootNavigatorKey.currentContext,
-                title: savedTitle,
-                posterPath: savedPoster,
-                backdropPath: savedBackdrop,
-                rating: null,
-                review: null,
-                tmdbId: savedTmdbId,
-                mediaType: savedMediaType,
-                releaseYear: savedYear,
-                userDisplayName: currentUser?.displayName ?? currentUser?.username,
-                username: currentUser?.username,
-                userAvatarUrl: currentUser?.profilePictureUrl,
-                shareMode: StoryShareMode.watching,
-              );
-            },
+            title: savedTitle,
+            tmdbId: savedTmdbId,
+            mediaType: savedMediaType,
+            posterPath: savedPoster,
+            backdropPath: savedBackdrop,
+            releaseYear: savedYear,
+            rating: wasCompleted ? savedRating : null,
+            review: wasCompleted ? savedReview : null,
+            isWatching: !wasCompleted,
+            isEditing: isEditing,
+            userDisplayName: currentUser?.displayName ?? currentUser?.username,
+            username: currentUser?.username,
+            userAvatarUrl: currentUser?.profilePictureUrl,
           );
         }
       }
@@ -1101,6 +1075,12 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                   HapticFeedback.selectionClick();
                                   setState(() {
                                     if (_isWatching) {
+                                      if (_startedAt == null && widget.editEntry?.isWatching == true) {
+                                        _startedAt = widget.editEntry!.startedAt?.toLocal() ??
+                                            (widget.editEntry!.hasExactWatchDate
+                                                ? widget.editEntry!.watchedAt.toLocal()
+                                                : null);
+                                      }
                                       _watchedDate = DateTime.now();
                                       _hasWatchedDate = true;
                                       _hasWatchedTime = true;
@@ -1345,12 +1325,166 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            if (!_isWatching && _startedAt != null) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.background,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: const BoxDecoration(
+                                            color: AppColors.primary,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'STARTED WATCHING',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                  letterSpacing: 0.6,
+                                                  color: AppColors.textPrimary.withValues(alpha: 0.65),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                DateFormat('MMM d, y · h:mm a').format(_startedAt!),
+                                                style: const TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            HapticFeedback.selectionClick();
+                                            setState(() => _isEditingStartedAt = !_isEditingStartedAt);
+                                          },
+                                          style: TextButton.styleFrom(
+                                            visualDensity: VisualDensity.compact,
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            backgroundColor: AppColors.surface,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(10),
+                                              side: BorderSide(color: AppColors.primary.withValues(alpha: 0.35)),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            _isEditingStartedAt ? 'Done' : 'Edit',
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (_isEditingStartedAt) ...[
+                                      const SizedBox(height: 10),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: OutlinedButton.icon(
+                                              onPressed: () async {
+                                                final picked = await showDatePicker(
+                                                  context: context,
+                                                  initialDate: _startedAt!,
+                                                  firstDate: DateTime(1950),
+                                                  lastDate: DateTime.now(),
+                                                );
+                                                if (picked != null && mounted) {
+                                                  setState(() {
+                                                    _startedAt = DateTime(
+                                                      picked.year,
+                                                      picked.month,
+                                                      picked.day,
+                                                      _startedAt!.hour,
+                                                      _startedAt!.minute,
+                                                    );
+                                                  });
+                                                }
+                                              },
+                                              icon: const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.textPrimary),
+                                              label: Text(
+                                                DateFormat('MMM d, y').format(_startedAt!),
+                                                style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                                              ),
+                                              style: OutlinedButton.styleFrom(
+                                                backgroundColor: AppColors.surface,
+                                                side: const BorderSide(color: AppColors.border),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: OutlinedButton.icon(
+                                              onPressed: () async {
+                                                final picked = await showTimePicker(
+                                                  context: context,
+                                                  initialTime: TimeOfDay.fromDateTime(_startedAt!),
+                                                );
+                                                if (picked != null && mounted) {
+                                                  setState(() {
+                                                    _startedAt = DateTime(
+                                                      _startedAt!.year,
+                                                      _startedAt!.month,
+                                                      _startedAt!.day,
+                                                      picked.hour,
+                                                      picked.minute,
+                                                    );
+                                                  });
+                                                }
+                                              },
+                                              icon: const Icon(Icons.access_time_rounded, size: 14, color: AppColors.textPrimary),
+                                              label: Text(
+                                                DateFormat('h:mm a').format(_startedAt!),
+                                                style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                                              ),
+                                              style: OutlinedButton.styleFrom(
+                                                backgroundColor: AppColors.surface,
+                                                side: const BorderSide(color: AppColors.border),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Expanded(
                                   child: _SectionHeader(
-                                    title: _isWatching ? 'Started Watching' : 'When Did You Watch?',
+                                    title: _isWatching
+                                        ? 'Started Watching'
+                                        : (_startedAt != null ? 'Completed Watching' : 'When Did You Watch?'),
                                     subtitle: _hasWatchedDate ? 'Date and time of your screening' : 'No screening date recorded',
                                   ),
                                 ),
