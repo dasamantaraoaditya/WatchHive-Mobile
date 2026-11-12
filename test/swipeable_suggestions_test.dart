@@ -176,8 +176,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Critic should now be visible
-    expect(find.text('critic Title'), findsOneWidget);
+    // Watchlist should now be visible
+    expect(find.text('watchlist Title'), findsOneWidget);
 
     // Swipe left again to move from Critic to Explore
     await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);

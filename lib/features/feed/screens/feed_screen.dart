@@ -404,6 +404,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                         final entry = feedState.entries[index];
                         final isLiked = feedState.likedEntryIds.contains(entry.id) || entry.isLiked;
                         return Padding(
+                          key: ValueKey(entry.id),
                           padding: const EdgeInsets.only(bottom: 12),
                           child: WHFeedCard(
                             entry: entry,

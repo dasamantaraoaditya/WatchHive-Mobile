@@ -55,16 +55,24 @@ class SuggestionsRepository {
     int limit = 10,
     List<String>? languages,
     List<String>? genres,
+    List<int>? excludeIds,
+    int? seed,
   }) async {
     final queryParams = <String, dynamic>{
       'mode': mode,
-      'limit': limit,
+      'limit': limit < 10 ? 10 : limit,
     };
     if (languages != null && languages.isNotEmpty) {
       queryParams['languages'] = languages.join(',');
     }
     if (genres != null && genres.isNotEmpty) {
       queryParams['genres'] = genres.join(',');
+    }
+    if (excludeIds != null && excludeIds.isNotEmpty) {
+      queryParams['excludeIds'] = excludeIds.join(',');
+    }
+    if (seed != null) {
+      queryParams['seed'] = seed;
     }
 
     final response = await _api.get(
