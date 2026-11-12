@@ -553,7 +553,7 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                           child: Icon(
                             isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                             size: 17,
-                            color: isLiked ? AppColors.error : AppColors.textMuted,
+                            color: isLiked ? AppColors.primary : AppColors.textMuted,
                           ),
                         ),
                       ),
@@ -574,10 +574,10 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                               style: TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 12,
-                                color: isLiked ? AppColors.error : AppColors.textPrimary,
+                                color: isLiked ? AppColors.primaryDark : AppColors.textPrimary,
                                 fontWeight: FontWeight.w700,
                                 decoration: TextDecoration.underline,
-                                decorationColor: (isLiked ? AppColors.error : AppColors.primaryDark).withValues(alpha: 0.6),
+                                decorationColor: (isLiked ? AppColors.primaryDark : AppColors.primary).withValues(alpha: 0.6),
                               ),
                             ),
                           ),

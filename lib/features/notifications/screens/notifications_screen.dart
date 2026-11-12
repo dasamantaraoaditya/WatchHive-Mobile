@@ -203,7 +203,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       };
 
   Color _colorForType(String type) => switch (type) {
-        'LIKE' => AppColors.error,
+        'LIKE' => AppColors.primary,
         'COMMENT' || 'REPLY' => AppColors.info,
         'FOLLOW' || 'FOLLOW_ACCEPT' => AppColors.success,
         'FOLLOW_REQUEST' => AppColors.primary,

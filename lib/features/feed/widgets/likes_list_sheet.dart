@@ -165,12 +165,13 @@ class _LikesListSheetState extends ConsumerState<LikesListSheet> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.12),
+                    color: AppColors.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(11),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                   ),
                   child: const Icon(
                     Icons.favorite_rounded,
-                    color: AppColors.error,
+                    color: AppColors.primaryDark,
                     size: 19,
                   ),
                 ),
