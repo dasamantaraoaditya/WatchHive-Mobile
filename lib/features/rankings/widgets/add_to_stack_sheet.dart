@@ -84,6 +84,9 @@ class _AddToStackSheetState extends ConsumerState<AddToStackSheet> {
       );
       // Reload my rankings so count updates
       ref.read(myRankingsProvider.notifier).loadStacks();
+      if (ref.read(activeStackProvider).stack?.id == stack.id) {
+        ref.read(activeStackProvider.notifier).loadStack(stack.id);
+      }
 
       if (mounted) {
         Navigator.pop(context);
@@ -136,6 +139,9 @@ class _AddToStackSheetState extends ConsumerState<AddToStackSheet> {
           mediaType: widget.mediaType,
         );
         ref.read(myRankingsProvider.notifier).loadStacks();
+        if (ref.read(activeStackProvider).stack?.id == newStack.id) {
+          ref.read(activeStackProvider.notifier).loadStack(newStack.id);
+        }
 
         if (mounted) {
           Navigator.pop(context);

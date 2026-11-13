@@ -132,7 +132,35 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   bool _isLoading = false;
   String _watchLocation = '';
   List<String> _tags = [];
-  int? _currentSeason;
+  Set<int> _selectedSeasons = <int>{};
+  int? get _currentSeason => _selectedSeasons.isNotEmpty ? (_selectedSeasons.toList()..sort()).last : null;
+
+  List<int> get _availableSeasons {
+    if (_mediaDetails != null) {
+      if (_mediaDetails!['seasons'] is List) {
+        final rawSeasons = _mediaDetails!['seasons'] as List;
+        final list = rawSeasons
+            .map((s) => s is Map ? s['season_number'] : null)
+            .whereType<num>()
+            .map((n) => n.toInt())
+            .where((s) => s > 0)
+            .toSet()
+            .toList()
+          ..sort();
+        if (list.isNotEmpty) return list;
+      }
+      final numSeasons = (_mediaDetails!['number_of_seasons'] as num?)?.toInt();
+      if (numSeasons != null && numSeasons > 0) {
+        return List<int>.generate(numSeasons, (i) => i + 1);
+      }
+    }
+    if (_selectedSeasons.isNotEmpty) {
+      final list = _selectedSeasons.toList()..sort();
+      final maxSeason = list.last;
+      return List<int>.generate(maxSeason > 5 ? maxSeason : 5, (i) => i + 1);
+    }
+    return const [1, 2, 3, 4, 5];
+  }
   DateTime _watchedDate = DateTime.now();
   DateTime? _startedAt;
   bool _isEditingStartedAt = false;
@@ -212,7 +240,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       _watchLocation = e.watchLocation ?? '';
       _locationController.text = _watchLocation;
       _tags = List<String>.from(e.tags);
-      _currentSeason = widget.prefillSeason ?? e.currentSeason ?? (e.type == 'TV_SHOW' ? 1 : null);
+      _selectedSeasons = <int>{
+        if (e.seasons.isNotEmpty) ...e.seasons
+        else if (e.currentSeason != null) e.currentSeason!
+        else if (widget.prefillSeason != null) widget.prefillSeason!
+      };
       _startedAt = e.startedAt?.toLocal() ??
           (e.isWatching && e.hasExactWatchDate ? e.watchedAt.toLocal() : null);
 
@@ -255,9 +287,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         _type = widget.prefillType == 'tv' ? 'TV_SHOW' : widget.prefillType!;
       }
       if (widget.prefillSeason != null) {
-        _currentSeason = widget.prefillSeason;
-      } else if (_type == 'TV_SHOW') {
-        _currentSeason = 1;
+        _selectedSeasons = <int>{widget.prefillSeason!};
       }
       if (widget.prefillSuggestor != null) {
         _suggestedByUserId = widget.prefillSuggestor!.id;
@@ -497,7 +527,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     } catch (_) {}
   }
 
-  Future<void> _checkPreviousWatch(int tmdbId, {int? season}) async {
+  Future<void> _checkPreviousWatch(int tmdbId, {int? season, List<int>? seasons}) async {
     if (tmdbId <= 0 || isEditing) {
       if (mounted) {
         setState(() {
@@ -508,10 +538,14 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       return;
     }
     try {
+      final effectiveSeasons = _type == 'TV_SHOW'
+          ? (seasons ?? (_selectedSeasons.isNotEmpty ? (_selectedSeasons.toList()..sort()) : null))
+          : null;
       final effectiveSeason = _type == 'TV_SHOW' ? (season ?? _currentSeason) : null;
       final result = await ref.read(entriesRepositoryProvider).checkPreviousWatch(
         tmdbId,
         season: effectiveSeason,
+        seasons: effectiveSeasons,
       );
       if (mounted && result.hasWatched) {
         setState(() {
@@ -820,7 +854,13 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         'isRewatch': _isRewatch,
         'isWatching': _isWatching,
         'postToFeed': _postToFeed,
-        if (_type == 'TV_SHOW' && _currentSeason != null) 'currentSeason': _currentSeason,
+        if (_type == 'TV_SHOW' && _selectedSeasons.isNotEmpty) ...{
+          'currentSeason': _currentSeason,
+          'seasons': (_selectedSeasons.toList()..sort()),
+        } else if (_type == 'TV_SHOW') ...{
+          'currentSeason': null,
+          'seasons': null,
+        },
         if (_watchLocation.trim().isNotEmpty) 'watchLocation': _watchLocation.trim(),
         'tags': _tags.where((t) => t.trim().isNotEmpty).toList(),
         'watchedAt': _hasWatchedDate
@@ -1176,7 +1216,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                               child: Row(
                                                 children: [
                                                   Text(
-                                                    'SEASON',
+                                                    'SEASONS',
                                                     style: TextStyle(
                                                       fontFamily: 'Inter',
                                                       fontSize: 10,
@@ -1185,44 +1225,113 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                                       color: AppColors.textPrimary.withValues(alpha: 0.7),
                                                     ),
                                                   ),
-                                                  const SizedBox(width: 6),
-                                                  ...[1, 2, 3, 4, 5].map((s) {
-                                                    final isSelected = _currentSeason == s;
+                                                  const SizedBox(width: 8),
+                                                  if (_availableSeasons.isNotEmpty) ...[
+                                                    GestureDetector(
+                                                      onTap: () {
+                                                        HapticFeedback.selectionClick();
+                                                        setState(() {
+                                                          if (_selectedSeasons.length == _availableSeasons.length) {
+                                                            _selectedSeasons.clear();
+                                                          } else {
+                                                            _selectedSeasons = _availableSeasons.toSet();
+                                                          }
+                                                          if (_tmdbId > 0) {
+                                                            _checkPreviousWatch(_tmdbId, seasons: _selectedSeasons.toList()..sort());
+                                                          }
+                                                        });
+                                                      },
+                                                      child: Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                                                        decoration: BoxDecoration(
+                                                          color: _selectedSeasons.length == _availableSeasons.length
+                                                              ? AppColors.primary
+                                                              : AppColors.surface,
+                                                          borderRadius: BorderRadius.circular(6),
+                                                          border: Border.all(
+                                                            color: _selectedSeasons.length == _availableSeasons.length
+                                                                ? AppColors.primaryDark
+                                                                : AppColors.border,
+                                                          ),
+                                                        ),
+                                                        child: Text(
+                                                          _selectedSeasons.length == _availableSeasons.length ? 'Clear' : 'All',
+                                                          style: TextStyle(
+                                                            fontFamily: 'Inter',
+                                                            fontSize: 10,
+                                                            fontWeight: FontWeight.w800,
+                                                            color: _selectedSeasons.length == _availableSeasons.length
+                                                                ? Colors.black
+                                                                : AppColors.textSecondary,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                  ],
+                                                  ..._availableSeasons.map((s) {
+                                                    final isSelected = _selectedSeasons.contains(s);
                                                     return Padding(
-                                                      padding: const EdgeInsets.only(right: 4),
+                                                      padding: const EdgeInsets.only(right: 5),
                                                       child: GestureDetector(
                                                         onTap: () {
                                                           HapticFeedback.selectionClick();
                                                           setState(() {
-                                                            _currentSeason = s;
+                                                            if (_selectedSeasons.contains(s)) {
+                                                              _selectedSeasons.remove(s);
+                                                            } else {
+                                                              _selectedSeasons.add(s);
+                                                            }
                                                             if (_tmdbId > 0) {
-                                                              _checkPreviousWatch(_tmdbId, season: s);
+                                                              _checkPreviousWatch(_tmdbId, seasons: _selectedSeasons.toList()..sort());
                                                             }
                                                           });
                                                         },
                                                         child: Container(
-                                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                                                           decoration: BoxDecoration(
                                                             color: isSelected ? AppColors.primary : AppColors.surface,
                                                             borderRadius: BorderRadius.circular(6),
                                                             border: Border.all(
                                                               color: isSelected ? AppColors.primaryDark : AppColors.border,
+                                                              width: isSelected ? 1.5 : 1.0,
                                                             ),
                                                           ),
-                                                          child: Text(
-                                                            'S$s',
-                                                            style: TextStyle(
-                                                              fontFamily: 'Inter',
-                                                              fontSize: 10,
-                                                              fontWeight: FontWeight.w800,
-                                                              color: isSelected ? Colors.black : AppColors.textSecondary,
-                                                            ),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            children: [
+                                                              if (isSelected) ...[
+                                                                const Icon(Icons.check_rounded, size: 11, color: Colors.black),
+                                                                const SizedBox(width: 3),
+                                                              ],
+                                                              Text(
+                                                                'S$s',
+                                                                style: TextStyle(
+                                                                  fontFamily: 'Inter',
+                                                                  fontSize: 10,
+                                                                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                                                                  color: isSelected ? Colors.black : AppColors.textSecondary,
+                                                                ),
+                                                              ),
+                                                            ],
                                                           ),
                                                         ),
                                                       ),
                                                     );
                                                   }),
                                                 ],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              _selectedSeasons.isEmpty
+                                                  ? 'Entire series (No season selected)'
+                                                  : 'Selected: ${_selectedSeasons.length} season${_selectedSeasons.length > 1 ? 's' : ''} (S${(_selectedSeasons.toList()..sort()).join(', S')})',
+                                              style: TextStyle(
+                                                fontFamily: 'Inter',
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: _selectedSeasons.isEmpty ? AppColors.textMuted : AppColors.primaryDark,
                                               ),
                                             ),
                                           ],
@@ -1234,7 +1343,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                         ],
                                       ),
                                     ),
-                                    if (!isEditing) IconButton(icon: const Icon(Icons.close_rounded, color: AppColors.error, size: 20), onPressed: () => setState(() { _tmdbId = 0; _selectedMedia = null; _mediaDetails = null; _titleController.clear(); _searchController.clear(); _hasWatchedBefore = false; _previousEntry = null; })),
+                                    if (!isEditing) IconButton(icon: const Icon(Icons.close_rounded, color: AppColors.error, size: 20), onPressed: () => setState(() { _tmdbId = 0; _selectedMedia = null; _mediaDetails = null; _selectedSeasons.clear(); _titleController.clear(); _searchController.clear(); _hasWatchedBefore = false; _previousEntry = null; })),
                                   ],
                                 ),
                               ),
@@ -1285,14 +1394,12 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                             _tmdbId = media.id;
                                             _titleController.text = media.title;
                                             _type = media.mediaType == 'movie' ? 'MOVIE' : 'TV_SHOW';
-                                            if (_type == 'TV_SHOW' && _currentSeason == null) {
-                                              _currentSeason = 1;
-                                            }
+                                            _selectedSeasons.clear();
                                             _searchResults.clear();
                                           });
                                           _searchFocusNode.unfocus();
                                           _loadMediaDetails(media.id, _type);
-                                          _checkPreviousWatch(media.id, season: _currentSeason);
+                                          _checkPreviousWatch(media.id, seasons: _selectedSeasons.isNotEmpty ? (_selectedSeasons.toList()..sort()) : null);
                                           _checkSuggestionsForTmdbId(media.id);
                                           _scrollToKey(_scoreKey, alignment: 0.08);
                                         },

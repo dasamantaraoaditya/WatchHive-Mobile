@@ -207,6 +207,9 @@ class FeedNotifier extends StateNotifier<FeedState> {
     state = state.copyWith(isStale: true);
   }
 
+  /// Refreshes feed with latest entries.
+  Future<void> refresh() => loadFeed(isRefresh: true);
+
   /// Instantly prepends a freshly created entry at index 0 of the feed if not imported.
   void prependEntry(Entry entry) {
     if (entry.isImported || entry.tags.contains('imported')) {

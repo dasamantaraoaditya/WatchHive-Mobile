@@ -13,6 +13,7 @@ import 'wh_entry_grid_card.dart';
 import 'suggestion_details_modal.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../feed/screens/feed_screen.dart';
 import '../../profile/services/honey_badge_service.dart';
 import '../../../core/utils/share_helper.dart';
 
@@ -20,6 +21,7 @@ import '../../../core/utils/share_helper.dart';
 class SuggestionCard extends ConsumerStatefulWidget {
   final GroupedSuggestion group;
   final VoidCallback onRefresh;
+  final VoidCallback? onRemove;
   final Function(int tmdbId, String mediaType, User? suggestor)? onTapMedia;
   final bool isSent;
 
@@ -27,6 +29,7 @@ class SuggestionCard extends ConsumerStatefulWidget {
     super.key,
     required this.group,
     required this.onRefresh,
+    this.onRemove,
     this.onTapMedia,
     this.isSent = false,
   });
@@ -93,6 +96,9 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       ref.read(entriesProvider(true).notifier).refresh();
       ref.read(entriesProvider(false).notifier).refresh();
       ref.read(continueWatchingProvider.notifier).refresh();
+      ref.read(feedProvider.notifier).refresh();
+
+      widget.onRemove?.call();
 
       final currentUserId = ref.read(authStateProvider).value?.user?.id;
       if (currentUserId != null && currentUserId.isNotEmpty) {
@@ -178,6 +184,7 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
         prefillPosterPath: posterPath,
         prefillSuggestedByUserId: firstSuggestor?.id,
         onSuccess: () async {
+          widget.onRemove?.call();
           final suggRepo = ref.read(suggestionsRepositoryProvider);
           await Future.wait(widget.group.suggestions.map((s) => suggRepo.deleteSuggestion(s.id)));
           if (mounted) {
@@ -225,6 +232,8 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       icon: Icons.delete_outline_rounded,
     );
     if (!confirm || !mounted) return;
+
+    widget.onRemove?.call();
 
     try {
       final suggRepo = ref.read(suggestionsRepositoryProvider);

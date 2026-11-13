@@ -12,7 +12,7 @@ class MockEntriesRepository implements EntriesRepository {
   MockEntriesRepository({this.hasWatched = true, this.existingEntry});
 
   @override
-  Future<({bool hasWatched, int watchCount, Entry? existingEntry})> checkPreviousWatch(int tmdbId, {int? season}) async {
+  Future<({bool hasWatched, int watchCount, Entry? existingEntry})> checkPreviousWatch(int tmdbId, {int? season, List<int>? seasons}) async {
     return (hasWatched: hasWatched, watchCount: hasWatched ? 1 : 0, existingEntry: existingEntry);
   }
 

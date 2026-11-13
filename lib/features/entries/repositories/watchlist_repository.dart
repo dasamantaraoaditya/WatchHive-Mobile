@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 
 import '../../../core/services/offline_storage_service.dart';
+import '../providers/watchlist_provider.dart';
 
 final watchlistRepositoryProvider = Provider<WatchlistRepository>((ref) {
   return WatchlistRepository(
@@ -10,9 +11,17 @@ final watchlistRepositoryProvider = Provider<WatchlistRepository>((ref) {
   );
 });
 
-final isInWatchlistProvider = FutureProvider.family<bool, int>((ref, tmdbId) async {
-  final repo = ref.read(watchlistRepositoryProvider);
-  return await repo.isInWatchlist(tmdbId);
+final isInWatchlistProvider = Provider.family<AsyncValue<bool>, int>((ref, tmdbId) {
+  final wlState = ref.watch(watchlistProvider);
+  if (wlState.isLoading && wlState.items.isEmpty) {
+    return const AsyncValue.loading();
+  }
+  final inList = wlState.items.any((item) {
+    final id = item['tmdbId'];
+    final parsed = (id as num?)?.toInt() ?? int.tryParse(id?.toString() ?? '');
+    return parsed == tmdbId;
+  });
+  return AsyncValue.data(inList);
 });
 
 class WatchlistRepository {

@@ -7,7 +7,7 @@ import '../../../shared/models/models.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
 import '../repositories/entries_repository.dart';
-import '../repositories/watchlist_repository.dart';
+import '../providers/watchlist_provider.dart';
 import '../screens/entries_screen.dart';
 import '../providers/continue_watching_provider.dart';
 import '../../feed/providers/feed_provider.dart';
@@ -119,7 +119,7 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
 
       // Clean up from watchlist if previously present
       try {
-        await ref.read(watchlistRepositoryProvider).removeFromWatchlistByTmdbId(media.id);
+        await ref.read(watchlistProvider.notifier).removeFromWatchlist(media.id);
       } catch (_) {}
 
       if (mounted) {

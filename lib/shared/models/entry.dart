@@ -33,6 +33,7 @@ class Entry {
   final bool postToFeed;
   final bool hasExactWatchDate;
   final int? currentSeason;
+  final List<int> seasons;
   final int? currentEpisode;
   final int totalEpisodesWatched;
   final int? totalEpisodesCount;
@@ -54,6 +55,7 @@ class Entry {
     this.startedAt,
     this.completedAt,
     this.currentSeason,
+    this.seasons = const [],
     this.currentEpisode,
     this.totalEpisodesWatched = 0,
     this.totalEpisodesCount,
@@ -187,6 +189,12 @@ class Entry {
           : null,
       completedAt: parsedCompletedAt,
       currentSeason: (dataMap['currentSeason'] as num?)?.toInt() ?? (dataMap['current_season'] as num?)?.toInt(),
+      seasons: (dataMap['seasons'] as List<dynamic>?)
+              ?.map((e) => (e as num).toInt())
+              .toList() ??
+          ((dataMap['currentSeason'] as num?) != null
+              ? [(dataMap['currentSeason'] as num).toInt()]
+              : const []),
       currentEpisode: (dataMap['currentEpisode'] as num?)?.toInt() ?? (dataMap['current_episode'] as num?)?.toInt(),
       totalEpisodesWatched: (dataMap['totalEpisodesWatched'] as num?)?.toInt() ?? (dataMap['total_episodes_watched'] as num?)?.toInt() ?? 0,
       totalEpisodesCount: (dataMap['totalEpisodesCount'] as num?)?.toInt() ?? (dataMap['total_episodes_count'] as num?)?.toInt(),
@@ -252,6 +260,7 @@ class Entry {
     DateTime? startedAt,
     DateTime? completedAt,
     int? currentSeason,
+    List<int>? seasons,
     int? currentEpisode,
     int? totalEpisodesWatched,
     int? totalEpisodesCount,
@@ -289,6 +298,7 @@ class Entry {
       startedAt: startedAt ?? this.startedAt,
       completedAt: completedAt ?? this.completedAt,
       currentSeason: currentSeason ?? this.currentSeason,
+      seasons: seasons ?? this.seasons,
       currentEpisode: currentEpisode ?? this.currentEpisode,
       totalEpisodesWatched: totalEpisodesWatched ?? this.totalEpisodesWatched,
       totalEpisodesCount: totalEpisodesCount ?? this.totalEpisodesCount,
@@ -325,6 +335,7 @@ class Entry {
         if (startedAt != null) 'startedAt': startedAt!.toUtc().toIso8601String(),
         if (completedAt != null) 'completedAt': completedAt!.toUtc().toIso8601String(),
         if (currentSeason != null) 'currentSeason': currentSeason,
+        if (seasons.isNotEmpty) 'seasons': seasons,
         if (currentEpisode != null) 'currentEpisode': currentEpisode,
         if (watchLocation != null) 'watchLocation': watchLocation,
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
@@ -348,6 +359,7 @@ class Entry {
         if (startedAt != null) 'startedAt': startedAt!.toUtc().toIso8601String(),
         if (completedAt != null) 'completedAt': completedAt!.toUtc().toIso8601String(),
         if (currentSeason != null) 'currentSeason': currentSeason,
+        if (seasons.isNotEmpty) 'seasons': seasons,
         if (currentEpisode != null) 'currentEpisode': currentEpisode,
         if (watchLocation != null) 'watchLocation': watchLocation,
         'createdAt': createdAt.toUtc().toIso8601String(),

@@ -101,11 +101,13 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
     }
   }
 
-  Future<void> _fetchSuggestions() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  Future<void> _fetchSuggestions({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
     try {
       final repo = ref.read(suggestionsRepositoryProvider);
       final receivedFuture = repo.getMySuggestions().catchError((e) {
@@ -126,7 +128,7 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = AppErrorHandler.toUserFriendlyMessage(e);
+          if (showLoading) _error = AppErrorHandler.toUserFriendlyMessage(e);
           _isLoading = false;
         });
       }
@@ -662,7 +664,17 @@ class _SuggestionsTabState extends ConsumerState<SuggestionsTab> {
                                     (ctx, i) => SuggestionCard(
                                       group: filteredGroups[i],
                                       isSent: isSent,
-                                      onRefresh: _fetchSuggestions,
+                                      onRemove: () {
+                                        final targetTmdbId = filteredGroups[i].tmdbId;
+                                        setState(() {
+                                          if (isSent) {
+                                            _sentGroups.removeWhere((g) => g.tmdbId == targetTmdbId);
+                                          } else {
+                                            _receivedGroups.removeWhere((g) => g.tmdbId == targetTmdbId);
+                                          }
+                                        });
+                                      },
+                                      onRefresh: () => _fetchSuggestions(showLoading: false),
                                       onTapMedia: widget.onTapMedia,
                                     ),
                                     childCount: filteredGroups.length,

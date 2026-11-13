@@ -5,7 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/shared_widgets.dart';
-import '../repositories/watchlist_repository.dart';
+import '../providers/watchlist_provider.dart';
 import '../repositories/entries_repository.dart';
 import '../screens/add_entry_sheet.dart';
 import '../screens/entries_screen.dart';
@@ -27,9 +27,6 @@ class WatchlistTab extends ConsumerStatefulWidget {
 
 class _WatchlistTabState extends ConsumerState<WatchlistTab> {
   String? _watchlistId;
-  List<dynamic> _items = [];
-  bool _isLoading = true;
-  String? _error;
   String _searchQuery = '';
   String _sortBy = 'recent-desc';
 
@@ -47,83 +44,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
   }
 
   Future<void> _fetchWatchlist() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-    try {
-      final repo = ref.read(watchlistRepositoryProvider);
-      final data = await repo.getWatchlist();
-      if (mounted) {
-        final items = (data['items'] as List<dynamic>?) ?? [];
-        setState(() {
-          _watchlistId = data['id'] as String?;
-          _items = items;
-          _isLoading = false;
-        });
-        _enrichItems(items);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = AppErrorHandler.toUserFriendlyMessage(e);
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _enrichItems(List<dynamic> rawItems) async {
-    final searchRepo = ref.read(searchRepositoryProvider);
-    final updated = List<Map<String, dynamic>>.from(rawItems.map((e) => Map<String, dynamic>.from(e as Map)));
-    bool anyChanged = false;
-
-    for (int i = 0; i < updated.length; i++) {
-      final item = updated[i];
-      final currentTitle = item['title'] as String?;
-      final currentPoster = item['posterPath'] as String?;
-      final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
-      final isTv = (item['mediaType'] as String? ?? 'movie').toLowerCase().contains('tv');
-
-      if ((currentTitle == null || currentTitle.isEmpty || currentTitle == 'Untitled' || currentTitle.toLowerCase() == 'this title') && tmdbId > 0) {
-        try {
-          Map<String, dynamic> details;
-          if (isTv) {
-            try {
-              details = await searchRepo.getTvDetails(tmdbId);
-            } catch (_) {
-              details = await searchRepo.getMovieDetails(tmdbId);
-            }
-          } else {
-            try {
-              details = await searchRepo.getMovieDetails(tmdbId);
-            } catch (_) {
-              details = await searchRepo.getTvDetails(tmdbId);
-            }
-          }
-          final realTitle = (details['title'] as String?) ??
-              (details['name'] as String?) ??
-              (details['original_title'] as String?) ??
-              (details['original_name'] as String?);
-          final realPoster = (details['poster_path'] as String?) ?? (details['backdrop_path'] as String?);
-
-          if (realTitle != null && realTitle.isNotEmpty) {
-            item['title'] = realTitle;
-            anyChanged = true;
-          }
-          if (realPoster != null && realPoster.isNotEmpty && (currentPoster == null || currentPoster.isEmpty)) {
-            item['posterPath'] = realPoster;
-            anyChanged = true;
-          }
-        } catch (_) {}
-      }
-    }
-
-    if (anyChanged && mounted) {
-      setState(() {
-        _items = updated;
-      });
-    }
+    ref.read(watchlistProvider.notifier).refresh();
   }
 
   Future<void> _removeItem({
@@ -169,16 +90,11 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     if (!confirm || !mounted) return;
 
     try {
-      await ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+      await ref.read(watchlistProvider.notifier).removeFromWatchlist(
         tmdbId > 0 ? tmdbId : itemId,
         listId: _watchlistId,
       );
       if (mounted) {
-        setState(() {
-          _items.removeWhere((item) =>
-              (tmdbId > 0 && (item['tmdbId'] as num?)?.toInt() == tmdbId) ||
-              (itemId != null && item['id'] == itemId));
-        });
         WHAlert.showSuccess(context, 'Removed "$cleanTitle" from Watchlist');
       }
     } catch (e) {
@@ -260,16 +176,11 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
         prefillSuggestor: parsedSuggestor,
         prefillSuggestedByUserId: suggestedByUserId ?? parsedSuggestor?.id,
         onSuccess: () {
-          ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+          ref.read(watchlistProvider.notifier).removeFromWatchlist(
             tmdbId > 0 ? tmdbId : itemId,
             listId: _watchlistId,
           );
           if (mounted) {
-            setState(() {
-              _items.removeWhere((it) =>
-                  (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
-                  (itemId != null && it['id'] == itemId));
-            });
             WHAlert.showSuccess(context, 'Logged and removed "$cleanTitle" from Watchlist.');
           }
         },
@@ -340,16 +251,11 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       ref.read(continueWatchingProvider.notifier).refresh();
       ref.read(feedProvider.notifier).prependEntry(entry);
 
-      await ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+      await ref.read(watchlistProvider.notifier).removeFromWatchlist(
         tmdbId > 0 ? tmdbId : itemId,
         listId: _watchlistId,
       );
       if (mounted) {
-        setState(() {
-          _items.removeWhere((it) =>
-              (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
-              (itemId != null && it['id'] == itemId));
-        });
         final currentUser = ref.read(authStateProvider).value?.user;
         final posterPath = (item['poster_path'] ?? item['posterPath'])?.toString();
         WHAlert.showSuccessWithAction(
@@ -382,9 +288,15 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredItems = _items.where((raw) {
+    final wlState = ref.watch(watchlistProvider);
+    final items = wlState.items;
+    final isLoading = wlState.isLoading;
+    final error = wlState.error;
+    _watchlistId = wlState.watchlistId;
+
+    final filteredItems = items.where((raw) {
       if (_searchQuery.isEmpty) return true;
-      final item = raw as Map<String, dynamic>;
+      final item = raw;
       final title = (item['title'] as String? ?? '').toLowerCase();
       final user = item['suggestedByUser'] as Map<String, dynamic>?;
       final suggestor = (user?['username'] as String? ?? item['suggestedByUsername'] as String? ?? '').toLowerCase();
@@ -392,9 +304,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       return title.contains(q) || suggestor.contains(q);
     }).toList();
 
-    filteredItems.sort((aRaw, bRaw) {
-      final a = aRaw as Map<String, dynamic>;
-      final b = bRaw as Map<String, dynamic>;
+    filteredItems.sort((a, b) {
       final parts = _sortBy.split('-');
       final field = parts[0];
       final order = parts.length > 1 ? parts[1] : 'desc';
@@ -428,11 +338,11 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
           countLabel: _searchQuery.isNotEmpty ? 'Matching Titles' : 'Saved Titles',
         ),
         Expanded(
-          child: _isLoading
+          child: isLoading && items.isEmpty
               ? const WHSkeletonGrid(
                   padding: EdgeInsets.fromLTRB(16, 6, 16, 16),
                 )
-              : _error != null
+              : error != null && items.isEmpty
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(32),
@@ -447,13 +357,13 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              _error!,
+                              error,
                               textAlign: TextAlign.center,
                               style: const TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
                             ),
                             const SizedBox(height: 18),
                             ElevatedButton.icon(
-                              onPressed: _fetchWatchlist,
+                              onPressed: () => ref.read(watchlistProvider.notifier).refresh(),
                               icon: const Icon(Icons.refresh_rounded, size: 18),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
@@ -469,7 +379,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
                     )
                   : filteredItems.isEmpty
                       ? RefreshIndicator(
-                          onRefresh: _fetchWatchlist,
+                          onRefresh: () => ref.read(watchlistProvider.notifier).refresh(),
                           color: AppColors.primary,
                           child: SingleChildScrollView(
                             physics: const AlwaysScrollableScrollPhysics(),
@@ -504,7 +414,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
                           ),
                         )
                       : RefreshIndicator(
-                          onRefresh: _fetchWatchlist,
+                          onRefresh: () => ref.read(watchlistProvider.notifier).refresh(),
                           color: AppColors.primary,
                           child: CustomScrollView(
                             physics: const AlwaysScrollableScrollPhysics(),
@@ -520,7 +430,7 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
                                   ),
                                   delegate: SliverChildBuilderDelegate(
                                     (ctx, i) {
-                                      final item = filteredItems[i] as Map<String, dynamic>;
+                                      final item = filteredItems[i];
                                       final itemId = item['id'] as String;
                                       final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
                                       final title = item['title'] as String? ?? 'Untitled';
