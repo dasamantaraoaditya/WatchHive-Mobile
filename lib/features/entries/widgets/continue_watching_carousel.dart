@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/episode_progress.dart';
 import '../../../shared/widgets/shared_widgets.dart';
+import '../../search/repositories/search_repository.dart';
 import '../repositories/episode_repository.dart';
 
 class ContinueWatchingCarousel extends ConsumerStatefulWidget {
@@ -228,41 +230,14 @@ class _ContinueWatchingCarouselState extends ConsumerState<ContinueWatchingCarou
                         Row(
                           children: [
                             // Poster Thumbnail
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: SizedBox(
-                                width: 44,
-                                height: 60,
-                                child: item.posterPath != null
-                                    ? CachedNetworkImage(
-                                        imageUrl: 'https://image.tmdb.org/t/p/w185${item.posterPath}',
-                                        fit: BoxFit.cover,
-                                        errorWidget: (_, __, ___) => const Center(
-                                          child: Icon(Icons.tv_rounded, size: 20, color: AppColors.textMuted),
-                                        ),
-                                      )
-                                    : const Center(
-                                        child: Icon(Icons.tv_rounded, size: 20, color: AppColors.textMuted),
-                                      ),
-                              ),
-                            ),
+                            _ContinueWatchingPoster(item: item),
                             const SizedBox(width: 10),
                             // Title & Progress Bar
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    item.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
+                                  _ContinueWatchingTitle(item: item),
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
@@ -377,6 +352,96 @@ class _ContinueWatchingCarouselState extends ConsumerState<ContinueWatchingCarou
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ContinueWatchingPoster extends ConsumerWidget {
+  final ContinueWatchingItem item;
+
+  const _ContinueWatchingPoster({required this.item});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    String? posterPath = item.posterPath;
+
+    // If posterPath was not supplied in the item, fall back to cached TMDb details
+    if (posterPath == null || posterPath.isEmpty) {
+      final detailsAsync = ref.watch(tmdbMediaDetailsProvider((tmdbId: item.tmdbId, mediaType: 'tv')));
+      final tmdbPoster = (detailsAsync.value?['poster_path'] as String?) ??
+          (detailsAsync.value?['backdrop_path'] as String?);
+      if (tmdbPoster != null && tmdbPoster.isNotEmpty) {
+        posterPath = tmdbPoster;
+      }
+    }
+
+    final posterUrl = ApiEndpoints.tmdbPoster(posterPath);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: 44,
+        height: 60,
+        child: posterUrl.isNotEmpty
+            ? CachedNetworkImage(
+                imageUrl: posterUrl,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Container(
+                  color: AppColors.surfaceElevated,
+                  child: const Center(
+                    child: WHBeeSpinner(size: 14),
+                  ),
+                ),
+                errorWidget: (_, __, ___) => Container(
+                  color: AppColors.surfaceElevated,
+                  child: const Center(
+                    child: Icon(Icons.tv_rounded, size: 20, color: AppColors.textMuted),
+                  ),
+                ),
+              )
+            : Container(
+                color: AppColors.surfaceElevated,
+                child: const Center(
+                  child: Icon(Icons.tv_rounded, size: 20, color: AppColors.textMuted),
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _ContinueWatchingTitle extends ConsumerWidget {
+  final ContinueWatchingItem item;
+
+  const _ContinueWatchingTitle({required this.item});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    String title = item.title;
+    final isGeneric = title.isEmpty ||
+        title == 'Untitled' ||
+        title == 'this TV show' ||
+        title.toLowerCase() == 'this title';
+
+    if (isGeneric) {
+      final detailsAsync = ref.watch(tmdbMediaDetailsProvider((tmdbId: item.tmdbId, mediaType: 'tv')));
+      final tmdbTitle = (detailsAsync.value?['name'] as String?) ??
+          (detailsAsync.value?['original_name'] as String?);
+      if (tmdbTitle != null && tmdbTitle.isNotEmpty) {
+        title = tmdbTitle;
+      }
+    }
+
+    return Text(
+      title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontFamily: 'Inter',
+        fontSize: 13,
+        fontWeight: FontWeight.w800,
+        color: AppColors.textPrimary,
       ),
     );
   }

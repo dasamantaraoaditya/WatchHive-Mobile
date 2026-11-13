@@ -406,9 +406,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/rankings',
-        builder: (context, state) => RankingsScreen(
-          initialStackId: state.extra as String?,
-        ),
+        builder: (context, state) {
+          String? stackId;
+          bool autoOpenEdit = false;
+
+          if (state.extra is String) {
+            stackId = state.extra as String;
+          } else if (state.extra is Map) {
+            final map = state.extra as Map;
+            stackId = map['stackId'] as String? ?? map['id'] as String?;
+            autoOpenEdit = map['openEdit'] == true || map['edit'] == true;
+          }
+
+          stackId ??= state.uri.queryParameters['stackId'] ?? state.uri.queryParameters['id'];
+          if (state.uri.queryParameters['edit'] == 'true' || state.uri.queryParameters['openEdit'] == 'true') {
+            autoOpenEdit = true;
+          }
+
+          return RankingsScreen(
+            initialStackId: stackId,
+            autoOpenEdit: autoOpenEdit,
+          );
+        },
       ),
     ],
     errorBuilder: (context, state) => const Scaffold(
