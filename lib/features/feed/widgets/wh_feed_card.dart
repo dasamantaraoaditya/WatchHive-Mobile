@@ -557,48 +557,30 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                           ),
                         ),
                       ),
-                      if (entry.likesCount > 0)
-                        InkWell(
-                          onTap: widget.onLikesTap ??
-                              () => LikesListSheet.show(
-                                    context,
-                                    entryId: entry.id,
-                                    entryTitle: entry.title,
-                                    initialLikeCount: entry.likesCount,
-                                  ),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                            child: Text(
-                              '${entry.likesCount} ${entry.likesCount == 1 ? 'like' : 'likes'}',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12,
-                                color: isLiked ? AppColors.primaryDark : AppColors.textPrimary,
-                                fontWeight: FontWeight.w700,
-                                decoration: TextDecoration.underline,
-                                decorationColor: (isLiked ? AppColors.primaryDark : AppColors.primary).withValues(alpha: 0.6),
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        InkWell(
-                          onTap: onLike,
-                          borderRadius: BorderRadius.circular(6),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                            child: Text(
-                              '0',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12,
-                                color: AppColors.textMuted,
-                                fontWeight: FontWeight.w500,
-                              ),
+                      InkWell(
+                        onTap: widget.onLikesTap ??
+                            (entry.likesCount > 0
+                                ? () => LikesListSheet.show(
+                                      context,
+                                      entryId: entry.id,
+                                      entryTitle: entry.title,
+                                      initialLikeCount: entry.likesCount,
+                                    )
+                                : onLike),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                          child: Text(
+                            '${entry.likesCount}',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              color: isLiked ? AppColors.primaryDark : AppColors.textMuted,
+                              fontWeight: isLiked ? FontWeight.w700 : FontWeight.w500,
                             ),
                           ),
                         ),
+                      ),
                     ],
                   ),
                   const SizedBox(width: 4),
