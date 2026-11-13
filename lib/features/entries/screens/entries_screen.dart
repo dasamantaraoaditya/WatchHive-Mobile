@@ -10,6 +10,7 @@ import '../repositories/entries_repository.dart';
 import 'add_entry_sheet.dart';
 import '../widgets/quick_currently_watching_sheet.dart';
 import '../widgets/continue_watching_carousel.dart';
+import '../providers/continue_watching_provider.dart';
 import '../widgets/suggestions_tab.dart';
 import '../widgets/watchlist_tab.dart';
 import '../widgets/wh_entry_grid_card.dart';
@@ -87,6 +88,7 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
           isWatching: isWatching,
           sortBy: isWatching ? 'createdAt' : 'watchedAt',
           order: 'desc',
+          isLoading: true,
         )) {
     loadEntries();
   }
@@ -120,8 +122,12 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
         limit: _pageSize,
         offset: 0,
       );
+      final fetchedIds = result.entries.map((e) => e.id).toSet();
+      final pendingEntries = state.entries
+          .where((e) => !fetchedIds.contains(e.id) && e.isWatching == isWatching)
+          .toList();
       state = state.copyWith(
-        entries: result.entries,
+        entries: [...pendingEntries, ...result.entries],
         isLoading: false,
         hasMore: result.pagination.hasMore,
         clearError: true,
@@ -142,8 +148,12 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
         limit: _pageSize,
         offset: 0,
       );
+      final fetchedIds = result.entries.map((e) => e.id).toSet();
+      final pendingEntries = state.entries
+          .where((e) => !fetchedIds.contains(e.id) && e.isWatching == isWatching)
+          .toList();
       state = state.copyWith(
-        entries: result.entries,
+        entries: [...pendingEntries, ...result.entries],
         isLoading: false,
         hasMore: result.pagination.hasMore,
         clearError: true,
@@ -202,7 +212,7 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
   void addEntry(Entry entry) {
     if (entry.isWatching == isWatching) {
       final filtered = state.entries.where((e) => e.id != entry.id).toList();
-      state = state.copyWith(entries: [entry, ...filtered]);
+      state = state.copyWith(entries: [entry, ...filtered], clearError: true);
     } else {
       state = state.copyWith(
         entries: state.entries.where((e) => e.id != entry.id).toList(),
@@ -399,6 +409,14 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
     }
   }
 
+  Future<void> _handleRefresh() async {
+    await Future.wait([
+      ref.read(entriesProvider(widget.isWatching).notifier).refresh(),
+      if (widget.isWatching)
+        ref.read(continueWatchingProvider.notifier).refresh(),
+    ]);
+  }
+
   @override
   void dispose() {
     _searchDebounce?.cancel();
@@ -481,7 +499,7 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
                     )
                   : state.entries.isEmpty
                       ? RefreshIndicator(
-                          onRefresh: () => ref.read(entriesProvider(widget.isWatching).notifier).refresh(),
+                          onRefresh: _handleRefresh,
                           color: AppColors.primary,
                           child: SingleChildScrollView(
                             physics: const AlwaysScrollableScrollPhysics(),
@@ -497,7 +515,7 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
                           ),
                         )
                       : RefreshIndicator(
-                          onRefresh: () => ref.read(entriesProvider(widget.isWatching).notifier).refresh(),
+                          onRefresh: _handleRefresh,
                           color: AppColors.primary,
                           child: CustomScrollView(
                             controller: _scrollController,

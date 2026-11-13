@@ -9,6 +9,7 @@ import '../repositories/watchlist_repository.dart';
 import '../repositories/entries_repository.dart';
 import '../screens/add_entry_sheet.dart';
 import '../screens/entries_screen.dart';
+import '../providers/continue_watching_provider.dart';
 import 'wh_entry_grid_card.dart';
 
 
@@ -334,6 +335,9 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       });
 
       ref.read(entriesProvider(true).notifier).addEntry(entry);
+      ref.read(entriesProvider(true).notifier).refresh();
+      ref.read(entriesProvider(false).notifier).refresh();
+      ref.read(continueWatchingProvider.notifier).refresh();
       ref.read(feedProvider.notifier).prependEntry(entry);
 
       await ref.read(watchlistRepositoryProvider).removeFromWatchlist(

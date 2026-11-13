@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_handler.dart';
@@ -45,6 +46,11 @@ class DataManagementCardState extends ConsumerState<DataManagementCard> {
       return;
     }
 
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null && box.hasSize
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+
     setState(() => _isExporting = true);
     try {
       final repo = ref.read(userRepositoryProvider);
@@ -63,16 +69,15 @@ class DataManagementCardState extends ConsumerState<DataManagementCard> {
       final mimeType = _exportFormat == 'csv' ? 'text/csv' : 'application/json';
 
       final bytes = Uint8List.fromList(utf8.encode(rawData));
-      final xFile = XFile.fromData(
-        bytes,
-        name: filename,
-        mimeType: mimeType,
-      );
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/$filename');
+      await tempFile.writeAsBytes(bytes, flush: true);
 
       await Share.shareXFiles(
-        [xFile],
+        [XFile(tempFile.path, name: filename, mimeType: mimeType)],
         subject: 'WatchersHive Data Export ($filename)',
         text: 'My WatchersHive data exported on $dateStr',
+        sharePositionOrigin: origin,
       );
 
       if (mounted) {

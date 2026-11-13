@@ -5,6 +5,7 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/share_helper.dart';
 import '../../rankings/widgets/add_to_stack_sheet.dart';
+import '../../share/widgets/instagram_story_card.dart';
 import 'suggest_movie_modal.dart';
 
 class PostLogSuccessDialog extends StatelessWidget {
@@ -81,6 +82,11 @@ class PostLogSuccessDialog extends StatelessWidget {
     );
   }
 
+  String get _displayTitle {
+    final clean = title.trim();
+    return (clean.isNotEmpty && clean != 'undefined') ? clean : 'Movie';
+  }
+
   void _handleShareStory(BuildContext dialogContext) {
     HapticFeedback.mediumImpact();
     final targetCtx = rootNavigatorKey.currentContext;
@@ -88,7 +94,7 @@ class PostLogSuccessDialog extends StatelessWidget {
     final effectiveCtx = (targetCtx != null && targetCtx.mounted) ? targetCtx : null;
     ShareHelper.shareCompletedWatch(
       context: effectiveCtx,
-      title: title,
+      title: _displayTitle,
       posterPath: posterPath,
       backdropPath: backdropPath,
       rating: isWatching ? null : rating,
@@ -112,7 +118,7 @@ class PostLogSuccessDialog extends StatelessWidget {
       SuggestMovieModal.show(
         targetCtx,
         tmdbId: (tmdbId != null && tmdbId! > 0) ? tmdbId : null,
-        title: title,
+        title: _displayTitle,
         mediaType: mediaType == 'tv' ? 'TV_SHOW' : 'MOVIE',
       );
     }
@@ -126,7 +132,7 @@ class PostLogSuccessDialog extends StatelessWidget {
       AddToStackSheet.show(
         targetCtx,
         tmdbId: tmdbId!,
-        title: title,
+        title: _displayTitle,
         posterPath: posterPath,
         mediaType: mediaType,
       );
@@ -135,13 +141,14 @@ class PostLogSuccessDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayTitle = _displayTitle;
     final badgeText = isWatching ? 'NOW WATCHING 🍿' : 'WATCH LOGGED 🏆';
     final heading = isWatching
         ? (isEditing ? 'Updated Watching!' : 'Started Watching!')
         : (isEditing ? 'Watch Completed!' : 'Watch Logged!');
     final subtitle = isWatching
         ? 'Share what you\'re watching to your Instagram Story or invite a friend to watch along.'
-        : 'Share your review to Instagram Stories or recommend "$title" to a friend.';
+        : 'Share your review to Instagram Stories or recommend "$displayTitle" to a friend.';
     final shareLabel = isWatching ? 'Share to Story' : 'Share Review to Story';
 
     final hasValidTmdb = tmdbId != null && tmdbId! > 0;
@@ -156,8 +163,11 @@ class PostLogSuccessDialog extends StatelessWidget {
         side: BorderSide(color: AppColors.primary.withValues(alpha: 0.35), width: 1.5),
       ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400),
-        child: Padding(
+        constraints: BoxConstraints(
+          maxWidth: 400,
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -234,7 +244,7 @@ class PostLogSuccessDialog extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            title,
+                            displayTitle,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -283,6 +293,49 @@ class PostLogSuccessDialog extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Cinematic Sharing Poster Preview
+              Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: SizedBox(
+                      width: 320,
+                      height: 568.8,
+                      child: InstagramStoryCard(
+                        title: displayTitle,
+                        posterPath: posterPath,
+                        backdropPath: backdropPath,
+                        rating: isWatching ? null : rating,
+                        review: isWatching ? null : review,
+                        tmdbId: tmdbId,
+                        mediaType: mediaType,
+                        releaseYear: releaseYear,
+                        userDisplayName: userDisplayName,
+                        username: username,
+                        userAvatarUrl: userAvatarUrl,
+                        isCompleted: !isWatching,
+                        shareMode: isWatching ? StoryShareMode.watching : StoryShareMode.logged,
+                      ),
+                    ),
+                  ),
                 ),
               ),
 
