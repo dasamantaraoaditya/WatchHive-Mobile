@@ -247,7 +247,7 @@ class WHEntryGridCard extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        if (currentSeason != null && currentEpisode != null) ...[
+                        if (currentSeason != null) ...[
                           const SizedBox(width: 4),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
@@ -256,7 +256,9 @@ class WHEntryGridCard extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              'S$currentSeason • E$currentEpisode',
+                              (mode == WHEntryCardMode.watching && currentEpisode != null)
+                                  ? 'S$currentSeason • E$currentEpisode'
+                                  : 'Season $currentSeason',
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 9.5,

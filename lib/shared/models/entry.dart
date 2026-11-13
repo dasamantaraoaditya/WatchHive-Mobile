@@ -324,6 +324,8 @@ class Entry {
         'postToFeed': postToFeed,
         if (startedAt != null) 'startedAt': startedAt!.toUtc().toIso8601String(),
         if (completedAt != null) 'completedAt': completedAt!.toUtc().toIso8601String(),
+        if (currentSeason != null) 'currentSeason': currentSeason,
+        if (currentEpisode != null) 'currentEpisode': currentEpisode,
         if (watchLocation != null) 'watchLocation': watchLocation,
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
       };
@@ -345,6 +347,8 @@ class Entry {
         'postToFeed': postToFeed,
         if (startedAt != null) 'startedAt': startedAt!.toUtc().toIso8601String(),
         if (completedAt != null) 'completedAt': completedAt!.toUtc().toIso8601String(),
+        if (currentSeason != null) 'currentSeason': currentSeason,
+        if (currentEpisode != null) 'currentEpisode': currentEpisode,
         if (watchLocation != null) 'watchLocation': watchLocation,
         'createdAt': createdAt.toUtc().toIso8601String(),
         if (updatedAt != null) 'updatedAt': updatedAt!.toUtc().toIso8601String(),

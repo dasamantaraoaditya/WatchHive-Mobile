@@ -30,7 +30,6 @@ import '../../onboarding/widgets/screen_guide_dialog.dart';
 import '../../../core/utils/share_helper.dart';
 import '../widgets/friends_watched_bar.dart';
 import '../widgets/friends_who_watched_sheet.dart';
-import '../widgets/completion_review_sheet.dart';
 import '../widgets/post_log_success_dialog.dart';
 import '../repositories/episode_repository.dart';
 
@@ -403,7 +402,6 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         false;
 
     // Detect if marking this episode watched completes the entire season or entire series
-    CompletionReviewSheetResult? reviewResult;
     bool willCompleteSeries = false;
     bool willCompleteSeason = false;
 
@@ -435,26 +433,6 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
               .length ??
           0;
       willCompleteSeason = seasonTotalEpisodes > 0 && (watchedInSeason + 1) >= seasonTotalEpisodes;
-
-      if (willCompleteSeries || willCompleteSeason) {
-        final showTitle = (_details?['name'] ?? _details?['title'] ?? _showProgress?.title ?? 'TV Series').toString();
-        final showPoster = _details?['poster_path'] as String? ?? _showProgress?.posterPath;
-
-        reviewResult = await CompletionReviewSheet.show(
-          context,
-          title: showTitle,
-          seasonNumber: seasonNum,
-          episodeNumber: epNum,
-          isSeriesComplete: willCompleteSeries,
-          posterPath: showPoster,
-        );
-
-        // User dismissed sheet without submitting or skipping
-        if (reviewResult == null) {
-          if (mounted) setState(() => _togglingEpisodeKey = null);
-          return;
-        }
-      }
     }
 
     try {
@@ -465,38 +443,34 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
             episodeId: epId,
             episodeName: epName,
             isWatched: !isCurrentlyWatched,
-            rating: reviewResult?.skipped == true ? null : reviewResult?.rating,
-            review: reviewResult?.skipped == true ? null : reviewResult?.review,
-            postToFeed: reviewResult?.skipped == true ? false : (reviewResult?.postToFeed ?? false),
           );
       if (mounted) {
         setState(() => _showProgress = res);
         _checkUserEntry();
         ref.invalidate(entriesProvider(true));
         ref.invalidate(entriesProvider(false));
-        if (reviewResult != null) {
-          final currentUser = ref.read(authStateProvider).value?.user;
+
+        if (willCompleteSeries || willCompleteSeason) {
           final showTitle = (_details?['name'] ?? _details?['title'] ?? res.title).toString();
           final showPoster = _details?['poster_path']?.toString() ?? res.posterPath;
-          final showBackdrop = _details?['backdrop_path']?.toString();
-          final relDate = (_details?['first_air_date'] ?? _details?['release_date'])?.toString();
-          final year = (relDate != null && relDate.length >= 4) ? relDate.substring(0, 4) : null;
-
-          PostLogSuccessDialog.show(
-            context,
-            title: willCompleteSeries ? showTitle : '$showTitle (Season $seasonNum)',
-            tmdbId: widget.tmdbId,
-            mediaType: 'tv',
-            posterPath: showPoster,
-            backdropPath: showBackdrop,
-            releaseYear: year,
-            rating: reviewResult.skipped ? null : reviewResult.rating,
-            review: reviewResult.skipped ? null : reviewResult.review,
-            isWatching: false,
-            isEditing: true,
-            userDisplayName: currentUser?.displayName ?? currentUser?.username,
-            username: currentUser?.username,
-            userAvatarUrl: currentUser?.profilePictureUrl,
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            useRootNavigator: true,
+            backgroundColor: Colors.transparent,
+            builder: (_) => AddEntrySheet(
+              prefillTmdbId: widget.tmdbId,
+              prefillType: 'TV_SHOW',
+              prefillTitle: showTitle,
+              prefillPosterPath: showPoster,
+              prefillSeason: seasonNum,
+              prefillIsWatching: false,
+              onSuccess: () {
+                _checkUserEntry();
+                ref.invalidate(entriesProvider(true));
+                ref.invalidate(entriesProvider(false));
+              },
+            ),
           );
         }
       }
@@ -579,29 +553,25 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
             final showTitle = (_details?['name'] ?? _details?['title'] ?? res.title).toString();
             final showPoster = _details?['poster_path'] as String? ?? res.posterPath;
 
-            final reviewResult = await CompletionReviewSheet.show(
-              context,
-              title: showTitle,
-              seasonNumber: seasonNum,
-              episodeNumber: epNum,
-              isSeriesComplete: isSeriesDone,
-              posterPath: showPoster,
-            );
-
-            if (reviewResult != null && !reviewResult.skipped && (reviewResult.rating != null || reviewResult.review != null)) {
-              if (_loggedEntry != null) {
-                await ref.read(entriesRepositoryProvider).updateEntry(_loggedEntry!.id, {
-                  if (reviewResult.rating != null) 'rating': reviewResult.rating,
-                  if (reviewResult.review != null) 'review': reviewResult.review,
-                  'postToFeed': reviewResult.postToFeed,
-                });
-                if (mounted) {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              useRootNavigator: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => AddEntrySheet(
+                prefillTmdbId: widget.tmdbId,
+                prefillType: 'TV_SHOW',
+                prefillTitle: showTitle,
+                prefillPosterPath: showPoster,
+                prefillSeason: seasonNum,
+                prefillIsWatching: false,
+                onSuccess: () {
                   _checkUserEntry();
                   ref.invalidate(entriesProvider(true));
                   ref.invalidate(entriesProvider(false));
-                }
-              }
-            }
+                },
+              ),
+            );
           }
 
           if (mounted) {
@@ -660,9 +630,12 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     final confirmed = await WHAlert.confirm(
       context,
       title: 'Log as Currently Watching',
-      message: 'Would you like to move "$title" to your active Watching log?',
-      confirmText: 'Move to Watching',
+      message: _inWatchlist
+          ? 'Would you like to move "$title" to your active Watching log?'
+          : 'Would you like to add "$title" to your active Watching log?',
+      confirmText: _inWatchlist ? 'Move to Watching' : 'Start Watching',
       severity: WHAlertSeverity.primary,
+      icon: Icons.visibility_rounded,
     );
 
     if (!confirmed) return;
@@ -690,9 +663,16 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         } catch (_) {}
       }
 
+      final currentUser = ref.read(authStateProvider).value?.user;
+      setState(() {
+        _myOwnEntry = entry;
+        if (_isMyEntry || _loggedEntry == null) {
+          _loggedEntry = entry;
+          _authorUser = entry.user ?? currentUser;
+        }
+      });
 
       if (mounted) {
-        final currentUser = ref.read(authStateProvider).value?.user;
         final posterPath = _details?['poster_path']?.toString();
         final backdropPath = _details?['backdrop_path']?.toString();
         final relDate = (_details?['release_date'] ?? _details?['first_air_date'])?.toString();
@@ -1502,119 +1482,153 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                           ],
                         ),
 
-                        // 2. Currently Watching Quick Transition Card (appears smoothly when in Watchlist)
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeInOut,
-                          child: _inWatchlist
-                              ? Padding(
-                                  padding: const EdgeInsets.only(top: 10),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: _isTransitioning
-                                          ? null
-                                          : () {
-                                              HapticFeedback.lightImpact();
+                        // 2. Currently Watching Action Card (visible for active watching or uncompleted titles)
+                        Builder(
+                          builder: (context) {
+                            final activeSelfEntry = _isMyEntry ? _loggedEntry : _myOwnEntry;
+                            final isCurrentlyWatching = activeSelfEntry != null && activeSelfEntry.isWatching;
+                            final isCompletedLog = activeSelfEntry != null && !activeSelfEntry.isWatching;
+
+                            // Once user has logged completed watch with rating/review, collapse this card
+                            if (isCompletedLog) {
+                              return const SizedBox.shrink();
+                            }
+
+                            return AnimatedSize(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeInOut,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: _isTransitioning
+                                        ? null
+                                        : () {
+                                            HapticFeedback.lightImpact();
+                                            if (isCurrentlyWatching) {
+                                              _logEntry(completeWatch: true);
+                                            } else {
                                               _handleStartWatching();
-                                            },
-                                      borderRadius: BorderRadius.circular(14),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surfaceElevated,
-                                          borderRadius: BorderRadius.circular(14),
-                                          border: Border.all(
-                                            color: AppColors.primary.withValues(alpha: 0.35),
-                                          ),
+                                            }
+                                          },
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceElevated,
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: isCurrentlyWatching
+                                              ? AppColors.primary
+                                              : AppColors.primary.withValues(alpha: 0.35),
+                                          width: isCurrentlyWatching ? 1.5 : 1.0,
                                         ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 32,
-                                              height: 32,
-                                              decoration: BoxDecoration(
-                                                color: AppColors.primary.withValues(alpha: 0.2),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: _isTransitioning
-                                                  ? const Center(
-                                                      child: WHBeeSpinner(size: 14),
-                                                    )
-                                                  : const Icon(
-                                                      Icons.play_arrow_rounded,
-                                                      size: 20,
-                                                      color: Color(0xFF2D2926),
-                                                    ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: isCurrentlyWatching
+                                                  ? AppColors.primary
+                                                  : AppColors.primary.withValues(alpha: 0.2),
+                                              shape: BoxShape.circle,
                                             ),
-                                            const SizedBox(width: 10),
-                                            const Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(
-                                                    'Started watching this?',
-                                                    style: TextStyle(
-                                                      fontFamily: 'Inter',
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.w800,
-                                                      color: AppColors.textPrimary,
-                                                    ),
+                                            child: _isTransitioning
+                                                ? const Center(
+                                                    child: WHBeeSpinner(size: 14),
+                                                  )
+                                                : Icon(
+                                                    isCurrentlyWatching
+                                                        ? Icons.visibility_rounded
+                                                        : Icons.play_arrow_rounded,
+                                                    size: 20,
+                                                    color: const Color(0xFF2D2926),
                                                   ),
-                                                  SizedBox(height: 1),
-                                                  Text(
-                                                    'Move to active Watching log',
-                                                    style: TextStyle(
-                                                      fontFamily: 'Inter',
-                                                      fontSize: 11,
-                                                      color: AppColors.textMuted,
-                                                    ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  isCurrentlyWatching
+                                                      ? 'Currently Watching'
+                                                      : (_inWatchlist
+                                                          ? 'Started watching this?'
+                                                          : 'Currently watching this?'),
+                                                  style: const TextStyle(
+                                                    fontFamily: 'Inter',
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: AppColors.textPrimary,
                                                   ),
-                                                ],
-                                              ),
+                                                ),
+                                                const SizedBox(height: 1),
+                                                Text(
+                                                  isCurrentlyWatching
+                                                      ? 'In your active Watching log'
+                                                      : (_inWatchlist
+                                                          ? 'Move from Watchlist to Watching log'
+                                                          : 'Add to active Watching log'),
+                                                  style: const TextStyle(
+                                                    fontFamily: 'Inter',
+                                                    fontSize: 11,
+                                                    color: AppColors.textMuted,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.primary,
-                                                borderRadius: BorderRadius.circular(10),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: AppColors.primary.withValues(alpha: 0.25),
-                                                    blurRadius: 4,
-                                                    offset: const Offset(0, 2),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: const Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(
-                                                    'Watching',
-                                                    style: TextStyle(
-                                                      fontFamily: 'Inter',
-                                                      fontSize: 11,
-                                                      fontWeight: FontWeight.w900,
-                                                      color: Colors.black,
-                                                    ),
-                                                  ),
-                                                  SizedBox(width: 3),
-                                                  Icon(
-                                                    Icons.arrow_forward_rounded,
-                                                    size: 12,
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary,
+                                              borderRadius: BorderRadius.circular(10),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: AppColors.primary.withValues(alpha: 0.25),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  isCurrentlyWatching
+                                                      ? 'Complete'
+                                                      : 'Watching',
+                                                  style: const TextStyle(
+                                                    fontFamily: 'Inter',
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w900,
                                                     color: Colors.black,
                                                   ),
-                                                ],
-                                              ),
+                                                ),
+                                                const SizedBox(width: 3),
+                                                Icon(
+                                                  isCurrentlyWatching
+                                                      ? Icons.task_alt_rounded
+                                                      : Icons.arrow_forward_rounded,
+                                                  size: 12,
+                                                  color: Colors.black,
+                                                ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
-                                )
-                              : const SizedBox.shrink(),
+                                ),
+                              ),
+                            );
+                          },
                         ),
 
                         const SizedBox(height: 10),
