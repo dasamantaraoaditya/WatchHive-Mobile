@@ -29,7 +29,7 @@ class _InteractiveOnboardingOverlayState
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     );
-    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.08).animate(
+    _pulseAnimation = Tween<double>(begin: 0.98, end: 1.04).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     if (!WidgetsBinding.instance.runtimeType.toString().toLowerCase().contains('test')) {
@@ -66,7 +66,7 @@ class _InteractiveOnboardingOverlayState
               // Ignore background taps so user interacts with the card buttons
             },
             child: Container(
-              color: Colors.black.withValues(alpha: 0.68),
+              color: Colors.black.withValues(alpha: 0.52),
             ),
           ),
         ),
@@ -142,15 +142,16 @@ class _InteractiveOnboardingOverlayState
           height: 68,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
+            color: AppColors.primary.withValues(alpha: 0.08),
             border: Border.all(
-              color: AppColors.primary,
-              width: 3,
+              color: AppColors.primaryLight.withValues(alpha: 0.85),
+              width: 1.8,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.65),
-                blurRadius: 20,
-                spreadRadius: 4,
+                color: AppColors.primary.withValues(alpha: 0.22),
+                blurRadius: 14,
+                spreadRadius: 0,
               ),
             ],
           ),
@@ -186,17 +187,17 @@ class _InteractiveOnboardingOverlayState
           width: ringSize,
           height: 54,
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.22),
+            color: AppColors.primary.withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: AppColors.primary,
-              width: 2.5,
+              color: AppColors.primaryLight.withValues(alpha: 0.75),
+              width: 1.6,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.55),
-                blurRadius: 18,
-                spreadRadius: 3,
+                color: AppColors.primary.withValues(alpha: 0.18),
+                blurRadius: 12,
+                spreadRadius: 0,
               ),
             ],
           ),
@@ -205,10 +206,21 @@ class _InteractiveOnboardingOverlayState
             child: Transform.translate(
               offset: const Offset(0, -10),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.primaryLight.withValues(alpha: 0.7),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1.5),
+                    ),
+                  ],
                 ),
                 child: Text(
                   label,
@@ -217,7 +229,7 @@ class _InteractiveOnboardingOverlayState
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 9.5,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
                   ),
                 ),
@@ -306,8 +318,12 @@ class _InteractiveOnboardingOverlayState
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
+                            color: AppColors.primary.withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.primaryLight.withValues(alpha: 0.6),
+                              width: 1,
+                            ),
                           ),
                           child: Text(
                             step.stepBadge,
@@ -315,9 +331,9 @@ class _InteractiveOnboardingOverlayState
                             style: const TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 10,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w800,
                               letterSpacing: 0.4,
-                              color: AppColors.textPrimary, // Golden Contrast Rule
+                              color: AppColors.primaryDark,
                             ),
                           ),
                         ),
@@ -381,10 +397,10 @@ class _InteractiveOnboardingOverlayState
                         height: 40,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.primary.withValues(alpha: 0.18),
+                          color: AppColors.primary.withValues(alpha: 0.12),
                           border: Border.all(
-                            color: AppColors.primary,
-                            width: 1.2,
+                            color: AppColors.primaryLight.withValues(alpha: 0.6),
+                            width: 1,
                           ),
                         ),
                         child: Icon(

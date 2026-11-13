@@ -462,11 +462,13 @@ class _QuickGuideTourDialogState extends ConsumerState<QuickGuideTourDialog> {
                                 backgroundColor: isLastPage
                                     ? AppColors.primary
                                     : currentStep.accentColor,
-                                foregroundColor: Colors.white,
-                                elevation: isLastPage ? 2 : 0,
-                                shadowColor: isLastPage
-                                    ? AppColors.primary.withAlpha(100)
-                                    : Colors.transparent,
+                                foregroundColor: (isLastPage ||
+                                        currentStep.accentColor ==
+                                            AppColors.primary)
+                                    ? AppColors.textPrimary
+                                    : Colors.white,
+                                elevation: 0,
+                                shadowColor: Colors.transparent,
                                 padding: const EdgeInsets.symmetric(vertical: 13),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),

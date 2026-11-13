@@ -477,7 +477,12 @@ class UserRepository {
         'format': format,
         'include': includeParts.join(','),
       },
-      options: Options(responseType: ResponseType.plain),
+      options: Options(
+        responseType: ResponseType.plain,
+        headers: {
+          'Accept': format == 'csv' ? 'text/csv, */*' : 'application/json, */*',
+        },
+      ),
     );
 
     final raw = response.data;

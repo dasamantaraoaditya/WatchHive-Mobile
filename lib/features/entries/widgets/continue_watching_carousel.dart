@@ -9,6 +9,7 @@ import '../../../shared/models/episode_progress.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
 import '../repositories/episode_repository.dart';
+import '../providers/continue_watching_provider.dart';
 
 class ContinueWatchingCarousel extends ConsumerStatefulWidget {
   final VoidCallback? onProgressUpdated;
@@ -23,31 +24,7 @@ class ContinueWatchingCarousel extends ConsumerStatefulWidget {
 }
 
 class _ContinueWatchingCarouselState extends ConsumerState<ContinueWatchingCarousel> {
-  List<ContinueWatchingItem> _items = [];
-  bool _isLoading = true;
   int? _updatingTmdbId;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadItems();
-  }
-
-  Future<void> _loadItems() async {
-    try {
-      final data = await ref.read(episodeRepositoryProvider).getContinueWatching(limit: 10);
-      if (mounted) {
-        setState(() {
-          _items = data;
-          _isLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
 
   Future<void> _quickMarkNext(ContinueWatchingItem item) async {
     if (item.nextEpisodeUp == null || _updatingTmdbId == item.tmdbId) return;
@@ -66,27 +43,13 @@ class _ContinueWatchingCarouselState extends ConsumerState<ContinueWatchingCarou
           );
 
       if (mounted) {
-        setState(() {
-          _items = _items.map((it) {
-            if (it.tmdbId == item.tmdbId) {
-              return ContinueWatchingItem(
-                entryId: it.entryId,
-                tmdbId: it.tmdbId,
-                title: it.title,
-                posterPath: it.posterPath,
-                backdropPath: it.backdropPath,
-                currentSeason: next.seasonNumber,
-                currentEpisode: next.episodeNumber,
-                totalEpisodesWatched: it.totalEpisodesWatched + 1,
-                totalEpisodesCount: it.totalEpisodesCount,
-                progressPercentage: res.progressPercentage,
-                nextEpisodeUp: res.nextEpisodeUp,
-                lastWatchedAt: DateTime.now(),
-              );
-            }
-            return it;
-          }).toList();
-        });
+        ref.read(continueWatchingProvider.notifier).updateProgress(
+              tmdbId: item.tmdbId,
+              nextSeasonNumber: next.seasonNumber,
+              nextEpisodeNumber: next.episodeNumber,
+              progressPercentage: res.progressPercentage,
+              nextEpisodeUp: res.nextEpisodeUp,
+            );
 
         widget.onProgressUpdated?.call();
 
@@ -111,7 +74,11 @@ class _ContinueWatchingCarouselState extends ConsumerState<ContinueWatchingCarou
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    final cwState = ref.watch(continueWatchingProvider);
+    final items = cwState.items;
+    final isLoading = cwState.isLoading;
+
+    if (isLoading && items.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: Column(
@@ -147,7 +114,7 @@ class _ContinueWatchingCarouselState extends ConsumerState<ContinueWatchingCarou
       );
     }
 
-    if (_items.isEmpty) {
+    if (items.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -181,7 +148,7 @@ class _ContinueWatchingCarouselState extends ConsumerState<ContinueWatchingCarou
                     border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                   ),
                   child: Text(
-                    '${_items.length} in progress',
+                    '${items.length} in progress',
                     style: const TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 10,
@@ -199,10 +166,10 @@ class _ContinueWatchingCarouselState extends ConsumerState<ContinueWatchingCarou
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               scrollDirection: Axis.horizontal,
-              itemCount: _items.length,
+              itemCount: items.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
-                final item = _items[index];
+                final item = items[index];
                 final isUpdating = _updatingTmdbId == item.tmdbId;
                 final next = item.nextEpisodeUp;
 

@@ -7,6 +7,7 @@ import '../repositories/entries_repository.dart';
 import '../repositories/suggestions_repository.dart';
 import '../screens/add_entry_sheet.dart';
 import '../screens/entries_screen.dart';
+import '../providers/continue_watching_provider.dart';
 import '../../search/repositories/search_repository.dart';
 import 'wh_entry_grid_card.dart';
 import 'suggestion_details_modal.dart';
@@ -89,6 +90,9 @@ class _SuggestionCardState extends ConsumerState<SuggestionCard> {
       });
 
       ref.read(entriesProvider(true).notifier).addEntry(entry);
+      ref.read(entriesProvider(true).notifier).refresh();
+      ref.read(entriesProvider(false).notifier).refresh();
+      ref.read(continueWatchingProvider.notifier).refresh();
 
       final currentUserId = ref.read(authStateProvider).value?.user?.id;
       if (currentUserId != null && currentUserId.isNotEmpty) {

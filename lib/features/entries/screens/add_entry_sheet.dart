@@ -16,6 +16,7 @@ import '../repositories/entries_repository.dart';
 import '../repositories/suggestions_repository.dart';
 import '../repositories/watchlist_repository.dart';
 import 'entries_screen.dart';
+import '../providers/continue_watching_provider.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../profile/repositories/user_repository.dart';
@@ -842,6 +843,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         isPendingSync = updated.isPendingSync;
         ref.read(entriesProvider(true).notifier).updateEntry(updated);
         ref.read(entriesProvider(false).notifier).updateEntry(updated);
+        ref.read(entriesProvider(true).notifier).refresh();
+        ref.read(entriesProvider(false).notifier).refresh();
+        ref.read(continueWatchingProvider.notifier).refresh();
         if (updated.postToFeed) {
           ref.read(feedProvider.notifier).updateEntry(updated);
         } else {
@@ -852,6 +856,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         isPendingSync = entry.isPendingSync;
         ref.read(entriesProvider(true).notifier).addEntry(entry);
         ref.read(entriesProvider(false).notifier).addEntry(entry);
+        ref.read(entriesProvider(true).notifier).refresh();
+        ref.read(entriesProvider(false).notifier).refresh();
+        ref.read(continueWatchingProvider.notifier).refresh();
         if (entry.postToFeed) {
           ref.read(feedProvider.notifier).prependEntry(entry);
         }

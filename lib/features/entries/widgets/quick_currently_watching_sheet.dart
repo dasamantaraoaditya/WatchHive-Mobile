@@ -9,6 +9,7 @@ import '../../search/repositories/search_repository.dart';
 import '../repositories/entries_repository.dart';
 import '../repositories/watchlist_repository.dart';
 import '../screens/entries_screen.dart';
+import '../providers/continue_watching_provider.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/router/app_router.dart';
@@ -111,6 +112,9 @@ class _QuickCurrentlyWatchingSheetState extends ConsumerState<QuickCurrentlyWatc
 
       // Optimistically update entries tab if active
       ref.read(entriesProvider(true).notifier).addEntry(entry);
+      ref.read(entriesProvider(true).notifier).refresh();
+      ref.read(entriesProvider(false).notifier).refresh();
+      ref.read(continueWatchingProvider.notifier).refresh();
       ref.read(feedProvider.notifier).prependEntry(entry);
 
       // Clean up from watchlist if previously present

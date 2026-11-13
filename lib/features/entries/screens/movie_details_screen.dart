@@ -32,6 +32,7 @@ import '../widgets/friends_watched_bar.dart';
 import '../widgets/friends_who_watched_sheet.dart';
 import '../widgets/post_log_success_dialog.dart';
 import '../repositories/episode_repository.dart';
+import '../providers/continue_watching_provider.dart';
 
 class MovieDetailsScreen extends ConsumerStatefulWidget {
   final String mediaType;
@@ -526,8 +527,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       if (mounted) {
         setState(() => _showProgress = res);
         _checkUserEntry();
-        ref.invalidate(entriesProvider(true));
-        ref.invalidate(entriesProvider(false));
+        ref.read(entriesProvider(true).notifier).refresh();
+        ref.read(entriesProvider(false).notifier).refresh();
+        ref.read(continueWatchingProvider.notifier).refresh();
 
         if (willCompleteSeries || willCompleteSeason) {
           final showTitle = (_details?['name'] ?? _details?['title'] ?? res.title).toString();
@@ -546,8 +548,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
               prefillIsWatching: false,
               onSuccess: () {
                 _checkUserEntry();
-                ref.invalidate(entriesProvider(true));
-                ref.invalidate(entriesProvider(false));
+                ref.read(entriesProvider(true).notifier).refresh();
+                ref.read(entriesProvider(false).notifier).refresh();
+                ref.read(continueWatchingProvider.notifier).refresh();
               },
             ),
           );
@@ -604,8 +607,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         if (mounted) {
           setState(() => _showProgress = res);
           _checkUserEntry();
-          ref.invalidate(entriesProvider(true));
-          ref.invalidate(entriesProvider(false));
+          ref.read(entriesProvider(true).notifier).refresh();
+          ref.read(entriesProvider(false).notifier).refresh();
+          ref.read(continueWatchingProvider.notifier).refresh();
 
           // Check if this catch-up completed the season or series
           final totalShowEpisodes = (_details?['number_of_episodes'] as num?)?.toInt() ??
@@ -646,8 +650,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                 prefillIsWatching: false,
                 onSuccess: () {
                   _checkUserEntry();
-                  ref.invalidate(entriesProvider(true));
-                  ref.invalidate(entriesProvider(false));
+                  ref.read(entriesProvider(true).notifier).refresh();
+                  ref.read(entriesProvider(false).notifier).refresh();
+                  ref.read(continueWatchingProvider.notifier).refresh();
                 },
               ),
             );
@@ -732,6 +737,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       });
 
       ref.read(entriesProvider(true).notifier).addEntry(entry);
+      ref.read(entriesProvider(true).notifier).refresh();
+      ref.read(entriesProvider(false).notifier).refresh();
+      ref.read(continueWatchingProvider.notifier).refresh();
       ref.read(feedProvider.notifier).prependEntry(entry);
 
       // Remove from watchlist if it was in watchlist
@@ -803,6 +811,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         prefillIsWatching: completeWatch ? false : null,
         onSuccess: () {
           _checkUserEntry();
+          ref.read(entriesProvider(true).notifier).refresh();
+          ref.read(entriesProvider(false).notifier).refresh();
+          ref.read(continueWatchingProvider.notifier).refresh();
         },
       ),
     );
@@ -828,6 +839,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       await ref.read(entriesRepositoryProvider).deleteEntry(entry.id);
       ref.read(entriesProvider(true).notifier).removeEntry(entry.id);
       ref.read(entriesProvider(false).notifier).removeEntry(entry.id);
+      ref.read(entriesProvider(true).notifier).refresh();
+      ref.read(entriesProvider(false).notifier).refresh();
+      ref.read(continueWatchingProvider.notifier).refresh();
       ref.read(feedProvider.notifier).removeEntry(entry.id);
       if (mounted) {
         setState(() {

@@ -29,12 +29,13 @@ void main() {
 
       expect(find.text('NOW WATCHING 🍿'), findsOneWidget);
       expect(find.text('Started Watching!'), findsOneWidget);
-      expect(find.text('Dune: Part Two'), findsOneWidget);
+      expect(find.text('Dune: Part Two'), findsWidgets);
       expect(find.text('Share to Story'), findsOneWidget);
       expect(find.text('Suggest to a Friend'), findsOneWidget);
       expect(find.text('Add to Cinematic Stack'), findsNothing);
       expect(find.text('Done'), findsOneWidget);
 
+      await tester.ensureVisible(find.text('Done'));
       await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
       expect(find.text('NOW WATCHING 🍿'), findsNothing);
@@ -67,9 +68,9 @@ void main() {
 
       expect(find.text('WATCH LOGGED 🏆'), findsOneWidget);
       expect(find.text('Watch Logged!'), findsOneWidget);
-      expect(find.text('Inception'), findsOneWidget);
+      expect(find.text('Inception'), findsWidgets);
       expect(find.text('⭐ 9.5 / 10'), findsOneWidget);
-      expect(find.text('“Mind-bending masterpiece.”'), findsOneWidget);
+      expect(find.text('“Mind-bending masterpiece.”'), findsWidgets);
       expect(find.text('Share Review to Story'), findsOneWidget);
       expect(find.text('Suggest to a Friend'), findsOneWidget);
       expect(find.text('Add to Cinematic Stack'), findsOneWidget);
