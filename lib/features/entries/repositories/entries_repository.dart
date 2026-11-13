@@ -49,6 +49,7 @@ class EntriesRepository {
     int limit = 20,
     int offset = 0,
     String? userId,
+    int? tmdbId,
   }) async {
     try {
       final response = await _api.get(
@@ -58,6 +59,7 @@ class EntriesRepository {
           if (search != null) 'search': search,
           if (isWatching != null) 'isWatching': isWatching,
           if (userId != null) 'userId': userId,
+          if (tmdbId != null) 'tmdbId': tmdbId,
           'sortBy': sortBy,
           'order': order,
           'limit': limit,
@@ -242,24 +244,11 @@ class EntriesRepository {
     try {
       final res = await getEntries(
         userId: userId,
-        search: title,
-        limit: 50,
+        tmdbId: tmdbId,
+        limit: 10,
       );
-      for (final entry in res.entries) {
-        if (entry.tmdbId == tmdbId) {
-          return entry;
-        }
-      }
-      if (title != null && title.isNotEmpty) {
-        final broadRes = await getEntries(
-          userId: userId,
-          limit: 100,
-        );
-        for (final entry in broadRes.entries) {
-          if (entry.tmdbId == tmdbId) {
-            return entry;
-          }
-        }
+      if (res.entries.isNotEmpty) {
+        return res.entries.first;
       }
       return null;
     } catch (_) {
@@ -269,6 +258,25 @@ class EntriesRepository {
         if (entry.tmdbId == tmdbId) return entry;
       }
       return null;
+    }
+  }
+
+  Future<({Entry? userEntry, List<Entry> friendsEntries})> getMediaSocialEntries(int tmdbId) async {
+    try {
+      final response = await _api.get(ApiEndpoints.mediaSocial(tmdbId));
+      final data = response.data as Map<String, dynamic>;
+      final userEntryJson = data['userEntry'] as Map<String, dynamic>?;
+      final friendsJson = data['friendsEntries'] as List<dynamic>? ?? [];
+
+      return (
+        userEntry: userEntryJson != null ? Entry.fromJson(userEntryJson) : null,
+        friendsEntries: friendsJson.map((e) => Entry.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+    } catch (_) {
+      return (
+        userEntry: null,
+        friendsEntries: <Entry>[],
+      );
     }
   }
 

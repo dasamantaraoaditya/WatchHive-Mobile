@@ -158,8 +158,11 @@ class RankingStack {
   final String type;
   final bool isPublic;
   final List<RankedItem> items;
+  final int? itemCount;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+
+  int get count => itemCount ?? items.length;
 
   const RankingStack({
     required this.id,
@@ -169,6 +172,7 @@ class RankingStack {
     this.type = 'RANKING_STACK',
     this.isPublic = true,
     this.items = const [],
+    this.itemCount,
     this.createdAt,
     this.updatedAt,
   });
@@ -179,6 +183,10 @@ class RankingStack {
         .map((e) => RankedItem.fromJson(e as Map<String, dynamic>))
         .toList();
 
+    final parsedCount = json['itemCount'] is num
+        ? (json['itemCount'] as num).toInt()
+        : (json['itemCount'] != null ? int.tryParse(json['itemCount'].toString()) : null);
+
     return RankingStack(
       id: json['id'] as String? ?? '',
       userId: json['userId'] as String? ?? '',
@@ -187,6 +195,7 @@ class RankingStack {
       type: json['type'] as String? ?? 'RANKING_STACK',
       isPublic: json['isPublic'] as bool? ?? true,
       items: parsedItems,
+      itemCount: parsedCount ?? parsedItems.length,
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'].toString()) : null,
     );
@@ -200,6 +209,7 @@ class RankingStack {
         'type': type,
         'isPublic': isPublic,
         'items': items.map((e) => e.toJson()).toList(),
+        'itemCount': itemCount ?? items.length,
         'createdAt': createdAt?.toIso8601String(),
         'updatedAt': updatedAt?.toIso8601String(),
       };
@@ -212,6 +222,7 @@ class RankingStack {
     String? type,
     bool? isPublic,
     List<RankedItem>? items,
+    int? itemCount,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) =>
@@ -223,6 +234,7 @@ class RankingStack {
         type: type ?? this.type,
         isPublic: isPublic ?? this.isPublic,
         items: items ?? this.items,
+        itemCount: itemCount ?? this.itemCount ?? items?.length,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );

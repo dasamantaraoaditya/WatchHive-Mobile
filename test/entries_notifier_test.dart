@@ -50,10 +50,12 @@ class FakeEntriesRepository extends EntriesRepository {
     int limit = 20,
     int offset = 0,
     String? userId,
+    int? tmdbId,
   }) async {
     var items = mockDatabase.where((e) {
       if (isWatching != null && e.isWatching != isWatching) return false;
       if (type != null && e.type != type) return false;
+      if (tmdbId != null && e.tmdbId != tmdbId) return false;
       return true;
     }).toList();
 

@@ -133,14 +133,91 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       _loadDetails(),
       _checkWatchlistStatus(),
       _loadRecommendations(),
+      _fetchSocialEntries(),
     ]);
     await _checkUserEntry();
     _loadFriendsEntries();
   }
 
+  Future<void> _fetchSocialEntries() async {
+    try {
+      final currentUser = ref.read(authStateProvider).value?.user;
+      final social = await ref.read(entriesRepositoryProvider).getMediaSocialEntries(widget.tmdbId);
+
+      if (!mounted) return;
+
+      // 1. Resolve user entry if not already set or if user is viewing their own details
+      if (social.userEntry != null) {
+        if (_loggedEntry == null || _isMyEntry) {
+          final effective = (social.userEntry!.suggestedByUser == null && widget.suggestedByUser != null)
+              ? social.userEntry!.copyWith(
+                  suggestedByUser: widget.suggestedByUser,
+                  suggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id,
+                )
+              : social.userEntry!;
+          setState(() {
+            _loggedEntry = effective;
+            _authorUser = effective.user ?? currentUser;
+          });
+        } else if (_loggedEntry != null && !_isMyEntry) {
+          setState(() {
+            _myOwnEntry = social.userEntry;
+          });
+        }
+      }
+
+      // 2. Resolve friends entries
+      final Map<String, Entry> friendsMap = {};
+      for (final fe in social.friendsEntries) {
+        if (currentUser == null || fe.userId != currentUser.id) {
+          friendsMap[fe.userId] = fe;
+        }
+      }
+
+      // Preserve initialEntry if from a friend
+      if (widget.initialEntry != null) {
+        final uid = widget.initialEntry!.userId;
+        if (currentUser == null || uid != currentUser.id) {
+          var entry = widget.initialEntry!;
+          if (entry.user == null && widget.authorUser != null) {
+            entry = entry.copyWith(user: widget.authorUser);
+          }
+          if (!friendsMap.containsKey(uid) || friendsMap[uid]!.user == null) {
+            friendsMap[uid] = entry;
+          }
+        }
+      }
+
+      // Preserve _loggedEntry if from someone else
+      if (_loggedEntry != null) {
+        final uid = _loggedEntry!.userId;
+        if (currentUser == null || uid != currentUser.id) {
+          var entry = _loggedEntry!;
+          if (entry.user == null && _authorUser != null) {
+            entry = entry.copyWith(user: _authorUser);
+          }
+          if (!friendsMap.containsKey(uid) || friendsMap[uid]!.user == null) {
+            friendsMap[uid] = entry;
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _friendsEntries = friendsMap.values.toList();
+        });
+      }
+    } catch (_) {}
+  }
+
   void _loadFriendsEntries() {
     final currentUser = ref.read(authStateProvider).value?.user;
     final Map<String, Entry> friendsMap = {};
+
+    // 0. Seed with existing friends entries
+    for (final e in _friendsEntries) {
+      friendsMap[e.userId] = e;
+    }
 
     // 1. Initial entry if from a friend
     if (widget.initialEntry != null) {
@@ -150,7 +227,9 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         if (entry.user == null && widget.authorUser != null) {
           entry = entry.copyWith(user: widget.authorUser);
         }
-        friendsMap[uid] = entry;
+        if (!friendsMap.containsKey(uid) || friendsMap[uid]!.user == null) {
+          friendsMap[uid] = entry;
+        }
       }
     }
 

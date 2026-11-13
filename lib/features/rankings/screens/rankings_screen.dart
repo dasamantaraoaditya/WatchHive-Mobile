@@ -18,8 +18,13 @@ import '../../onboarding/widgets/screen_guide_dialog.dart';
 
 class RankingsScreen extends ConsumerStatefulWidget {
   final String? initialStackId;
+  final bool autoOpenEdit;
 
-  const RankingsScreen({super.key, this.initialStackId});
+  const RankingsScreen({
+    super.key,
+    this.initialStackId,
+    this.autoOpenEdit = false,
+  });
 
   @override
   ConsumerState<RankingsScreen> createState() => _RankingsScreenState();
@@ -27,17 +32,65 @@ class RankingsScreen extends ConsumerStatefulWidget {
 
 class _RankingsScreenState extends ConsumerState<RankingsScreen> {
   String? _selectedStackId;
+  bool _hasOpenedAutoEdit = false;
 
   @override
   void initState() {
     super.initState();
     _selectedStackId = widget.initialStackId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.initialStackId != null && widget.initialStackId!.isNotEmpty) {
+        _onStackSelected(widget.initialStackId!, force: true);
+        if (widget.autoOpenEdit && !_hasOpenedAutoEdit) {
+          _hasOpenedAutoEdit = true;
+          _triggerAutoOpenEdit(widget.initialStackId!);
+        }
+      }
+    });
   }
 
-  void _onStackSelected(String stackId) {
-    if (_selectedStackId == stackId) return;
+  @override
+  void didUpdateWidget(covariant RankingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialStackId != null && widget.initialStackId != oldWidget.initialStackId) {
+      _selectedStackId = widget.initialStackId;
+      _onStackSelected(widget.initialStackId!, force: true);
+      if (widget.autoOpenEdit) {
+        _triggerAutoOpenEdit(widget.initialStackId!);
+      }
+    }
+  }
+
+  void _onStackSelected(String stackId, {bool force = false}) {
+    final currentActiveId = ref.read(activeStackProvider).stack?.id;
+    if (!force && _selectedStackId == stackId && currentActiveId == stackId) {
+      return;
+    }
     setState(() => _selectedStackId = stackId);
     ref.read(activeStackProvider.notifier).loadStack(stackId);
+  }
+
+  void _triggerAutoOpenEdit(String stackId) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final myRankingsState = ref.read(myRankingsProvider);
+      final target = myRankingsState.stacks.where((s) => s.id == stackId).firstOrNull ??
+          ref.read(activeStackProvider).stack;
+      if (target != null && target.id == stackId) {
+        _openEditStackModal(target);
+      } else {
+        Future.delayed(const Duration(milliseconds: 350), () {
+          if (!mounted) return;
+          final refreshed = ref.read(myRankingsProvider);
+          final found = refreshed.stacks.where((s) => s.id == stackId).firstOrNull ??
+              ref.read(activeStackProvider).stack;
+          if (found != null && found.id == stackId) {
+            _openEditStackModal(found);
+          }
+        });
+      }
+    });
   }
 
   void _openCreateStackModal() {
@@ -276,12 +329,26 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
     final myRankingsState = ref.watch(myRankingsProvider);
     final activeState = ref.watch(activeStackProvider);
 
-    // Auto-select first stack if none selected
-    if (myRankingsState.stacks.isNotEmpty && _selectedStackId == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _onStackSelected(myRankingsState.stacks.first.id);
-      });
+    // Keep selected stack and active provider in sync with loaded stacks
+    if (!myRankingsState.isLoading && myRankingsState.stacks.isNotEmpty) {
+      final hasSelected = myRankingsState.stacks.any((s) => s.id == _selectedStackId);
+      final targetId = hasSelected ? _selectedStackId! : myRankingsState.stacks.first.id;
+
+      if (_selectedStackId != targetId || activeState.stack?.id != targetId) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _onStackSelected(targetId, force: true);
+          if (widget.autoOpenEdit && !_hasOpenedAutoEdit && targetId == widget.initialStackId) {
+            _hasOpenedAutoEdit = true;
+            _triggerAutoOpenEdit(targetId);
+          }
+        });
+      }
     }
+
+    final displayedStack = (activeState.stack != null && activeState.stack!.id == _selectedStackId)
+        ? activeState.stack!
+        : myRankingsState.stacks.where((s) => s.id == _selectedStackId).firstOrNull ?? activeState.stack;
 
     return PopScope(
       canPop: false,
@@ -432,16 +499,16 @@ class _RankingsScreenState extends ConsumerState<RankingsScreen> {
                       const SizedBox(height: 16),
 
                       // ── Active Stack Header Card ──
-                      if (activeState.stack != null)
-                        _buildStackHeroCard(activeState.stack!),
+                      if (displayedStack != null)
+                        _buildStackHeroCard(displayedStack),
 
                       const SizedBox(height: 16),
 
                       // ── Ranked Items List ──
-                      if (activeState.isLoading)
+                      if (activeState.isLoading && (activeState.stack == null || activeState.stack!.id != _selectedStackId))
                         const WHSkeletonRankedItemList(itemCount: 4)
                       else if (activeState.items.isEmpty)
-                        _buildEmptyItemsState(activeState.stack?.id ?? '')
+                        _buildEmptyItemsState(displayedStack?.id ?? '')
                       else
                         ...activeState.items.asMap().entries.map((entry) {
                           final index = entry.key;

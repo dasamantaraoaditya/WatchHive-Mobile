@@ -225,68 +225,77 @@ class _UserRankingsTabState extends ConsumerState<UserRankingsTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              stack.name,
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.w800,
-                                fontSize: 16,
-                                color: AppColors.textPrimary,
+          InkWell(
+            onTap: isCurrentUser
+                ? () async {
+                    await context.push('/rankings', extra: stack.id);
+                    _fetchRankings();
+                  }
+                : null,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                stack.name,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '${stack.items.length} Items',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 10,
-                                color: AppColors.primaryDark,
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '${stack.items.length} Items',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                  color: AppColors.primaryDark,
+                                ),
                               ),
                             ),
+                          ],
+                        ),
+                        if (stack.description != null && stack.description!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            stack.description!,
+                            style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.3),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
-                      ),
-                      if (stack.description != null && stack.description!.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          stack.description!,
-                          style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.3),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                if (isCurrentUser)
-                  IconButton(
-                    icon: const Icon(Icons.edit_note_rounded, color: AppColors.primary),
-                    tooltip: 'Edit in Rankings',
-                    onPressed: () async {
-                      await context.push('/rankings', extra: stack.id);
-                      _fetchRankings();
-                    },
-                  ),
-              ],
+                  if (isCurrentUser)
+                    IconButton(
+                      icon: const Icon(Icons.edit_note_rounded, color: AppColors.primary),
+                      tooltip: 'Edit in Rankings',
+                      onPressed: () async {
+                        await context.push('/rankings', extra: {'stackId': stack.id, 'openEdit': true});
+                        _fetchRankings();
+                      },
+                    ),
+                ],
+              ),
             ),
           ),
 
