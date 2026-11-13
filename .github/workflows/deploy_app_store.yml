@@ -7,13 +7,17 @@ on:
       - 'v*.*.*'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
 jobs:
   build-and-deploy-ios:
     name: Build & Release iOS App Store / TestFlight
-    runs-on: macos-13
+    runs-on: macos-latest
     continue-on-error: true
     env:
       APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
