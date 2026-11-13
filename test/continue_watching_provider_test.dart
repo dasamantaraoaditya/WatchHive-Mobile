@@ -19,7 +19,7 @@ class _MockEpisodeRepository extends EpisodeRepository {
 }
 
 void main() {
-  const dummyItem = ContinueWatchingItem(
+  final dummyItem = ContinueWatchingItem(
     entryId: 'entry-1',
     tmdbId: 1399,
     title: 'Game of Thrones',
@@ -28,12 +28,13 @@ void main() {
     currentEpisode: 1,
     totalEpisodesWatched: 1,
     totalEpisodesCount: 73,
-    progressPercentage: 1.37,
-    nextEpisodeUp: NextEpisodeUp(
+    progressPercentage: 1,
+    nextEpisodeUp: const NextEpisodeUp(
       seasonNumber: 1,
       episodeNumber: 2,
       name: 'The Kingsroad',
     ),
+    lastWatchedAt: DateTime(2026, 11, 13),
   );
 
   group('ContinueWatchingNotifier Tests', () {
@@ -58,7 +59,7 @@ void main() {
         tmdbId: 1399,
         nextSeasonNumber: 1,
         nextEpisodeNumber: 2,
-        progressPercentage: 2.74,
+        progressPercentage: 2,
         nextEpisodeUp: const NextEpisodeUp(
           seasonNumber: 1,
           episodeNumber: 3,
