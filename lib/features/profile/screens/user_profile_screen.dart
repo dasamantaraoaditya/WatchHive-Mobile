@@ -111,7 +111,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
       final results = await Future.wait([
         repo.getUserProfile(widget.userId),
-        repo.getFollowStats(widget.userId),
+        repo.getFollowStats(widget.userId).catchError((_) => (followersCount: 0, followingCount: 0)),
         entriesRepo.getEntries(userId: widget.userId, isWatching: false, limit: 50).catchError((_) => _emptyEntriesResult),
         entriesRepo.getEntries(userId: widget.userId, isWatching: true, limit: 50).catchError((_) => _emptyEntriesResult),
         repo.getUserWatchlist(widget.userId).catchError((_) => <String, dynamic>{}),
