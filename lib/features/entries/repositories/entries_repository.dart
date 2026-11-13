@@ -272,9 +272,14 @@ class EntriesRepository {
     }
   }
 
-  Future<({bool hasWatched, int watchCount, Entry? existingEntry})> checkPreviousWatch(int tmdbId) async {
+  Future<({bool hasWatched, int watchCount, Entry? existingEntry})> checkPreviousWatch(int tmdbId, {int? season}) async {
     try {
-      final response = await _api.get(ApiEndpoints.checkEntry(tmdbId));
+      final response = await _api.get(
+        ApiEndpoints.checkEntry(tmdbId),
+        queryParameters: {
+          if (season != null) 'season': season,
+        },
+      );
       final data = response.data as Map<String, dynamic>;
       final hasWatched = data['hasWatched'] == true;
       final watchCount = (data['watchCount'] as num?)?.toInt() ?? 0;

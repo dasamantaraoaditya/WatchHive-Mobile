@@ -988,6 +988,26 @@ class FeedMediaHeroBanner extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  if (entry.currentSeason != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.primaryDark),
+                      ),
+                      child: Text(
+                        (entry.isWatching && entry.currentEpisode != null)
+                            ? 'S${entry.currentSeason} • E${entry.currentEpisode}'
+                            : 'Season ${entry.currentSeason}',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
                   if (entry.isRewatch)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
