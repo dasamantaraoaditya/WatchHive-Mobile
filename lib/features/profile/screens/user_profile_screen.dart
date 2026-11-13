@@ -11,6 +11,8 @@ import '../../auth/providers/auth_provider.dart';
 import '../../entries/repositories/entries_repository.dart';
 import '../../entries/repositories/watchlist_repository.dart';
 import '../../entries/screens/add_entry_sheet.dart';
+import '../../entries/screens/entries_screen.dart';
+import '../../entries/providers/continue_watching_provider.dart';
 import '../../entries/widgets/suggest_movie_modal.dart';
 import '../../entries/widgets/wh_entry_grid_card.dart';
 import '../../../core/utils/share_helper.dart';
@@ -1732,6 +1734,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         if (suggestedByUserId != null) 'suggestedByUserId': suggestedByUserId,
       });
 
+      ref.read(entriesProvider(true).notifier).addEntry(entry);
+      ref.read(entriesProvider(true).notifier).refresh();
+      ref.read(entriesProvider(false).notifier).refresh();
+      ref.read(continueWatchingProvider.notifier).refresh();
       ref.read(feedProvider.notifier).prependEntry(entry);
 
       if (mounted) {
