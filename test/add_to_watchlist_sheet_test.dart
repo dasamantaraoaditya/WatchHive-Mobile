@@ -135,7 +135,8 @@ void main() {
     final submitButton = find.widgetWithText(ElevatedButton, 'Add with Suggestion');
     expect(submitButton, findsOneWidget);
     await tester.tap(submitButton);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(fakeWatchlistRepo.addToWatchlistCalled, isTrue);
     expect(fakeWatchlistRepo.lastTitle, 'Interstellar');
@@ -180,7 +181,8 @@ void main() {
     // Submit
     final submitButton = find.widgetWithText(ElevatedButton, 'Add with Suggestion');
     await tester.tap(submitButton);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(fakeWatchlistRepo.addToWatchlistCalled, isTrue);
     expect(fakeWatchlistRepo.lastTitle, 'Breaking Bad');

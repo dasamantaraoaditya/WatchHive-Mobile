@@ -195,8 +195,8 @@ void main() {
 
         await tester.pumpAndSettle();
 
-        // Hyperlink "5 likes" is visible
-        final likesLink = find.text('5 likes');
+        // Likes count "5" is visible
+        final likesLink = find.text('5');
         expect(likesLink, findsOneWidget);
 
         // Tapping opens LikesListSheet and loads top 3
