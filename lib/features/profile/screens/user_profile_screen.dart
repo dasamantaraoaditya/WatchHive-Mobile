@@ -10,6 +10,7 @@ import '../../../shared/widgets/shared_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../entries/repositories/entries_repository.dart';
 import '../../entries/repositories/watchlist_repository.dart';
+import '../../entries/providers/watchlist_provider.dart';
 import '../../entries/screens/add_entry_sheet.dart';
 import '../../entries/screens/entries_screen.dart';
 import '../../entries/providers/continue_watching_provider.dart';
@@ -110,7 +111,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
 
       final results = await Future.wait([
         repo.getUserProfile(widget.userId),
-        repo.getFollowStats(widget.userId),
+        repo.getFollowStats(widget.userId).catchError((_) => (followersCount: 0, followingCount: 0)),
         entriesRepo.getEntries(userId: widget.userId, isWatching: false, limit: 50).catchError((_) => _emptyEntriesResult),
         entriesRepo.getEntries(userId: widget.userId, isWatching: true, limit: 50).catchError((_) => _emptyEntriesResult),
         repo.getUserWatchlist(widget.userId).catchError((_) => <String, dynamic>{}),
@@ -220,8 +221,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       ));
     }
     if (_user!.showWatchEntries) {
+      final historyList = _isMe ? ref.watch(entriesProvider(false)).entries : _historyEntries;
       final count = _hasLoadedTabs
-          ? (_user!.entriesCount > 0 ? _user!.entriesCount : _historyEntries.length)
+          ? (_isMe ? historyList.length : (_user!.entriesCount > 0 ? _user!.entriesCount : _historyEntries.length))
           : (_user!.entriesCount > 0 ? _user!.entriesCount : null);
       list.add(_ProfileTabConfig(
         label: _formatTabLabel(baseLabel: 'Watches', count: count),
@@ -229,8 +231,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       ));
     }
     if (_user!.showCurrentlyWatching) {
+      final watchingList = _isMe ? ref.watch(entriesProvider(true)).entries : _watchingEntries;
       final count = _hasLoadedTabs
-          ? (_user!.watchingCount ?? _watchingEntries.length)
+          ? (_isMe ? watchingList.length : (_user!.watchingCount ?? _watchingEntries.length))
           : _user!.watchingCount;
       list.add(_ProfileTabConfig(
         label: _formatTabLabel(baseLabel: 'Watching', count: count),
@@ -238,8 +241,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       ));
     }
     if (_user!.showWatchlist) {
+      final watchlistList = _isMe ? ref.watch(watchlistProvider).items : _watchlistItems;
       final count = _hasLoadedTabs
-          ? (_user!.watchlistCount ?? _watchlistItems.length)
+          ? (_isMe ? watchlistList.length : (_user!.watchlistCount ?? _watchlistItems.length))
           : _user!.watchlistCount;
       list.add(_ProfileTabConfig(
         label: _formatTabLabel(baseLabel: 'Watchlist', count: count),
@@ -1013,7 +1017,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
               Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () => HoneyBadgesDialog.show(context, user, entries: _historyEntries),
+                  onTap: () {
+                    final effectiveHistory = _isMe ? ref.read(entriesProvider(false)).entries : _historyEntries;
+                    HoneyBadgesDialog.show(context, user, entries: effectiveHistory);
+                  },
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1029,7 +1036,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                         const SizedBox(width: 4),
                         Builder(
                           builder: (context) {
-                            final count = HoneyBadgesDialog.getEarnedBadgesCount(user, entries: _historyEntries);
+                            final effectiveHistory = _isMe ? ref.watch(entriesProvider(false)).entries : _historyEntries;
+                            final count = HoneyBadgesDialog.getEarnedBadgesCount(user, entries: effectiveHistory);
                             return Text(
                               '$count ${count == 1 ? "Badge" : "Badges"} Unlocked',
                               style: const TextStyle(
@@ -1054,7 +1062,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () => HoneyBadgesDialog.show(context, user, entries: _historyEntries),
+                    onTap: () {
+                      final effectiveHistory = _isMe ? ref.read(entriesProvider(false)).entries : _historyEntries;
+                      HoneyBadgesDialog.show(context, user, entries: effectiveHistory);
+                    },
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1090,11 +1101,20 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
           Row(
             children: [
               Expanded(
-                child: _buildUserStatChip(
-                  count: user.entriesCount,
-                  label: 'Watches',
-                  onTap: () {},
-                  isPrimary: true,
+                child: Builder(
+                  builder: (context) {
+                    final effectiveWatchesCount = _isMe
+                        ? (ref.watch(entriesProvider(false)).entries.isNotEmpty
+                            ? ref.watch(entriesProvider(false)).entries.length
+                            : user.entriesCount)
+                        : user.entriesCount;
+                    return _buildUserStatChip(
+                      count: effectiveWatchesCount,
+                      label: 'Watches',
+                      onTap: () {},
+                      isPrimary: true,
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 8),
@@ -1503,10 +1523,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   }
 
   Widget _buildUserHistoryTab() {
+    final effectiveHistory = _isMe ? ref.watch(entriesProvider(false)).entries : _historyEntries;
     if (!_hasLoadedTabs || _isLoadingTabsData) {
       return const WHSkeletonGrid(itemCount: 4);
     }
-    if (_historyEntries.isEmpty) {
+    if (effectiveHistory.isEmpty) {
       return const Center(
         child: Text('No watch entries to show.', style: TextStyle(color: AppColors.textMuted)),
       );
@@ -1520,9 +1541,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         crossAxisSpacing: 14,
         childAspectRatio: 0.63,
       ),
-      itemCount: _historyEntries.length,
+      itemCount: effectiveHistory.length,
       itemBuilder: (ctx, index) {
-        final entry = _historyEntries[index];
+        final entry = effectiveHistory[index];
         final mediaType = entry.type.toLowerCase().contains('tv') ? 'tv' : 'movie';
         return WHEntryGridCard(
           tmdbId: entry.tmdbId,
@@ -1551,10 +1572,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   }
 
   Widget _buildUserWatchingTab() {
+    final effectiveWatching = _isMe ? ref.watch(entriesProvider(true)).entries : _watchingEntries;
     if (!_hasLoadedTabs || _isLoadingTabsData) {
       return const WHSkeletonGrid(itemCount: 4);
     }
-    if (_watchingEntries.isEmpty) {
+    if (effectiveWatching.isEmpty) {
       return const Center(
         child: Text('Not currently watching any movies or shows.', style: TextStyle(color: AppColors.textMuted)),
       );
@@ -1568,9 +1590,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         crossAxisSpacing: 14,
         childAspectRatio: 0.63,
       ),
-      itemCount: _watchingEntries.length,
+      itemCount: effectiveWatching.length,
       itemBuilder: (ctx, index) {
-        final entry = _watchingEntries[index];
+        final entry = effectiveWatching[index];
         final mediaType = entry.type.toLowerCase().contains('tv') ? 'tv' : 'movie';
         return WHEntryGridCard(
           tmdbId: entry.tmdbId,
@@ -1600,10 +1622,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
   }
 
   Widget _buildUserWatchlistTab() {
-    if (!_hasLoadedTabs || _isLoadingTabsData) {
+    final effectiveWatchlist = _isMe ? ref.watch(watchlistProvider).items : _watchlistItems;
+    final isWatchlistLoading = _isMe
+        ? (ref.watch(watchlistProvider).isLoading && effectiveWatchlist.isEmpty)
+        : (!_hasLoadedTabs || _isLoadingTabsData);
+
+    if (isWatchlistLoading) {
       return const WHSkeletonGrid(itemCount: 4);
     }
-    if (_watchlistItems.isEmpty) {
+    if (effectiveWatchlist.isEmpty) {
       return const Center(
         child: Text('Watchlist is empty.', style: TextStyle(color: AppColors.textMuted)),
       );
@@ -1617,9 +1644,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         crossAxisSpacing: 14,
         childAspectRatio: 0.63,
       ),
-      itemCount: _watchlistItems.length,
+      itemCount: effectiveWatchlist.length,
       itemBuilder: (ctx, i) {
-        final item = _watchlistItems[i] as Map<String, dynamic>;
+        final item = effectiveWatchlist[i];
         final tmdbId = (item['tmdbId'] as num?)?.toInt() ?? 0;
         final title = (item['title'] as String?) ??
             (item['name'] as String?) ??
@@ -1741,9 +1768,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
       ref.read(feedProvider.notifier).prependEntry(entry);
 
       if (mounted) {
-        ref.read(watchlistRepositoryProvider).removeFromWatchlist(
-          tmdbId > 0 ? tmdbId : itemId,
-        );
+        if (_isMe) {
+          ref.read(watchlistProvider.notifier).removeFromWatchlist(
+            tmdbId > 0 ? tmdbId : itemId,
+          );
+        } else {
+          ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+            tmdbId > 0 ? tmdbId : itemId,
+          );
+        }
         setState(() {
           _watchlistItems.removeWhere((it) =>
               (tmdbId > 0 && (it['tmdbId'] as num?)?.toInt() == tmdbId) ||
@@ -1828,9 +1861,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
         prefillPosterPath: (item['posterPath'] ?? item['poster_path']) as String?,
         prefillSuggestedByUserId: suggestedByUserId,
         onSuccess: () {
-          ref.read(watchlistRepositoryProvider).removeFromWatchlist(
-            tmdbId > 0 ? tmdbId : itemId,
-          );
+          if (_isMe) {
+            ref.read(watchlistProvider.notifier).removeFromWatchlist(
+              tmdbId > 0 ? tmdbId : itemId,
+            );
+          } else {
+            ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+              tmdbId > 0 ? tmdbId : itemId,
+            );
+          }
           if (mounted) {
             setState(() {
               _watchlistItems.removeWhere((it) =>
@@ -1887,9 +1926,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> with Sing
     if (!confirm || !mounted) return;
 
     try {
-      await ref.read(watchlistRepositoryProvider).removeFromWatchlist(
-        tmdbId > 0 ? tmdbId : itemId,
-      );
+      if (_isMe) {
+        await ref.read(watchlistProvider.notifier).removeFromWatchlist(
+          tmdbId > 0 ? tmdbId : itemId,
+        );
+      } else {
+        await ref.read(watchlistRepositoryProvider).removeFromWatchlist(
+          tmdbId > 0 ? tmdbId : itemId,
+        );
+      }
       if (mounted) {
         setState(() {
           _watchlistItems.removeWhere((item) =>

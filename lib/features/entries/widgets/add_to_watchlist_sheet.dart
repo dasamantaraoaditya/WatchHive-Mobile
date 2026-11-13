@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:watchhive_mobile/core/api/api_endpoints.dart';
 import 'package:watchhive_mobile/core/theme/app_colors.dart';
 import 'package:watchhive_mobile/core/utils/error_handler.dart';
-import 'package:watchhive_mobile/features/entries/repositories/watchlist_repository.dart';
+import 'package:watchhive_mobile/features/entries/providers/watchlist_provider.dart';
 import 'package:watchhive_mobile/features/profile/repositories/user_repository.dart';
 import 'package:watchhive_mobile/shared/models/user.dart';
 import 'package:watchhive_mobile/shared/widgets/wh_alert.dart';
@@ -132,7 +132,7 @@ class _AddToWatchlistSheetState extends ConsumerState<AddToWatchlistSheet> {
 
     try {
       final cleanTitle = widget.title.trim().isNotEmpty ? widget.title.trim() : 'Title';
-      await ref.read(watchlistRepositoryProvider).addToWatchlist(
+      await ref.read(watchlistProvider.notifier).addToWatchlist(
         tmdbId: widget.tmdbId,
         title: cleanTitle,
         mediaType: widget.mediaType,

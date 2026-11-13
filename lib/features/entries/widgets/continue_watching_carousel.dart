@@ -8,7 +8,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/episode_progress.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../search/repositories/search_repository.dart';
+import '../../feed/screens/feed_screen.dart';
 import '../repositories/episode_repository.dart';
+import '../screens/entries_screen.dart';
 import '../providers/continue_watching_provider.dart';
 
 class ContinueWatchingCarousel extends ConsumerStatefulWidget {
@@ -50,6 +52,8 @@ class _ContinueWatchingCarouselState extends ConsumerState<ContinueWatchingCarou
               progressPercentage: res.progressPercentage,
               nextEpisodeUp: res.nextEpisodeUp,
             );
+        ref.read(entriesProvider(true).notifier).refresh();
+        ref.read(feedProvider.notifier).refresh();
 
         widget.onProgressUpdated?.call();
 

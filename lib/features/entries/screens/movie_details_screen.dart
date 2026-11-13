@@ -20,6 +20,7 @@ import '../../../core/api/api_endpoints.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../widgets/suggest_movie_modal.dart';
 import '../repositories/watchlist_repository.dart';
+import '../providers/watchlist_provider.dart';
 import '../../rankings/widgets/add_to_stack_sheet.dart';
 import '../../feed/providers/feed_provider.dart';
 import '../widgets/platform_logo_badge.dart';
@@ -530,6 +531,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         ref.read(entriesProvider(true).notifier).refresh();
         ref.read(entriesProvider(false).notifier).refresh();
         ref.read(continueWatchingProvider.notifier).refresh();
+        ref.read(feedProvider.notifier).refresh();
 
         if (willCompleteSeries || willCompleteSeason) {
           final showTitle = (_details?['name'] ?? _details?['title'] ?? res.title).toString();
@@ -551,6 +553,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                 ref.read(entriesProvider(true).notifier).refresh();
                 ref.read(entriesProvider(false).notifier).refresh();
                 ref.read(continueWatchingProvider.notifier).refresh();
+                ref.read(feedProvider.notifier).refresh();
               },
             ),
           );
@@ -610,6 +613,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
           ref.read(entriesProvider(true).notifier).refresh();
           ref.read(entriesProvider(false).notifier).refresh();
           ref.read(continueWatchingProvider.notifier).refresh();
+          ref.read(feedProvider.notifier).refresh();
 
           // Check if this catch-up completed the season or series
           final totalShowEpisodes = (_details?['number_of_episodes'] as num?)?.toInt() ??
@@ -653,6 +657,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                   ref.read(entriesProvider(true).notifier).refresh();
                   ref.read(entriesProvider(false).notifier).refresh();
                   ref.read(continueWatchingProvider.notifier).refresh();
+                  ref.read(feedProvider.notifier).refresh();
                 },
               ),
             );
@@ -677,7 +682,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     final title = (_details?['title'] ?? _details?['name'] ?? 'Movie/Show').toString();
     try {
       if (_inWatchlist) {
-        await ref.read(watchlistRepositoryProvider).removeFromWatchlistByTmdbId(widget.tmdbId);
+        await ref.read(watchlistProvider.notifier).removeFromWatchlist(widget.tmdbId);
         setState(() => _inWatchlist = false);
         if (mounted) {
           WHAlert.showSuccess(context, 'Removed "$title" from Watchlist');
@@ -745,7 +750,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
       // Remove from watchlist if it was in watchlist
       if (_inWatchlist) {
         try {
-          await ref.read(watchlistRepositoryProvider).removeFromWatchlistByTmdbId(widget.tmdbId);
+          await ref.read(watchlistProvider.notifier).removeFromWatchlist(widget.tmdbId);
           setState(() => _inWatchlist = false);
         } catch (_) {}
       }
