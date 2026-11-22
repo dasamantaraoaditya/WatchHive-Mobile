@@ -105,21 +105,25 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   final _reviewKey = GlobalKey();
   final _locationKey = GlobalKey();
   final _suggestedByKey = GlobalKey();
+  final _watchBuddiesKey = GlobalKey();
   final _tagsKey = GlobalKey();
 
   final _searchFocusNode = FocusNode();
   final _reviewFocusNode = FocusNode();
   final _locationFocusNode = FocusNode();
   final _suggestedByFocusNode = FocusNode();
+  final _buddyFocusNode = FocusNode();
   final _tagFocusNode = FocusNode();
 
   Timer? _friendDebounce;
+  Timer? _buddyDebounce;
   Timer? _mediaDebounce;
 
   final _titleController = TextEditingController();
   final _reviewController = TextEditingController();
   final _searchController = TextEditingController();
   final _suggestedByController = TextEditingController();
+  final _buddyController = TextEditingController();
   final _locationController = TextEditingController();
   final _tagController = TextEditingController();
 
@@ -183,6 +187,12 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   bool _showFriendPicker = false;
   List<User>? _cachedFollowers;
 
+  List<User> _selectedWatchBuddies = [];
+  List<User> _buddyResults = [];
+  bool _isSearchingBuddies = false;
+  bool _showBuddyPicker = false;
+  List<User> _frequentBuddies = [];
+
   bool get isEditing => widget.editEntry != null;
 
   @override
@@ -217,6 +227,15 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       }
     });
 
+    _buddyFocusNode.addListener(() {
+      if (_buddyFocusNode.hasFocus) {
+        if (_buddyResults.isEmpty && !_isSearchingBuddies) {
+          _searchBuddies('');
+        }
+        _scrollToKey(_watchBuddiesKey, alignment: 0.05);
+      }
+    });
+
     _tagFocusNode.addListener(() {
       if (_tagFocusNode.hasFocus) {
         _scrollToKey(_tagsKey, alignment: 0.1);
@@ -225,6 +244,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
 
     if (isEditing) {
       final e = widget.editEntry!;
+      if (e.watchBuddies.isNotEmpty) {
+        _selectedWatchBuddies = List<User>.from(e.watchBuddies);
+      }
       _tmdbId = e.tmdbId;
       _titleController.text = e.title;
       _reviewController.text = e.review ?? '';
@@ -312,17 +334,20 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   @override
   void dispose() {
     _friendDebounce?.cancel();
+    _buddyDebounce?.cancel();
     _mediaDebounce?.cancel();
     _scrollController.dispose();
     _searchFocusNode.dispose();
     _reviewFocusNode.dispose();
     _locationFocusNode.dispose();
     _suggestedByFocusNode.dispose();
+    _buddyFocusNode.dispose();
     _tagFocusNode.dispose();
     _titleController.dispose();
     _reviewController.dispose();
     _searchController.dispose();
     _suggestedByController.dispose();
+    _buddyController.dispose();
     _locationController.dispose();
     _tagController.dispose();
     super.dispose();
@@ -701,6 +726,41 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     }
   }
 
+  Future<void> _searchBuddies(String query) async {
+    setState(() {
+      _isSearchingBuddies = true;
+      _showBuddyPicker = true;
+    });
+    _scrollToKey(_watchBuddiesKey, alignment: 0.05);
+    try {
+      final results = await ref.read(userRepositoryProvider).getTaggableFriends(query: query, limit: 15);
+      if (mounted) {
+        setState(() {
+          _buddyResults = results;
+          if (query.trim().isEmpty && _frequentBuddies.isEmpty) {
+            _frequentBuddies = results.take(5).toList();
+          }
+          _isSearchingBuddies = false;
+        });
+        _scrollToKey(_watchBuddiesKey, alignment: 0.05);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isSearchingBuddies = false);
+    }
+  }
+
+  void _toggleBuddy(User user) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      final idx = _selectedWatchBuddies.indexWhere((u) => u.id == user.id);
+      if (idx >= 0) {
+        _selectedWatchBuddies.removeAt(idx);
+      } else {
+        _selectedWatchBuddies.add(user);
+      }
+    });
+  }
+
   void _addTag([String? customTag]) {
     final t = (customTag ?? _tagController.text).trim().replaceAll('#', '');
     if (t.isNotEmpty && !_tags.contains(t)) {
@@ -873,6 +933,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         if (!_isWatching && _hasWatchedDate) 'completedAt': _watchedDate.toUtc().toIso8601String(),
         if (_suggestedByUserId != null && _suggestedByUserId!.trim().isNotEmpty)
           'suggestedByUserId': _suggestedByUserId!.trim(),
+        if (_selectedWatchBuddies.isNotEmpty)
+          'watchBuddyIds': _selectedWatchBuddies.map((u) => u.id).toList(),
         if (poster != null && poster.isNotEmpty) 'posterPath': poster,
         if (backdrop != null && backdrop.isNotEmpty) 'backdropPath': backdrop,
       };
@@ -2523,6 +2585,243 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                   ],
                                 ],
                               ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      KeyedSubtree(
+                        key: _watchBuddiesKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _SectionHeader(title: 'Watched With', subtitle: 'Tag friends you watched this title with'),
+                            const SizedBox(height: 8),
+
+                            // Selected Watch Buddies Chips
+                            if (_selectedWatchBuddies.isNotEmpty) ...[
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _selectedWatchBuddies.map((buddy) {
+                                  final name = buddy.displayName?.trim().isNotEmpty == true
+                                      ? buddy.displayName!.trim()
+                                      : buddy.username;
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        WHAvatar(
+                                          imageUrl: buddy.profilePictureUrl,
+                                          name: name,
+                                          radius: 10,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          name,
+                                          style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        GestureDetector(
+                                          onTap: () => _toggleBuddy(buddy),
+                                          child: const Icon(Icons.close_rounded, size: 16, color: AppColors.textPrimary),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+
+                            // Quick Frequent Buddies Chips
+                            if (_frequentBuddies.where((fb) => !_selectedWatchBuddies.any((sb) => sb.id == fb.id)).isNotEmpty) ...[
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  const Text(
+                                    'Quick Tag: ',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                  ..._frequentBuddies
+                                      .where((fb) => !_selectedWatchBuddies.any((sb) => sb.id == fb.id))
+                                      .take(4)
+                                      .map((buddy) {
+                                    final name = buddy.displayName?.trim().isNotEmpty == true
+                                        ? buddy.displayName!.trim()
+                                        : buddy.username;
+                                    return GestureDetector(
+                                      onTap: () => _toggleBuddy(buddy),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surface,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: AppColors.border),
+                                        ),
+                                        child: Text(
+                                          '+ $name',
+                                          style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+
+                            // Search friends input
+                            Container(
+                              decoration: BoxDecoration(color: AppColors.surfaceElevated, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
+                              child: TextField(
+                                controller: _buddyController,
+                                focusNode: _buddyFocusNode,
+                                textInputAction: TextInputAction.next,
+                                onSubmitted: (_) => _tagFocusNode.requestFocus(),
+                                style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.textPrimary),
+                                onChanged: (val) {
+                                  _buddyDebounce?.cancel();
+                                  _buddyDebounce = Timer(const Duration(milliseconds: 250), () => _searchBuddies(val));
+                                },
+                                onTap: () {
+                                  if (_buddyResults.isEmpty && !_isSearchingBuddies) {
+                                    _searchBuddies('');
+                                  }
+                                  _scrollToKey(_watchBuddiesKey, alignment: 0.05);
+                                },
+                                decoration: InputDecoration(
+                                  hintText: 'Search friends to tag who you watched with…',
+                                  hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                                  prefixIcon: const Icon(Icons.group_add_rounded, color: Colors.amber, size: 20),
+                                  suffixIcon: _isSearchingBuddies
+                                      ? const Padding(padding: EdgeInsets.all(12), child: WHBeeSpinner(size: 16))
+                                      : _buddyController.text.isNotEmpty
+                                          ? IconButton(
+                                              icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textMuted),
+                                              onPressed: () {
+                                                _buddyController.clear();
+                                                _searchBuddies('');
+                                              },
+                                            )
+                                          : null,
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                ),
+                              ),
+                            ),
+                            if (_isSearchingBuddies) ...[
+                              const SizedBox(height: 6),
+                              const WHSkeletonUserList(count: 2),
+                            ] else if (_showBuddyPicker && _buddyResults.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                constraints: const BoxConstraints(maxHeight: 180),
+                                decoration: BoxDecoration(color: AppColors.surfaceElevated, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 12, offset: const Offset(0, 4))]),
+                                child: ListView.separated(
+                                  shrinkWrap: true,
+                                  padding: const EdgeInsets.all(6),
+                                  itemCount: _buddyResults.length,
+                                  separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
+                                  itemBuilder: (ctx, i) {
+                                    final user = _buddyResults[i];
+                                    final isSelected = _selectedWatchBuddies.any((u) => u.id == user.id);
+                                    return InkWell(
+                                      borderRadius: BorderRadius.circular(10),
+                                      onTap: () {
+                                        _toggleBuddy(user);
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 14,
+                                              backgroundColor: AppColors.primary,
+                                              backgroundImage: user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty ? NetworkImage(user.profilePictureUrl!) : null,
+                                              child: user.profilePictureUrl == null || user.profilePictureUrl!.isEmpty ? Text((user.displayName ?? user.username)[0].toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black)) : null,
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(user.displayName ?? user.username, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                                                  Text('@${user.username}', style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.textMuted)),
+                                                ],
+                                              ),
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: isSelected ? AppColors.primary : AppColors.surface,
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
+                                              ),
+                                              child: Text(
+                                                isSelected ? '✓ Tagged' : '+ Tag',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isSelected ? Colors.black : AppColors.textSecondary,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ] else if (_showBuddyPicker && !_isSearchingBuddies && _buddyResults.isEmpty) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceElevated,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.person_off_rounded, size: 16, color: AppColors.textMuted),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _buddyController.text.isNotEmpty
+                                            ? 'No friends found for "${_buddyController.text.trim()}".'
+                                            : 'No friends found in your hive yet.',
+                                        style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.textMuted),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

@@ -357,6 +357,10 @@ class _ContinueWatchingPoster extends ConsumerWidget {
         child: posterUrl.isNotEmpty
             ? CachedNetworkImage(
                 imageUrl: posterUrl,
+                memCacheWidth: 150,
+                memCacheHeight: 200,
+                maxWidthDiskCache: 150,
+                maxHeightDiskCache: 200,
                 fit: BoxFit.cover,
                 placeholder: (_, __) => Container(
                   color: AppColors.surfaceElevated,

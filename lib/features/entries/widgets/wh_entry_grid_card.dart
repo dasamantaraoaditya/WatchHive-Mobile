@@ -179,6 +179,8 @@ class WHEntryGridCard extends ConsumerWidget {
                     child: posterUrl.isNotEmpty
                         ? CachedNetworkImage(
                             imageUrl: posterUrl,
+                            memCacheWidth: 400,
+                            maxWidthDiskCache: 400,
                             fit: BoxFit.cover,
                             placeholder: (context, url) => Shimmer.fromColors(
                               baseColor: AppColors.surfaceElevated,

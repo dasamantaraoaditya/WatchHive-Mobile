@@ -331,6 +331,73 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                           ),
                         ),
                       ],
+
+                      // Watched With Row (If applicable)
+                      if (entry.watchBuddies.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.group_rounded, size: 13, color: AppColors.primary),
+                                SizedBox(width: 3),
+                                Text(
+                                  'Watched with ',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            ...entry.watchBuddies.map((buddy) {
+                              final name = buddy.displayName?.trim().isNotEmpty == true
+                                  ? buddy.displayName!.trim()
+                                  : buddy.username;
+                              return GestureDetector(
+                                onTap: () {
+                                  if (buddy.id.isNotEmpty) {
+                                    context.push('/profile/${buddy.id}');
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.14),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      WHAvatar(
+                                        imageUrl: buddy.profilePictureUrl,
+                                        name: name,
+                                        radius: 7,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '@${buddy.username}',
+                                        style: const TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -904,6 +971,8 @@ class FeedMediaHeroBanner extends ConsumerWidget {
               Positioned.fill(
                 child: CachedNetworkImage(
                   imageUrl: imageUrl,
+                  memCacheWidth: 720,
+                  maxWidthDiskCache: 720,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Shimmer.fromColors(
                     baseColor: AppColors.surfaceElevated,
