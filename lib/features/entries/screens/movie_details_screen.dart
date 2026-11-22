@@ -277,27 +277,34 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
     }
   }
 
-  Future<void> _checkUserEntry() async {
+  Future<void> _checkUserEntry({bool force = false}) async {
     try {
       final currentUser = ref.read(authStateProvider).value?.user;
       final title = _details?['title'] as String? ?? _details?['name'] as String?;
 
-      if (_loggedEntry == null) {
+      if (force || _loggedEntry == null || _isMyEntry) {
         final entry = await ref.read(entriesRepositoryProvider).getEntryForTmdbId(
           widget.tmdbId,
+          userId: currentUser?.id,
           title: title,
         );
-        if (mounted && entry != null) {
-          final effectiveEntry = (entry.suggestedByUser == null && widget.suggestedByUser != null)
-              ? entry.copyWith(
-                  suggestedByUser: widget.suggestedByUser,
-                  suggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id,
-                )
-              : entry;
-          setState(() {
-            _loggedEntry = effectiveEntry;
-            _authorUser = effectiveEntry.user ?? currentUser;
-          });
+        if (mounted) {
+          if (entry != null) {
+            final effectiveEntry = (entry.suggestedByUser == null && widget.suggestedByUser != null)
+                ? entry.copyWith(
+                    suggestedByUser: widget.suggestedByUser,
+                    suggestedByUserId: widget.suggestedByUserId ?? widget.suggestedByUser?.id,
+                  )
+                : entry;
+            setState(() {
+              _loggedEntry = effectiveEntry;
+              _authorUser = effectiveEntry.user ?? currentUser;
+            });
+          } else if (force) {
+            setState(() {
+              _loggedEntry = null;
+            });
+          }
         }
       } else if (currentUser != null && _loggedEntry!.userId != currentUser.id) {
         final myEntry = await ref.read(entriesRepositoryProvider).getEntryForTmdbId(
@@ -550,7 +557,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
               prefillSeason: seasonNum,
               prefillIsWatching: false,
               onSuccess: () {
-                _checkUserEntry();
+                _checkUserEntry(force: true);
                 ref.read(entriesProvider(true).notifier).refresh();
                 ref.read(entriesProvider(false).notifier).refresh();
                 ref.read(continueWatchingProvider.notifier).refresh();
@@ -655,7 +662,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
                 prefillSeason: seasonNum,
                 prefillIsWatching: false,
                 onSuccess: () {
-                  _checkUserEntry();
+                  _checkUserEntry(force: true);
                   ref.read(entriesProvider(true).notifier).refresh();
                   ref.read(entriesProvider(false).notifier).refresh();
                   ref.read(continueWatchingProvider.notifier).refresh();
@@ -817,7 +824,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
         prefillSuggestedByUserId: _effectiveSuggestorId,
         prefillIsWatching: completeWatch ? false : null,
         onSuccess: () {
-          _checkUserEntry();
+          _checkUserEntry(force: true);
           ref.read(entriesProvider(true).notifier).refresh();
           ref.read(entriesProvider(false).notifier).refresh();
           ref.read(continueWatchingProvider.notifier).refresh();
