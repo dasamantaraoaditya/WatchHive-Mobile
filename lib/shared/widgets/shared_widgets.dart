@@ -43,6 +43,10 @@ class TMDBPosterImage extends StatelessWidget {
               imageUrl: url,
               width: width,
               height: height,
+              memCacheWidth: (width * 3).toInt().clamp(60, 600),
+              memCacheHeight: (height * 3).toInt().clamp(90, 900),
+              maxWidthDiskCache: 600,
+              maxHeightDiskCache: 900,
               fit: BoxFit.cover,
               placeholder: (context, url) => _shimmer(),
               errorWidget: (context, url, error) => _placeholder(),
@@ -94,8 +98,13 @@ class WHAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolvedUrl = ApiEndpoints.resolveAvatarUrl(imageUrl);
     if (resolvedUrl.isNotEmpty) {
+      final pixelSize = (radius * 4).toInt().clamp(64, 256);
       return CachedNetworkImage(
         imageUrl: resolvedUrl,
+        memCacheWidth: pixelSize,
+        memCacheHeight: pixelSize,
+        maxWidthDiskCache: 256,
+        maxHeightDiskCache: 256,
         imageBuilder: (context, imageProvider) => CircleAvatar(
           radius: radius,
           backgroundImage: imageProvider,

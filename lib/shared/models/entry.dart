@@ -37,6 +37,7 @@ class Entry {
   final int? currentEpisode;
   final int totalEpisodesWatched;
   final int? totalEpisodesCount;
+  final List<User> watchBuddies;
 
   const Entry({
     required this.id,
@@ -59,6 +60,7 @@ class Entry {
     this.currentEpisode,
     this.totalEpisodesWatched = 0,
     this.totalEpisodesCount,
+    this.watchBuddies = const [],
     this.watchLocation,
     required this.createdAt,
     this.updatedAt,
@@ -240,6 +242,11 @@ class Entry {
       isSuggestion: isSuggestion,
       suggestionReason: reason,
       postToFeed: dataMap['postToFeed'] as bool? ?? dataMap['post_to_feed'] as bool? ?? true,
+      watchBuddies: (dataMap['watchBuddies'] as List<dynamic>?)
+              ?.whereType<Map<String, dynamic>>()
+              .map((e) => User.fromJson(e))
+              .toList() ??
+          const [],
     );
   }
 
@@ -264,6 +271,7 @@ class Entry {
     int? currentEpisode,
     int? totalEpisodesWatched,
     int? totalEpisodesCount,
+    List<User>? watchBuddies,
     String? watchLocation,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -302,6 +310,7 @@ class Entry {
       currentEpisode: currentEpisode ?? this.currentEpisode,
       totalEpisodesWatched: totalEpisodesWatched ?? this.totalEpisodesWatched,
       totalEpisodesCount: totalEpisodesCount ?? this.totalEpisodesCount,
+      watchBuddies: watchBuddies ?? this.watchBuddies,
       watchLocation: watchLocation ?? this.watchLocation,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -375,5 +384,6 @@ class Entry {
         if (backdropPath != null) 'backdropPath': backdropPath,
         'isSuggestion': isSuggestion,
         if (suggestionReason != null) 'suggestionReason': suggestionReason,
+        if (watchBuddies.isNotEmpty) 'watchBuddies': watchBuddies.map((u) => u.toJson()).toList(),
       };
 }

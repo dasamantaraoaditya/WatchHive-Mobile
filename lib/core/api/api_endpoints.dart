@@ -96,6 +96,7 @@ class ApiEndpoints {
   static String user(String id) => '/users/$id';
   static const String searchUsers = '/users/search';
   static const String suggestedUsers = '/users/suggested';
+  static const String taggableFriends = '/users/taggable-friends';
   static const String myAvatar = '/users/me/avatar';
   static String updateAvatar(String id) => '/users/$id/avatar';
   static String updateProfile(String id) => '/users/$id';

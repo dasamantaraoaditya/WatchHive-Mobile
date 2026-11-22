@@ -322,6 +322,31 @@ class UserRepository {
     }).toList();
   }
 
+  /// Get taggable friends (recent watch buddies + followed users)
+  Future<List<User>> getTaggableFriends({String query = '', int limit = 15}) async {
+    try {
+      final response = await _api.get(
+        ApiEndpoints.taggableFriends,
+        queryParameters: {
+          if (query.trim().isNotEmpty) 'q': query.trim().replaceAll('@', ''),
+          'limit': limit,
+        },
+      );
+      final data = response.data;
+      final List<dynamic> list;
+      if (data is List) {
+        list = data;
+      } else if (data is Map<String, dynamic> && data['data'] is List) {
+        list = data['data'] as List;
+      } else {
+        list = [];
+      }
+      return list.whereType<Map<String, dynamic>>().map((item) => User.fromJson(item)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
   /// Get list of users the given user is following
   Future<List<User>> getFollowing(String userId, {int limit = 100, String? query}) async {
     final response = await _api.get(

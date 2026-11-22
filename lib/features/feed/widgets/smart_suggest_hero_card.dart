@@ -26,8 +26,8 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
   final Map<String, int> _currentIndexByMode = {};
   final Map<String, bool> _isLoadingByMode = {
     'social': true,
-    'watchlist': true,
-    'explore': true,
+    'watchlist': false,
+    'explore': false,
   };
   bool _isDismissed = false;
   final Set<int> _watchlistedIds = {};
@@ -36,9 +36,10 @@ class _SmartSuggestHeroCardState extends ConsumerState<SmartSuggestHeroCard> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
+    // Eagerly fetch only the primary 'social' mode on cold boot.
+    // 'watchlist' and 'explore' are lazy-loaded on-demand when the user swipes or switches modes,
+    // avoiding cold-start network congestion and backend TMDb thread starvation.
     _fetchPicksForMode('social');
-    _fetchPicksForMode('watchlist');
-    _fetchPicksForMode('explore');
   }
 
   @override
