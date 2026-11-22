@@ -542,6 +542,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
             useRootNavigator: true,
             backgroundColor: Colors.transparent,
             builder: (_) => AddEntrySheet(
+              editEntry: _isMyEntry ? _loggedEntry : _myOwnEntry,
               prefillTmdbId: widget.tmdbId,
               prefillType: 'TV_SHOW',
               prefillTitle: showTitle,
@@ -646,6 +647,7 @@ class _MovieDetailsScreenState extends ConsumerState<MovieDetailsScreen> {
               useRootNavigator: true,
               backgroundColor: Colors.transparent,
               builder: (_) => AddEntrySheet(
+                editEntry: _isMyEntry ? _loggedEntry : _myOwnEntry,
                 prefillTmdbId: widget.tmdbId,
                 prefillType: 'TV_SHOW',
                 prefillTitle: showTitle,
