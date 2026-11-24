@@ -28,6 +28,7 @@ class WatchlistTab extends ConsumerStatefulWidget {
 class _WatchlistTabState extends ConsumerState<WatchlistTab> {
   String? _watchlistId;
   String _searchQuery = '';
+  String? _typeFilter;
   String _sortBy = 'recent-desc';
 
   static const _watchlistSortOptions = [
@@ -295,8 +296,15 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
     _watchlistId = wlState.watchlistId;
 
     final filteredItems = items.where((raw) {
-      if (_searchQuery.isEmpty) return true;
       final item = raw;
+      if (_typeFilter != null) {
+        final rawType = (item['type'] ?? item['mediaType'] ?? item['media_type'] ?? '')
+            .toString()
+            .toUpperCase();
+        if (_typeFilter == 'MOVIE' && !rawType.contains('MOVIE')) return false;
+        if (_typeFilter == 'TV_SHOW' && (!rawType.contains('TV') && !rawType.contains('SERIES'))) return false;
+      }
+      if (_searchQuery.isEmpty) return true;
       final title = (item['title'] as String? ?? '').toLowerCase();
       final user = item['suggestedByUser'] as Map<String, dynamic>?;
       final suggestor = (user?['username'] as String? ?? item['suggestedByUsername'] as String? ?? '').toLowerCase();
@@ -325,6 +333,8 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
       return 0;
     });
 
+    final hasActiveFilter = _searchQuery.trim().isNotEmpty || _typeFilter != null;
+
     return Column(
       children: [
         WHFilterBar(
@@ -334,8 +344,10 @@ class _WatchlistTabState extends ConsumerState<WatchlistTab> {
           sortBy: _sortBy,
           sortOptions: _watchlistSortOptions,
           onSortChanged: (val) => setState(() => _sortBy = val),
+          typeFilter: _typeFilter,
+          onTypeFilterChanged: (val) => setState(() => _typeFilter = val),
           count: filteredItems.length,
-          countLabel: _searchQuery.isNotEmpty ? 'Matching Titles' : 'Saved Titles',
+          countLabel: hasActiveFilter ? 'Matching Titles' : 'Saved Titles',
         ),
         Expanded(
           child: isLoading && items.isEmpty
