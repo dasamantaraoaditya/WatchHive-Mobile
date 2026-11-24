@@ -93,12 +93,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               !iosClientId.contains('your_google_ios_client_id'))
           ? iosClientId
           : null;
+      final effectiveServerClientId = isApplePlatform ? null : effectiveClientId;
 
-      debugPrint('[GoogleSignIn] Starting Google Sign-In with serverClientId=$effectiveClientId, clientId=$effectiveIosClientId');
+      debugPrint('[GoogleSignIn] Starting Google Sign-In with serverClientId=$effectiveServerClientId, clientId=$effectiveIosClientId');
 
       final googleSignIn = GoogleSignIn(
         clientId: effectiveIosClientId,
-        serverClientId: effectiveClientId,
+        serverClientId: effectiveServerClientId,
         scopes: const ['email', 'profile'],
       );
 

@@ -1,6 +1,1 @@
-import Flutter
-import UIKit
-
-class SceneDelegate: FlutterSceneDelegate {
-
-}
+// SceneDelegate disabled to preserve standard UIApplicationDelegate lifecycle for Flutter plugins (Google Sign-In, Deep Links).
