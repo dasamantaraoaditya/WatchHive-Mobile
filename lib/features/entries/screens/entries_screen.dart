@@ -52,6 +52,7 @@ class EntriesState {
     bool? isLoadingMore,
     bool? hasMore,
     String? typeFilter,
+    bool clearTypeFilter = false,
     String? searchQuery,
     String? sortBy,
     String? order,
@@ -64,7 +65,7 @@ class EntriesState {
         isLoading: isLoading ?? this.isLoading,
         isLoadingMore: isLoadingMore ?? this.isLoadingMore,
         hasMore: hasMore ?? this.hasMore,
-        typeFilter: typeFilter ?? this.typeFilter,
+        typeFilter: clearTypeFilter ? null : (typeFilter ?? this.typeFilter),
         searchQuery: searchQuery ?? this.searchQuery,
         sortBy: sortBy ?? this.sortBy,
         order: order ?? this.order,
@@ -95,11 +96,12 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
 
   Future<void> loadEntries({
     String? type,
+    bool clearType = false,
     String? search,
     String? sortBy,
     String? order,
   }) async {
-    final finalType = type ?? state.typeFilter;
+    final finalType = clearType ? null : (type ?? state.typeFilter);
     final finalSearch = search ?? state.searchQuery;
     final finalSortBy = sortBy ?? state.sortBy;
     final finalOrder = order ?? state.order;
@@ -108,6 +110,7 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
       isLoading: true,
       clearError: true,
       typeFilter: finalType,
+      clearTypeFilter: clearType,
       searchQuery: finalSearch,
       sortBy: finalSortBy,
       order: finalOrder,
@@ -122,12 +125,21 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
         limit: _pageSize,
         offset: 0,
       );
-      final fetchedIds = result.entries.map((e) => e.id).toSet();
-      final pendingEntries = state.entries
-          .where((e) => !fetchedIds.contains(e.id) && e.isWatching == isWatching)
-          .toList();
+
+      // Only retain genuine unsynced offline entries that match the current filters
+      final pendingSyncEntries = state.entries.where((e) {
+        if (!e.isPendingSync) return false;
+        if (e.isWatching != isWatching) return false;
+        if (finalType != null && e.type != finalType) return false;
+        if (finalSearch.trim().isNotEmpty &&
+            !e.title.toLowerCase().contains(finalSearch.trim().toLowerCase())) {
+          return false;
+        }
+        return true;
+      }).toList();
+
       state = state.copyWith(
-        entries: [...pendingEntries, ...result.entries],
+        entries: [...pendingSyncEntries, ...result.entries],
         isLoading: false,
         hasMore: result.pagination.hasMore,
         clearError: true,
@@ -148,12 +160,20 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
         limit: _pageSize,
         offset: 0,
       );
-      final fetchedIds = result.entries.map((e) => e.id).toSet();
-      final pendingEntries = state.entries
-          .where((e) => !fetchedIds.contains(e.id) && e.isWatching == isWatching)
-          .toList();
+
+      final pendingSyncEntries = state.entries.where((e) {
+        if (!e.isPendingSync) return false;
+        if (e.isWatching != isWatching) return false;
+        if (state.typeFilter != null && e.type != state.typeFilter) return false;
+        if (state.searchQuery.trim().isNotEmpty &&
+            !e.title.toLowerCase().contains(state.searchQuery.trim().toLowerCase())) {
+          return false;
+        }
+        return true;
+      }).toList();
+
       state = state.copyWith(
-        entries: [...pendingEntries, ...result.entries],
+        entries: [...pendingSyncEntries, ...result.entries],
         isLoading: false,
         hasMore: result.pagination.hasMore,
         clearError: true,
@@ -167,6 +187,7 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
     if (!state.hasMore || state.isLoadingMore || state.isLoading) return;
     state = state.copyWith(isLoadingMore: true);
     try {
+      final serverEntriesCount = state.entries.where((e) => !e.isPendingSync).length;
       final result = await _repo.getEntries(
         type: state.typeFilter,
         search: state.searchQuery.trim().isNotEmpty ? state.searchQuery.trim() : null,
@@ -174,16 +195,23 @@ class EntriesNotifier extends StateNotifier<EntriesState> {
         order: state.order,
         isWatching: isWatching,
         limit: _pageSize,
-        offset: state.entries.length,
+        offset: serverEntriesCount,
       );
+      final existingIds = state.entries.map((e) => e.id).toSet();
+      final newEntries = result.entries.where((e) => !existingIds.contains(e.id)).toList();
       state = state.copyWith(
-        entries: [...state.entries, ...result.entries],
+        entries: [...state.entries, ...newEntries],
         isLoadingMore: false,
         hasMore: result.pagination.hasMore,
       );
     } catch (_) {
       state = state.copyWith(isLoadingMore: false);
     }
+  }
+
+  void setTypeFilter(String? type) {
+    if (state.typeFilter == type) return;
+    loadEntries(type: type, clearType: type == null);
   }
 
   void setSearch(String query) {
@@ -383,6 +411,7 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _search = ref.read(entriesProvider(widget.isWatching)).searchQuery;
   }
 
   void _onScroll() {
@@ -430,6 +459,7 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
     final state = ref.watch(entriesProvider(widget.isWatching));
     final sortKey = '${state.sortBy}-${state.order}';
     final sortOptions = widget.isWatching ? _watchingSortOptions : _historySortOptions;
+    final hasActiveFilter = _search.trim().isNotEmpty || state.typeFilter != null;
 
     return Column(
       children: [
@@ -448,10 +478,14 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
           sortBy: sortKey,
           sortOptions: sortOptions,
           onSortChanged: _onSortChanged,
+          typeFilter: state.typeFilter,
+          onTypeFilterChanged: (type) {
+            ref.read(entriesProvider(widget.isWatching).notifier).setTypeFilter(type);
+          },
           count: state.entries.length,
           countLabel: widget.isWatching
-              ? (_search.isNotEmpty ? 'Matching Sessions' : 'Active Sessions')
-              : (_search.isNotEmpty ? 'Matching Titles' : 'Logged Titles'),
+              ? (hasActiveFilter ? 'Matching Sessions' : 'Active Sessions')
+              : (hasActiveFilter ? 'Matching Titles' : 'Logged Titles'),
           isLoading: state.isLoading && state.entries.isNotEmpty,
         ),
 
@@ -510,6 +544,13 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
                               child: _EmptyEntries(
                                 isWatching: widget.isWatching,
                                 searchQuery: _search,
+                                typeFilter: state.typeFilter,
+                                onClearFilters: hasActiveFilter
+                                    ? () {
+                                        _onSearchChanged('');
+                                        ref.read(entriesProvider(widget.isWatching).notifier).setTypeFilter(null);
+                                      }
+                                    : null,
                               ),
                             ),
                           ),
@@ -635,35 +676,72 @@ class _EntriesListTabState extends ConsumerState<_EntriesListTab>
 class _EmptyEntries extends StatelessWidget {
   final bool isWatching;
   final String searchQuery;
+  final String? typeFilter;
+  final VoidCallback? onClearFilters;
 
   const _EmptyEntries({
     required this.isWatching,
     this.searchQuery = '',
+    this.typeFilter,
+    this.onClearFilters,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (searchQuery.isNotEmpty) {
+    final hasActiveFilter = searchQuery.trim().isNotEmpty || typeFilter != null;
+
+    if (hasActiveFilter) {
+      String subtitle = 'No matching entries found';
+      if (searchQuery.trim().isNotEmpty && typeFilter != null) {
+        final typeName = typeFilter == 'MOVIE' ? 'movies' : 'TV shows';
+        subtitle = 'No $typeName found matching "$searchQuery"';
+      } else if (searchQuery.trim().isNotEmpty) {
+        subtitle = 'We couldn\'t find any entries matching "$searchQuery"';
+      } else if (typeFilter != null) {
+        final typeName = typeFilter == 'MOVIE' ? 'movies' : 'TV shows';
+        subtitle = 'You haven\'t logged any $typeName in this view yet.';
+      }
+
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.search_off_rounded, size: 56, color: AppColors.textMuted),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Text(
-            isWatching ? 'No matching sessions' : 'No matching watch history',
+            isWatching ? 'No matching sessions' : 'No matching entries',
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 20,
+              fontSize: 19,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'We couldn\'t find any entries matching "$searchQuery"',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary, height: 1.4),
+            ),
           ),
+          if (onClearFilters != null) ...[
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: onClearFilters,
+              icon: const Icon(Icons.clear_all_rounded, size: 18),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.textPrimary,
+                side: const BorderSide(color: AppColors.primary, width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+              label: const Text(
+                'Clear All Filters',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+              ),
+            ),
+          ],
         ],
       );
     }
