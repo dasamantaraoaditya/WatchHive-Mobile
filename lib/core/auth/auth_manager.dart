@@ -9,6 +9,18 @@ final authManagerProvider = Provider<AuthManager>((ref) {
   return AuthManager();
 });
 
+/// Outcome of attempting to refresh JWT tokens.
+enum TokenRefreshResult {
+  /// Token refreshed and saved successfully.
+  success,
+
+  /// Token was rejected by backend as invalid, expired, or revoked (HTTP 401/403).
+  invalidToken,
+
+  /// Refresh failed due to network connectivity issues or transient server errors.
+  networkError,
+}
+
 /// Manages JWT access/refresh token storage and silent token refresh.
 class AuthManager {
   static const _accessTokenKey = 'wh_access_token';
@@ -22,6 +34,7 @@ class AuthManager {
 
   // --- In-Memory Fast Cache ---
   String? _cachedAccessToken;
+  String? _cachedRefreshToken;
   User? _cachedUser;
 
   // --- Token Accessors ---
@@ -34,13 +47,20 @@ class AuthManager {
     return _cachedAccessToken;
   }
 
-  Future<String?> getRefreshToken() => _storage.read(key: _refreshTokenKey);
+  Future<String?> getRefreshToken() async {
+    if (_cachedRefreshToken != null && _cachedRefreshToken!.isNotEmpty) {
+      return _cachedRefreshToken;
+    }
+    _cachedRefreshToken = await _storage.read(key: _refreshTokenKey);
+    return _cachedRefreshToken;
+  }
 
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
   }) async {
     _cachedAccessToken = accessToken;
+    _cachedRefreshToken = refreshToken;
     await Future.wait([
       _storage.write(key: _accessTokenKey, value: accessToken),
       _storage.write(key: _refreshTokenKey, value: refreshToken),
@@ -81,6 +101,7 @@ class AuthManager {
 
   Future<void> logout() async {
     _cachedAccessToken = null;
+    _cachedRefreshToken = null;
     _cachedUser = null;
     await Future.wait([
       _storage.delete(key: _accessTokenKey),
@@ -89,12 +110,12 @@ class AuthManager {
     ]);
   }
 
-  Future<bool>? _ongoingRefresh;
+  Future<TokenRefreshResult>? _ongoingRefresh;
 
   /// Attempts to silently refresh the access token using the stored refresh token.
   /// Deduplicates concurrent calls so only one HTTP refresh is executed.
-  /// Returns true on success, false on failure.
-  Future<bool> refreshTokens() async {
+  /// Returns [TokenRefreshResult.success], [TokenRefreshResult.invalidToken], or [TokenRefreshResult.networkError].
+  Future<TokenRefreshResult> refreshTokens() async {
     if (_ongoingRefresh != null) {
       return _ongoingRefresh!;
     }
@@ -106,15 +127,17 @@ class AuthManager {
     }
   }
 
-  Future<bool> _executeRefresh() async {
+  Future<TokenRefreshResult> _executeRefresh() async {
     try {
       final refreshToken = await getRefreshToken();
-      if (refreshToken == null || refreshToken.isEmpty) return false;
+      if (refreshToken == null || refreshToken.isEmpty) {
+        return TokenRefreshResult.invalidToken;
+      }
 
       final dio = Dio(BaseOptions(
         baseUrl: ApiEndpoints.baseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
       ));
       final response = await dio.post(
         ApiEndpoints.refreshToken,
@@ -127,11 +150,19 @@ class AuthManager {
           accessToken: data['accessToken'] as String,
           refreshToken: data['refreshToken'] as String,
         );
-        return true;
+        return TokenRefreshResult.success;
       }
-      return false;
+      return TokenRefreshResult.invalidToken;
+    } on DioException catch (dioErr) {
+      final status = dioErr.response?.statusCode;
+      // 401 or 403 explicitly indicates the refresh token is expired, revoked, or invalid
+      if (status == 401 || status == 403) {
+        return TokenRefreshResult.invalidToken;
+      }
+      // Any other HTTP code or timeout/connection drop is a network/transient issue
+      return TokenRefreshResult.networkError;
     } catch (_) {
-      return false;
+      return TokenRefreshResult.networkError;
     }
   }
 }

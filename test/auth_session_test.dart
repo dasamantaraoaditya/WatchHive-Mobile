@@ -104,6 +104,33 @@ void main() {
       expect(refresh, isNull);
       expect(hasSession, isFalse);
     });
+
+    test('refreshTokens returns TokenRefreshResult.invalidToken when no refresh token stored', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final authManager = AuthManager();
+      final result = await authManager.refreshTokens();
+      expect(result, equals(TokenRefreshResult.invalidToken));
+    });
+
+    test('getRefreshToken uses and clears in-memory cache properly', () async {
+      FlutterSecureStorage.setMockInitialValues({
+        'wh_access_token': 'access_abc',
+        'wh_refresh_token': 'refresh_xyz',
+      });
+      final authManager = AuthManager();
+
+      // First read: reads from storage and warms in-memory cache
+      final token1 = await authManager.getRefreshToken();
+      expect(token1, equals('refresh_xyz'));
+
+      // If storage were cleared underneath, memory cache still provides it
+      await authManager.saveTokens(accessToken: 'new_access', refreshToken: 'new_refresh');
+      expect(await authManager.getRefreshToken(), equals('new_refresh'));
+
+      // On logout, memory cache is also cleared
+      await authManager.logout();
+      expect(await authManager.getRefreshToken(), isNull);
+    });
   });
 
   group('AuthNotifier Session Resilience Tests', () {

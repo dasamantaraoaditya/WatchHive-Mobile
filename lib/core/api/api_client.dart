@@ -77,7 +77,7 @@ class ApiClient {
 class _AuthInterceptor extends Interceptor {
   final AuthManager _authManager;
   final Dio _dio;
-  Completer<bool>? _refreshCompleter;
+  Completer<TokenRefreshResult>? _refreshCompleter;
 
   _AuthInterceptor(this._authManager, this._dio);
 
@@ -104,12 +104,19 @@ class _AuthInterceptor extends Interceptor {
     // If another request is currently refreshing tokens, await its completion
     if (_refreshCompleter != null) {
       try {
-        final refreshed = await _refreshCompleter!.future;
-        if (refreshed) {
+        final result = await _refreshCompleter!.future;
+        if (result == TokenRefreshResult.success) {
           final newToken = await _authManager.getAccessToken();
           err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
           final response = await _dio.fetch(err.requestOptions);
           return handler.resolve(response);
+        } else if (result == TokenRefreshResult.networkError) {
+          // Pass connection error so caller knows network failed, not that auth is permanently revoked
+          return handler.next(DioException(
+            requestOptions: err.requestOptions,
+            type: DioExceptionType.connectionError,
+            error: 'Network connectivity lost during authentication refresh.',
+          ));
         }
       } on DioException catch (retryErr) {
         return handler.next(retryErr);
@@ -117,31 +124,43 @@ class _AuthInterceptor extends Interceptor {
       return handler.next(err);
     }
 
-    final completer = Completer<bool>();
+    final completer = Completer<TokenRefreshResult>();
     _refreshCompleter = completer;
 
     try {
-      final refreshed = await _authManager.refreshTokens();
-      completer.complete(refreshed);
+      final result = await _authManager.refreshTokens();
+      completer.complete(result);
 
-      if (refreshed) {
+      if (result == TokenRefreshResult.success) {
         final newToken = await _authManager.getAccessToken();
         err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
         final response = await _dio.fetch(err.requestOptions);
         return handler.resolve(response);
-      } else {
+      } else if (result == TokenRefreshResult.invalidToken) {
+        // Token was rejected with 401/403: genuinely invalid/revoked session
         await _authManager.logout();
+        return handler.next(err);
+      } else {
+        // TokenRefreshResult.networkError:
+        // DO NOT log out! The stored refresh token remains valid for offline/reconnect.
+        return handler.next(DioException(
+          requestOptions: err.requestOptions,
+          type: DioExceptionType.connectionError,
+          error: 'Network connectivity lost during authentication refresh.',
+        ));
       }
     } on DioException catch (retryErr) {
       return handler.next(retryErr);
     } catch (e) {
-      completer.complete(false);
-      await _authManager.logout();
+      completer.complete(TokenRefreshResult.networkError);
+      return handler.next(DioException(
+        requestOptions: err.requestOptions,
+        type: DioExceptionType.connectionError,
+        error: 'Network error: $e',
+      ));
     } finally {
       _refreshCompleter = null;
     }
-
-    handler.next(err);
   }
 }
 
