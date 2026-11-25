@@ -20,8 +20,10 @@ void main() {
 
       await tester.pump();
 
-      // Verify Section Header
-      expect(find.text('When Did You Watch?'), findsOneWidget);
+      // Verify Section Headers for both Started and Completed
+      expect(find.text('Started Watching'), findsOneWidget);
+      expect(find.text("Don't know when I started watching"), findsOneWidget);
+      expect(find.text('Completed Watching'), findsOneWidget);
       expect(find.text('Date and time of your screening'), findsOneWidget);
       expect(find.text('Now'), findsOneWidget);
 
