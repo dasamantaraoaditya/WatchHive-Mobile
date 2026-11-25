@@ -167,7 +167,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   }
   DateTime _watchedDate = DateTime.now();
   DateTime? _startedAt;
-  bool _isEditingStartedAt = false;
+  bool _hasStartedDate = false;
+  bool _hasStartedTime = true;
   bool _hasWatchedDate = true;
   bool _hasWatchedTime = true;
   bool _hasWatchedBefore = false;
@@ -269,6 +270,8 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       };
       _startedAt = e.startedAt?.toLocal() ??
           (e.isWatching && e.hasExactWatchDate ? e.watchedAt.toLocal() : null);
+      _hasStartedDate = _startedAt != null;
+      _hasStartedTime = _startedAt != null && (_startedAt!.hour != 0 || _startedAt!.minute != 0);
 
       // Determine accurate watch date & time
       if (widget.prefillIsWatching == false && e.isWatching) {
@@ -301,6 +304,15 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       }
       if (widget.prefillIsWatching != null) {
         _isWatching = widget.prefillIsWatching!;
+      }
+      if (_isWatching) {
+        _startedAt = DateTime.now();
+        _hasStartedDate = true;
+        _hasStartedTime = true;
+      } else {
+        _hasStartedDate = false;
+        _startedAt = null;
+        _hasStartedTime = true;
       }
       if (widget.prefillTmdbId != null) {
         _tmdbId = widget.prefillTmdbId!;
@@ -412,7 +424,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
           ),
           const SizedBox(width: 8),
           _buildNavPill(
-            label: DateFormat('MMM dd').format(_watchedDate),
+            label: _isWatching
+                ? (_hasStartedDate && _startedAt != null ? DateFormat('MMM dd').format(_startedAt!) : 'Active')
+                : (_hasWatchedDate ? DateFormat('MMM dd').format(_watchedDate) : 'Past Watch'),
             icon: Icons.calendar_today_rounded,
             isCompleted: true,
             onTap: () => _scrollToKey(_dateKey, alignment: 0.08),
@@ -777,6 +791,108 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     HapticFeedback.lightImpact();
   }
 
+  Future<void> _pickStartedDate() async {
+    final now = DateTime.now();
+    final effectiveCurrent = _startedAt ?? (_hasWatchedDate ? _watchedDate : now);
+    final maxDate = DateTime(now.year, now.month, now.day);
+    final initial = effectiveCurrent.isAfter(maxDate) ? maxDate : effectiveCurrent;
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900),
+      lastDate: maxDate,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.black,
+              surface: AppColors.surface,
+              onSurface: AppColors.textPrimary,
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate == null || !mounted) return;
+
+    var candidate = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      _hasStartedTime ? (_startedAt?.hour ?? 12) : 12,
+      _hasStartedTime ? (_startedAt?.minute ?? 0) : 0,
+    );
+
+    if (candidate.isAfter(now)) {
+      candidate = now;
+    }
+
+    if (mounted) {
+      setState(() {
+        _hasStartedDate = true;
+        _startedAt = candidate;
+        if (!_isWatching && _hasWatchedDate && _startedAt!.isAfter(_watchedDate)) {
+          _watchedDate = _startedAt!;
+        }
+      });
+    }
+  }
+
+  Future<void> _pickStartedTime() async {
+    final now = DateTime.now();
+    final effectiveCurrent = _startedAt ?? (_hasWatchedDate ? _watchedDate : now);
+    final initialTime = _hasStartedTime ? TimeOfDay.fromDateTime(effectiveCurrent) : TimeOfDay.now();
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.black,
+              surface: AppColors.surface,
+              onSurface: AppColors.textPrimary,
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: AppColors.surface),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedTime != null && mounted) {
+      final baseDate = _startedAt ?? now;
+      var candidate = DateTime(
+        baseDate.year,
+        baseDate.month,
+        baseDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+
+      if (candidate.isAfter(now)) {
+        candidate = now;
+        WHAlert.showWarning(context, 'Start time cannot be in the future. Reset to current time.');
+      }
+
+      setState(() {
+        _hasStartedDate = true;
+        _hasStartedTime = true;
+        _startedAt = candidate;
+        if (!_isWatching && _hasWatchedDate && _startedAt!.isAfter(_watchedDate)) {
+          _watchedDate = _startedAt!;
+        }
+      });
+    }
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final maxDate = DateTime(now.year, now.month, now.day);
@@ -923,14 +1039,42 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         },
         if (_watchLocation.trim().isNotEmpty) 'watchLocation': _watchLocation.trim(),
         'tags': _tags.where((t) => t.trim().isNotEmpty).toList(),
-        'watchedAt': _hasWatchedDate
-            ? (_hasWatchedTime
+        if (_isWatching) ...{
+          'watchedAt': (_hasStartedDate && _startedAt != null)
+              ? (_hasStartedTime
+                  ? _startedAt!.toUtc().toIso8601String()
+                  : DateFormat('yyyy-MM-dd').format(_startedAt!))
+              : null,
+          if (!_hasStartedDate || _startedAt == null) ...{
+            'unspecifiedDate': true,
+            'unspecifiedStartDate': true,
+            'startedAt': null,
+          } else ...{
+            'startedAt': _hasStartedTime
+                ? _startedAt!.toUtc().toIso8601String()
+                : DateFormat('yyyy-MM-dd').format(_startedAt!),
+            'unspecifiedStartDate': false,
+          },
+        } else ...{
+          'watchedAt': _hasWatchedDate
+              ? (_hasWatchedTime
+                  ? _watchedDate.toUtc().toIso8601String()
+                  : DateFormat('yyyy-MM-dd').format(_watchedDate))
+              : null,
+          if (!_hasWatchedDate) 'unspecifiedDate': true,
+          if (_hasWatchedDate)
+            'completedAt': _hasWatchedTime
                 ? _watchedDate.toUtc().toIso8601String()
-                : DateFormat('yyyy-MM-dd').format(_watchedDate))
-            : null,
-        if (!_hasWatchedDate) 'unspecifiedDate': true,
-        if (!_isWatching && _startedAt != null) 'startedAt': _startedAt!.toUtc().toIso8601String(),
-        if (!_isWatching && _hasWatchedDate) 'completedAt': _watchedDate.toUtc().toIso8601String(),
+                : DateFormat('yyyy-MM-dd').format(_watchedDate),
+          if (_hasStartedDate && _startedAt != null)
+            'startedAt': _hasStartedTime
+                ? _startedAt!.toUtc().toIso8601String()
+                : DateFormat('yyyy-MM-dd').format(_startedAt!)
+          else ...{
+            'startedAt': null,
+            'unspecifiedStartDate': true,
+          },
+        },
         if (_suggestedByUserId != null && _suggestedByUserId!.trim().isNotEmpty)
           'suggestedByUserId': _suggestedByUserId!.trim(),
         if (_selectedWatchBuddies.isNotEmpty)
@@ -1221,7 +1365,17 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                             ),
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => setState(() => _isWatching = true),
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() {
+                                    _isWatching = true;
+                                    if (_startedAt == null) {
+                                      _startedAt = DateTime.now();
+                                      _hasStartedDate = true;
+                                      _hasStartedTime = true;
+                                    }
+                                  });
+                                },
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   padding: const EdgeInsets.symmetric(vertical: 10),
@@ -1575,170 +1729,256 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (!_isWatching && _startedAt != null) ...[
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: AppColors.background,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          width: 8,
-                                          height: 8,
-                                          decoration: const BoxDecoration(
+                            if (!_isWatching) ...[
+                              // ── 1. STARTED WATCHING SECTION ──
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: _SectionHeader(
+                                      title: 'Started Watching',
+                                      subtitle: _hasStartedDate && _startedAt != null
+                                          ? 'Started screening on ${DateFormat('MMM dd, yyyy').format(_startedAt!)}'
+                                          : 'Start date unknown (omitted)',
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      TextButton.icon(
+                                        onPressed: () {
+                                          HapticFeedback.lightImpact();
+                                          setState(() {
+                                            if (_hasStartedDate) {
+                                              _hasStartedDate = false;
+                                              _startedAt = null;
+                                            } else {
+                                              _hasStartedDate = true;
+                                              _startedAt = _hasWatchedDate ? _watchedDate : DateTime.now();
+                                              _hasStartedTime = true;
+                                            }
+                                          });
+                                        },
+                                        icon: Icon(
+                                          _hasStartedDate ? Icons.help_outline_rounded : Icons.calendar_today_rounded,
+                                          size: 14,
+                                          color: AppColors.primary,
+                                        ),
+                                        label: Text(
+                                          _hasStartedDate ? "Don't know start" : "Set date",
+                                          style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
                                             color: AppColors.primary,
-                                            shape: BoxShape.circle,
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'STARTED WATCHING',
-                                                style: TextStyle(
-                                                  fontFamily: 'Inter',
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w800,
-                                                  letterSpacing: 0.6,
-                                                  color: AppColors.textPrimary.withValues(alpha: 0.65),
-                                                ),
+                                        style: TextButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                        ),
+                                      ),
+                                      if (_hasStartedDate)
+                                        TextButton.icon(
+                                          onPressed: () {
+                                            HapticFeedback.lightImpact();
+                                            setState(() {
+                                              _hasStartedDate = true;
+                                              _hasStartedTime = true;
+                                              _startedAt = DateTime.now();
+                                            });
+                                          },
+                                          icon: const Icon(Icons.history_rounded, size: 14, color: AppColors.primary),
+                                          label: const Text(
+                                            'Now',
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            visualDensity: VisualDensity.compact,
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              if (!_hasStartedDate || _startedAt == null) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceElevated,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.help_outline_rounded, size: 20, color: AppColors.textMuted),
+                                      const SizedBox(width: 10),
+                                      const Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Don't know when I started watching",
+                                              style: TextStyle(
+                                                fontFamily: 'Inter',
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.textPrimary,
                                               ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                DateFormat('MMM d, y · h:mm a').format(_startedAt!),
-                                                style: const TextStyle(
-                                                  fontFamily: 'Inter',
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: AppColors.textPrimary,
+                                            ),
+                                            SizedBox(height: 2),
+                                            Text(
+                                              'Start date omitted · You can add or edit it anytime',
+                                              style: TextStyle(
+                                                fontFamily: 'Inter',
+                                                fontSize: 11,
+                                                color: AppColors.textMuted,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          HapticFeedback.lightImpact();
+                                          setState(() {
+                                            _hasStartedDate = true;
+                                            _startedAt = _hasWatchedDate ? _watchedDate : DateTime.now();
+                                            _hasStartedTime = true;
+                                          });
+                                        },
+                                        style: TextButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                        ),
+                                        child: const Text(
+                                          'Set Date',
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ] else ...[
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: _pickStartedDate,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surfaceElevated,
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(color: AppColors.border),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primary),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text(
+                                                      'Started Date',
+                                                      style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      DateFormat('MMM dd, yyyy').format(_startedAt!),
+                                                      style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                             ],
                                           ),
                                         ),
-                                        TextButton(
-                                          onPressed: () {
-                                            HapticFeedback.selectionClick();
-                                            setState(() => _isEditingStartedAt = !_isEditingStartedAt);
-                                          },
-                                          style: TextButton.styleFrom(
-                                            visualDensity: VisualDensity.compact,
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                            backgroundColor: AppColors.surface,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(10),
-                                              side: BorderSide(color: AppColors.primary.withValues(alpha: 0.35)),
-                                            ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: _pickStartedTime,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surfaceElevated,
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(color: AppColors.border),
                                           ),
-                                          child: Text(
-                                            _isEditingStartedAt ? 'Done' : 'Edit',
-                                            style: const TextStyle(
-                                              fontFamily: 'Inter',
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w800,
-                                              color: AppColors.textPrimary,
-                                            ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.access_time_rounded, size: 16, color: AppColors.primary),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text(
+                                                      'Started Time',
+                                                      style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      _hasStartedTime
+                                                          ? DateFormat('h:mm a').format(_startedAt!)
+                                                          : 'No specific time',
+                                                      style: TextStyle(
+                                                        fontFamily: 'Inter',
+                                                        fontSize: 13,
+                                                        fontWeight: _hasStartedTime ? FontWeight.bold : FontWeight.w500,
+                                                        color: _hasStartedTime ? AppColors.textPrimary : AppColors.textMuted,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              if (_hasStartedTime)
+                                                GestureDetector(
+                                                  onTap: () {
+                                                    HapticFeedback.selectionClick();
+                                                    setState(() => _hasStartedTime = false);
+                                                  },
+                                                  child: const Padding(
+                                                    padding: EdgeInsets.only(left: 4),
+                                                    child: Icon(Icons.close_rounded, size: 15, color: AppColors.textMuted),
+                                                  ),
+                                                ),
+                                            ],
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                    if (_isEditingStartedAt) ...[
-                                      const SizedBox(height: 10),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: OutlinedButton.icon(
-                                              onPressed: () async {
-                                                final picked = await showDatePicker(
-                                                  context: context,
-                                                  initialDate: _startedAt!,
-                                                  firstDate: DateTime(1950),
-                                                  lastDate: DateTime.now(),
-                                                );
-                                                if (picked != null && mounted) {
-                                                  setState(() {
-                                                    _startedAt = DateTime(
-                                                      picked.year,
-                                                      picked.month,
-                                                      picked.day,
-                                                      _startedAt!.hour,
-                                                      _startedAt!.minute,
-                                                    );
-                                                  });
-                                                }
-                                              },
-                                              icon: const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.textPrimary),
-                                              label: Text(
-                                                DateFormat('MMM d, y').format(_startedAt!),
-                                                style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                                              ),
-                                              style: OutlinedButton.styleFrom(
-                                                backgroundColor: AppColors.surface,
-                                                side: const BorderSide(color: AppColors.border),
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: OutlinedButton.icon(
-                                              onPressed: () async {
-                                                final picked = await showTimePicker(
-                                                  context: context,
-                                                  initialTime: TimeOfDay.fromDateTime(_startedAt!),
-                                                );
-                                                if (picked != null && mounted) {
-                                                  setState(() {
-                                                    _startedAt = DateTime(
-                                                      _startedAt!.year,
-                                                      _startedAt!.month,
-                                                      _startedAt!.day,
-                                                      picked.hour,
-                                                      picked.minute,
-                                                    );
-                                                  });
-                                                }
-                                              },
-                                              icon: const Icon(Icons.access_time_rounded, size: 14, color: AppColors.textPrimary),
-                                              label: Text(
-                                                DateFormat('h:mm a').format(_startedAt!),
-                                                style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                                              ),
-                                              style: OutlinedButton.styleFrom(
-                                                backgroundColor: AppColors.surface,
-                                                side: const BorderSide(color: AppColors.border),
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
                                       ),
-                                    ],
+                                    ),
                                   ],
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: _SectionHeader(
-                                    title: _isWatching
-                                        ? 'Started Watching'
-                                        : (_startedAt != null ? 'Completed Watching' : 'When Did You Watch?'),
-                                    subtitle: _hasWatchedDate ? 'Date and time of your screening' : 'No screening date recorded',
+                              ],
+                              const SizedBox(height: 18),
+
+                              // ── 2. COMPLETED WATCHING SECTION ──
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: _SectionHeader(
+                                      title: 'Completed Watching',
+                                      subtitle: _hasWatchedDate ? 'Date and time of your screening' : 'No screening date recorded',
+                                    ),
                                   ),
-                                ),
-                                if (!_isWatching)
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -1758,7 +1998,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                           color: AppColors.primary,
                                         ),
                                         label: Text(
-                                          _hasWatchedDate ? "Don't know when" : "Set date",
+                                          _hasWatchedDate ? "Past Watch" : "Set date",
                                           style: const TextStyle(
                                             fontFamily: 'Inter',
                                             fontSize: 11,
@@ -1797,182 +2037,431 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                           ),
                                         ),
                                     ],
-                                  )
-                                else
-                                  TextButton.icon(
-                                    onPressed: () {
-                                      HapticFeedback.lightImpact();
-                                      setState(() => _watchedDate = DateTime.now());
-                                    },
-                                    icon: const Icon(Icons.history_rounded, size: 14, color: AppColors.primary),
-                                    label: const Text(
-                                      'Now',
-                                      style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                    style: TextButton.styleFrom(
-                                      visualDensity: VisualDensity.compact,
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    ),
                                   ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            if (!_hasWatchedDate && !_isWatching) ...[
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceElevated,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: AppColors.border),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              if (!_hasWatchedDate) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceElevated,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.history_toggle_off_rounded, size: 20, color: AppColors.textMuted),
+                                      const SizedBox(width: 10),
+                                      const Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'No specific watch date recorded',
+                                              style: TextStyle(
+                                                fontFamily: 'Inter',
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                            SizedBox(height: 2),
+                                            Text(
+                                              'Logged as a past viewing in your hive',
+                                              style: TextStyle(
+                                                fontFamily: 'Inter',
+                                                fontSize: 11,
+                                                color: AppColors.textMuted,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          HapticFeedback.lightImpact();
+                                          setState(() {
+                                            _hasWatchedDate = true;
+                                            _watchedDate = DateTime.now();
+                                          });
+                                        },
+                                        style: TextButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                        ),
+                                        child: const Text(
+                                          'Set Date',
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                child: Row(
+                              ] else ...[
+                                Row(
                                   children: [
-                                    const Icon(Icons.history_toggle_off_rounded, size: 20, color: AppColors.textMuted),
-                                    const SizedBox(width: 10),
-                                    const Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'No specific watch date recorded',
-                                            style: TextStyle(
-                                              fontFamily: 'Inter',
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.textPrimary,
-                                            ),
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: _pickDate,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surfaceElevated,
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(color: AppColors.border),
                                           ),
-                                          SizedBox(height: 2),
-                                          Text(
-                                            'Logged as a past viewing in your hive',
-                                            style: TextStyle(
-                                              fontFamily: 'Inter',
-                                              fontSize: 11,
-                                              color: AppColors.textMuted,
-                                            ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primary),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text(
+                                                      'Watched Date',
+                                                      style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      DateFormat('MMM dd, yyyy').format(_watchedDate),
+                                                      style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                        ],
+                                        ),
                                       ),
                                     ),
-                                    TextButton(
-                                      onPressed: () {
-                                        HapticFeedback.lightImpact();
-                                        setState(() {
-                                          _hasWatchedDate = true;
-                                          _watchedDate = DateTime.now();
-                                        });
-                                      },
-                                      child: const Text(
-                                        'Set Date',
-                                        style: TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.primary,
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: _pickTime,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surfaceElevated,
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(color: AppColors.border),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.access_time_rounded, size: 16, color: AppColors.primary),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text(
+                                                      'Watched Time',
+                                                      style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      _hasWatchedTime
+                                                          ? DateFormat('h:mm a').format(_watchedDate)
+                                                          : 'No specific time',
+                                                      style: TextStyle(
+                                                        fontFamily: 'Inter',
+                                                        fontSize: 13,
+                                                        fontWeight: _hasWatchedTime ? FontWeight.bold : FontWeight.w500,
+                                                        color: _hasWatchedTime ? AppColors.textPrimary : AppColors.textMuted,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              if (_hasWatchedTime)
+                                                GestureDetector(
+                                                  onTap: () {
+                                                    HapticFeedback.selectionClick();
+                                                    setState(() => _hasWatchedTime = false);
+                                                  },
+                                                  child: const Padding(
+                                                    padding: EdgeInsets.only(left: 4),
+                                                    child: Icon(Icons.close_rounded, size: 15, color: AppColors.textMuted),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
+                              ],
                             ] else ...[
+                              // ── 3. CURRENTLY WATCHING SECTION ──
                               Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
-                                    child: GestureDetector(
-                                      onTap: _pickDate,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surfaceElevated,
-                                          borderRadius: BorderRadius.circular(14),
-                                          border: Border.all(color: AppColors.border),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primary),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    _isWatching ? 'Started Date' : 'Watched Date',
-                                                    style: const TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted),
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    DateFormat('MMM dd, yyyy').format(_watchedDate),
-                                                    style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                    child: _SectionHeader(
+                                      title: 'Started Watching',
+                                      subtitle: _hasStartedDate && _startedAt != null
+                                          ? 'Started screening on ${DateFormat('MMM dd, yyyy').format(_startedAt!)}'
+                                          : 'Start date unknown (omitted)',
                                     ),
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: _pickTime,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surfaceElevated,
-                                          borderRadius: BorderRadius.circular(14),
-                                          border: Border.all(color: AppColors.border),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      TextButton.icon(
+                                        onPressed: () {
+                                          HapticFeedback.lightImpact();
+                                          setState(() {
+                                            if (_hasStartedDate) {
+                                              _hasStartedDate = false;
+                                              _startedAt = null;
+                                            } else {
+                                              _hasStartedDate = true;
+                                              _startedAt = DateTime.now();
+                                              _hasStartedTime = true;
+                                            }
+                                          });
+                                        },
+                                        icon: Icon(
+                                          _hasStartedDate ? Icons.help_outline_rounded : Icons.calendar_today_rounded,
+                                          size: 14,
+                                          color: AppColors.primary,
                                         ),
-                                        child: Row(
-                                          children: [
-                                            const Icon(Icons.access_time_rounded, size: 16, color: AppColors.primary),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    _isWatching ? 'Started Time' : 'Watched Time',
-                                                    style: const TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted),
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    _hasWatchedTime
-                                                        ? DateFormat('h:mm a').format(_watchedDate)
-                                                        : 'No specific time',
-                                                    style: TextStyle(
-                                                      fontFamily: 'Inter',
-                                                      fontSize: 13,
-                                                      fontWeight: _hasWatchedTime ? FontWeight.bold : FontWeight.w500,
-                                                      color: _hasWatchedTime ? AppColors.textPrimary : AppColors.textMuted,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            if (_hasWatchedTime)
-                                              GestureDetector(
-                                                onTap: () {
-                                                  HapticFeedback.selectionClick();
-                                                  setState(() => _hasWatchedTime = false);
-                                                },
-                                                child: const Padding(
-                                                  padding: EdgeInsets.only(left: 4),
-                                                  child: Icon(Icons.close_rounded, size: 15, color: AppColors.textMuted),
-                                                ),
-                                              ),
-                                          ],
+                                        label: Text(
+                                          _hasStartedDate ? "Don't know start" : "Set date",
+                                          style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                        style: TextButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                         ),
                                       ),
-                                    ),
+                                      if (_hasStartedDate)
+                                        TextButton.icon(
+                                          onPressed: () {
+                                            HapticFeedback.lightImpact();
+                                            setState(() {
+                                              _hasStartedDate = true;
+                                              _hasStartedTime = true;
+                                              _startedAt = DateTime.now();
+                                            });
+                                          },
+                                          icon: const Icon(Icons.history_rounded, size: 14, color: AppColors.primary),
+                                          label: const Text(
+                                            'Now',
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            visualDensity: VisualDensity.compact,
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ],
+                              ),
+                              const SizedBox(height: 10),
+                              if (!_hasStartedDate || _startedAt == null) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceElevated,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.help_outline_rounded, size: 20, color: AppColors.textMuted),
+                                      const SizedBox(width: 10),
+                                      const Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Don't know when I started watching",
+                                              style: TextStyle(
+                                                fontFamily: 'Inter',
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                            SizedBox(height: 2),
+                                            Text(
+                                              'Tracking progress without an exact start date · Edit anytime',
+                                              style: TextStyle(
+                                                fontFamily: 'Inter',
+                                                fontSize: 11,
+                                                color: AppColors.textMuted,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          HapticFeedback.lightImpact();
+                                          setState(() {
+                                            _hasStartedDate = true;
+                                            _startedAt = DateTime.now();
+                                            _hasStartedTime = true;
+                                          });
+                                        },
+                                        style: TextButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                        ),
+                                        child: const Text(
+                                          'Set Date',
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ] else ...[
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: _pickStartedDate,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surfaceElevated,
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(color: AppColors.border),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primary),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text(
+                                                      'Started Date',
+                                                      style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      DateFormat('MMM dd, yyyy').format(_startedAt!),
+                                                      style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: _pickStartedTime,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surfaceElevated,
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(color: AppColors.border),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.access_time_rounded, size: 16, color: AppColors.primary),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text(
+                                                      'Started Time',
+                                                      style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: AppColors.textMuted),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      _hasStartedTime
+                                                          ? DateFormat('h:mm a').format(_startedAt!)
+                                                          : 'No specific time',
+                                                      style: TextStyle(
+                                                        fontFamily: 'Inter',
+                                                        fontSize: 13,
+                                                        fontWeight: _hasStartedTime ? FontWeight.bold : FontWeight.w500,
+                                                        color: _hasStartedTime ? AppColors.textPrimary : AppColors.textMuted,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              if (_hasStartedTime)
+                                                GestureDetector(
+                                                  onTap: () {
+                                                    HapticFeedback.selectionClick();
+                                                    setState(() => _hasStartedTime = false);
+                                                  },
+                                                  child: const Padding(
+                                                    padding: EdgeInsets.only(left: 4),
+                                                    child: Icon(Icons.close_rounded, size: 15, color: AppColors.textMuted),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF22C55E).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.2)),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF16A34A)),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Added to your Currently Watching queue. Rating and review are optional while watching — you can complete them anytime!',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                          color: Color(0xFF14532D),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                             const SizedBox(height: 10),
