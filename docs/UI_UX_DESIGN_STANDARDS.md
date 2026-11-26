@@ -148,6 +148,17 @@ Every major screen (Feed, Search, Entries, Movie Details, Profile) features a **
 - High contrast, tinted with semantic severity color (`success`, `error`, `warning`, `info`).
 - Supports trailing actions (e.g. `"Share Story"`, `"Undo"`).
 
+### 8. Brand-Themed Like Interaction
+- Active like buttons use Honey Gold (`AppColors.primary: #FFB700` and tint `AppColors.primary.withValues(alpha: 0.12)`) conforming to the Golden Contrast Rule, replacing generic red hearts.
+
+### 9. Watch Buddy Avatar Chips
+- Displays co-watcher avatars (`WHAvatar`) with usernames on feed cards and detail pages.
+- Tapping a buddy's chip routes directly to their user profile (`/profile/:id`).
+
+### 10. Loader Hierarchy Standards
+- **Primary Loader**: Shimmer Skeleton boxes (`WHSkeletonBox`) used everywhere data is fetching (feed cards, carousels, profile tabs, lists).
+- **Secondary Loader**: WatchHive Bee Loader (`BeeLoadingScreen` / animated bee). Used strictly on app boot, cold splash, or modal submits.
+
 ---
 
 ## 📳 6. Haptic Feedback & Tactile Delight
