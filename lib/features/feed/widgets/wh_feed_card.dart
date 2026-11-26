@@ -340,14 +340,14 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                           runSpacing: 4,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            const Row(
+                            Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.group_rounded, size: 13, color: AppColors.primary),
-                                SizedBox(width: 3),
+                                const Icon(Icons.group_rounded, size: 13, color: AppColors.primary),
+                                const SizedBox(width: 3),
                                 Text(
-                                  'Watched with ',
-                                  style: TextStyle(
+                                  entry.isWatching ? 'Watching with ' : 'Watched with ',
+                                  style: const TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 11,
                                     fontWeight: FontWeight.w500,

@@ -3083,7 +3083,10 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const _SectionHeader(title: 'Watched With', subtitle: 'Tag friends you watched this title with'),
+                            _SectionHeader(
+                              title: _isWatching ? 'Watching With' : 'Watched With',
+                              subtitle: _isWatching ? 'Tag friends you are watching this title with' : 'Tag friends you watched this title with',
+                            ),
                             const SizedBox(height: 8),
 
                             // Selected Watch Buddies Chips
@@ -3202,7 +3205,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                                   _scrollToKey(_watchBuddiesKey, alignment: 0.05);
                                 },
                                 decoration: InputDecoration(
-                                  hintText: 'Search friends to tag who you watched with…',
+                                  hintText: _isWatching ? 'Search friends to tag who you are watching with…' : 'Search friends to tag who you watched with…',
                                   hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                                   prefixIcon: const Icon(Icons.group_add_rounded, color: Colors.amber, size: 20),
                                   suffixIcon: _isSearchingBuddies
