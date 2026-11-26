@@ -116,17 +116,22 @@ To eliminate duplicate dialog presentations and ensure users are never re-prompt
 
 ---
 
-## ⚡ 3. State Management (Riverpod)
+## ⚡ 3. State Management (Riverpod) & Reactive State Graph
 
-The application uses **Flutter Riverpod (v2.x)** for compile-safe, dependency-injected reactive state management:
+The application uses **Flutter Riverpod (v2.6+)** for compile-safe, dependency-injected reactive state management, enforcing zero-cost optimistic updates and real-time screen synchronization:
 
-1. **StateNotifier / AsyncNotifier**:
-   - Manages asynchronous lifecycle (`AsyncValue<T>`: loading, data, error).
-   - Examples: `FeedNotifier`, `AuthNotifier`, `StackNotifier`, `OfflineSyncNotifier`.
+1. **StateNotifier / AsyncNotifier Graph**:
+   - `watchlistProvider`: Centralized reactive state for the user's watchlist with optimistic `addItem` and `removeItem`.
+   - `reactiveIsInWatchlistProvider(tmdbId)`: Synchronously derived boolean family provider giving instant visual bookmark state on feed cards, movie details, and search sheets without network delays.
+   - `continueWatchingProvider`: Tracks TV show viewing progress, next episode calculations, and instant episode completion transitions.
+   - `entriesProvider(isWatching: true/false)`: Separates active viewing sessions from completed watch history, dynamically updating on new logs.
+   - `feedProvider`: Activity stream that reactively prepends new finished watches and episode watches (`postToFeed: true`).
+   - `myRankingsProvider` & `activeStackProvider`: Live synchronization of ranking stack contents and item counts.
 2. **AutoDispose & Family Providers**:
    - Providers tied to specific route parameters or movie IDs automatically discard resources when the user leaves the screen (e.g. `movieDetailsProvider(id)`).
-3. **Optimistic Updates**:
-   - Social interactions (likes, bookmarking to watchlist, gratitude marks) update local state immediately and dispatch background network calls. On failure, state reverts with an animated `WHAlert` toast.
+3. **Optimistic Updates & Zero-Flicker Dismissal**:
+   - Social interactions (likes, bookmarking to watchlist, gratitude marks, suggestion dismissal) update local state immediately and dispatch background network calls.
+   - Suggestions tab instantly removes dismissed or accepted cards without full-page skeleton flickers.
 
 ---
 
@@ -164,38 +169,56 @@ sequenceDiagram
 
 ---
 
-## 🐝 5. Feed & Community Discovery Subsystem
+## 🐝 5. Feed, Discovery & Social Subsystems
 
-### A. SmartSuggest Recommendation Engine
-- **Horizontal Swipe PageView**: The SmartSuggest deck card supports smooth horizontal sliding across three curated discovery modes:
-  - **Social**: Friend watches, mutual reviews, and hive recommendations.
-  - **Critic**: High-rating critical consensus and curated acclaim.
-  - **Explore**: Cross-genre serendipitous picks nudging beyond comfort zones.
+### A. SmartSuggest 3-Mode Recommendation Engine
+- **Horizontal Swipe PageView**: The SmartSuggest deck card supports smooth horizontal sliding across three distinct, non-overlapping discovery modes:
+  - **Social ("Hive Mind")**: Friend watches, mutual reviews, and hive recommendations with recommender notes.
+  - **Certified Gold ("Acclaimed")**: High-rating critical consensus, standout unwatched watchlist picks, and curated acclaim.
+  - **Explore ("World Cinema")**: Cross-genre international and indie picks tailored to user language and genre preferences.
+- **Strict Watch Exclusion**: Guaranteed zero suggestions for titles the user has already marked as Watched or is Currently Watching.
+- **Dynamic Seed Regeneration**: Clicking "Regenerate" seeds a randomized query and passes active IDs to `excludeIds`, ensuring at least 10 completely fresh titles per batch.
 
-### B. "Diversify Your Feed" Suggested Friends Carousel
+### B. Social Co-Watching & Watch Buddies
+- **Tagging in AddEntrySheet**: Expandable friend selector allowing users to tag mutual friends as "Watch Buddies" on any finished or currently watching entry.
+- **Relational Storage**: Backed by `entry_watch_buddies` in PostgreSQL.
+- **Feed & Details Presentation**: Displays co-watcher avatar chips (`WHAvatar`) on feed cards and detail pages, linking directly to buddies' profiles.
+- **Push Notification**: Automatically alerts tagged friends when an entry is submitted or updated.
+
+### C. "Diversify Your Feed" Suggested Friends Carousel
 - Rendered for new users who follow 0 friends to prevent dead-end feeds.
 - **Full Clickability**: Clicking any suggested user's avatar, name, or handle routes to their profile (`/profile/:id`).
 - **Interactive Follow / Following Toggle**: Real-time loading indicator on the active button; handles instant follow and unfollow toggling.
 - **Web & Desktop Parity**: Configured with `PointerDeviceKind.mouse` drag physics and `<` / `>` scroll arrow buttons for mouse navigation.
 - **Persistent Dismissal**: Stored in SecureStorage so dismissing via close (X) or "Cancel" keeps it dismissed permanently.
 
-### C. Review Truncation ("Read More" / "Read Less")
+### D. Review Truncation ("Read More" / "Read Less")
 - Long post reviews exceeding standard length thresholds (220 characters) are clamped with clean inline `"Read More"` / `"Read Less"` toggles, preserving feed vertical rhythm.
 
-### D. Friends Watched Pill (Movie Details)
+### E. Friends Watched Pill (Movie Details)
 - In `MovieDetailsScreen`, replaces verbose text blocks with a compact row of stacked user avatars (up to 3) + `+N more` counter.
 - Tapping opens the interactive **Friends Watched Bottom Sheet** displaying each friend's rating, watch date, and written review.
 
-### E. Instagram Story 9:16 Visual Share Generator
+### F. Instagram Story 9:16 Visual Share Generator
 - Generates high-resolution 1080x1920 graphic cards with movie backdrop, title, star rating, user review snippet, and clean hive QR code.
 - Restricted exclusively to the user's own watch entries (`isOwnEntry`).
 
-### B. Episode & TV Season Tracking Architecture
+### G. Episode & TV Season Tracking Architecture
 - **Repository Layer (`EpisodeRepository`)**: Handles season drill-down, progress metrics, and watch toggles.
 - **Granular Episode Checklist**: Users mark individual episodes watched/unwatched with optimistic UI state changes.
 - **Batch Catch-Up (`batchCatchUp`)**: Single tap marks all preceding episodes up to S{x}E{y} as watched in one transactional call.
-- **Continue Watching Tray (`ContinueWatchingTray`)**: Surfaces in-progress series directly in the feed with the next up episode.
-- **Friends Who Watched & Friends Progress**: Queries `/shows/:tmdbId/friends-progress` to display which friends have watched the show and their current season/episode position.
+- **Continue Watching Carousel & Provider (`continueWatchingProvider`)**: Surfaces in-progress series directly in the feed with the next up episode, advancing reactively upon marking an episode watched.
+- **Friends Progress Bar**: Queries `/shows/:tmdbId/friends-progress` to display which friends are watching the show and their current season/episode position.
+
+---
+
+## ⚖️ 5.1 Legal, Privacy & Compliance Subsystem
+- **GDPR / CCPA Data Portability**: In-app data archive export (`GET /api/v1/data/export`) generating a complete JSON backup of the user's viewing history.
+- **Right to Erasure (Account Deletion)**: Self-service "Danger Zone" in profile settings allowing permanent account deletion (`DELETE /api/v1/users/me`) with cascade purge of entries, lists, and storage.
+- **UGC Safety & Moderation (Apple Guideline 1.2)**:
+  - User and content reporting via `WHAlert` report action sheet (`POST /api/v1/reports`).
+  - One-tap user blocking (`POST /api/v1/reports/block`) instantly severing social connections and hiding user content.
+- **TMDb Attribution & Non-Hosting Disclaimer**: Prominently surfaced in app info and legal sheets.
 
 ---
 
