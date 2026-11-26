@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_colors.dart';
@@ -12,7 +13,10 @@ enum WHAlertSeverity {
 }
 
 class WHAlert {
+  static _FloatingToastHandle? _activeToast;
+
   /// Displays a modern, branded confirmation dialog matching the Web app design.
+  /// Always brings the dialog to the front by using the root navigator.
   static Future<bool> confirm(
     BuildContext context, {
     required String title,
@@ -22,8 +26,12 @@ class WHAlert {
     WHAlertSeverity severity = WHAlertSeverity.primary,
     IconData? icon,
   }) async {
+    final navContext = (context.mounted ? Navigator.maybeOf(context, rootNavigator: true)?.context : null) ??
+        rootNavigatorKey.currentContext ??
+        context;
     final result = await showDialog<bool>(
-      context: context,
+      context: navContext,
+      useRootNavigator: true,
       barrierColor: Colors.black.withValues(alpha: 0.55),
       builder: (ctx) => _WHConfirmDialog(
         title: title,
@@ -40,6 +48,7 @@ class WHAlert {
   }
 
   /// Displays an informative popup dialog with a single confirm CTA.
+  /// Always brings the dialog to the front by using the root navigator.
   static Future<void> alert(
     BuildContext context, {
     required String title,
@@ -48,8 +57,12 @@ class WHAlert {
     WHAlertSeverity severity = WHAlertSeverity.primary,
     IconData? icon,
   }) async {
+    final navContext = (context.mounted ? Navigator.maybeOf(context, rootNavigator: true)?.context : null) ??
+        rootNavigatorKey.currentContext ??
+        context;
     await showDialog<bool>(
-      context: context,
+      context: navContext,
+      useRootNavigator: true,
       barrierColor: Colors.black.withValues(alpha: 0.55),
       builder: (ctx) => _WHConfirmDialog(
         title: title,
@@ -64,6 +77,8 @@ class WHAlert {
   }
 
   /// Displays a mobile-friendly, floating Toast alert banner.
+  /// Uses a root OverlayEntry so the alert ALWAYS displays in front of
+  /// any open modal bottom sheet, dialog, or popup.
   static void showSuccess(BuildContext context, String message) {
     _showFloatingToast(
       context,
@@ -140,8 +155,12 @@ class WHAlert {
     IconData? shareIcon = Icons.share_rounded,
     required VoidCallback onShare,
   }) async {
+    final navContext = (context.mounted ? Navigator.maybeOf(context, rootNavigator: true)?.context : null) ??
+        rootNavigatorKey.currentContext ??
+        context;
     await showDialog<void>(
-      context: context,
+      context: navContext,
+      useRootNavigator: true,
       barrierColor: Colors.black.withValues(alpha: 0.55),
       builder: (ctx) => _WHSuccessShareDialog(
         title: title,
@@ -164,132 +183,442 @@ class WHAlert {
     VoidCallback? onAction,
     Duration duration = const Duration(milliseconds: 3200),
   }) {
-    final (iconColor, bgColor, textColor, borderColor) = switch (severity) {
+    // Dismiss any previously showing toast so toasts do not overlap or stack
+    _activeToast?.removeImmediate();
+    _activeToast = null;
+
+    final overlayState = (context.mounted ? Overlay.maybeOf(context, rootOverlay: true) : null) ??
+        rootNavigatorKey.currentState?.overlay ??
+        (rootNavigatorKey.currentContext?.mounted == true
+            ? Overlay.maybeOf(rootNavigatorKey.currentContext!, rootOverlay: true)
+            : null);
+
+    if (overlayState == null) {
+      // Fallback for headless environments without overlay
+      final (iconColor, bgColor, textColor, borderColor) = switch (severity) {
+        WHAlertSeverity.success => (
+            const Color(0xFF10B981),
+            const Color(0xFFF0FDF4),
+            const Color(0xFF065F46),
+            const Color(0xFF86EFAC).withValues(alpha: 0.5),
+          ),
+        WHAlertSeverity.danger => (
+            const Color(0xFFEF4444),
+            const Color(0xFFFEF2F2),
+            const Color(0xFF991B1B),
+            const Color(0xFFFCA5A5).withValues(alpha: 0.5),
+          ),
+        WHAlertSeverity.warning => (
+            const Color(0xFFF59E0B),
+            const Color(0xFFFFFBEB),
+            const Color(0xFF92400E),
+            const Color(0xFFFDE68A).withValues(alpha: 0.5),
+          ),
+        WHAlertSeverity.info => (
+            const Color(0xFF3B82F6),
+            const Color(0xFFEFF6FF),
+            const Color(0xFF1E40AF),
+            const Color(0xFF93C5FD).withValues(alpha: 0.5),
+          ),
+        WHAlertSeverity.primary => (
+            AppColors.primaryDark,
+            const Color(0xFFFFF9EE),
+            AppColors.textPrimary,
+            AppColors.primary.withValues(alpha: 0.3),
+          ),
+      };
+
+      final messenger = rootScaffoldMessengerKey.currentState ??
+          (context.mounted ? ScaffoldMessenger.maybeOf(context) : null) ??
+          (rootNavigatorKey.currentContext?.mounted == true
+              ? ScaffoldMessenger.maybeOf(rootNavigatorKey.currentContext!)
+              : null);
+      if (messenger == null) return;
+
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          elevation: 6,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          backgroundColor: bgColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: borderColor, width: 1.2),
+          ),
+          duration: duration,
+          content: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: iconColor, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(width: 8),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    backgroundColor: iconColor.withValues(alpha: 0.12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () {
+                    messenger.hideCurrentSnackBar();
+                    onAction();
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (actionIcon != null) ...[
+                        Icon(actionIcon, size: 13, color: iconColor),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        actionLabel,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: iconColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => messenger.hideCurrentSnackBar(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 16,
+                      color: textColor.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+      return;
+    }
+
+    final key = GlobalKey<_FloatingToastWidgetState>();
+    late final OverlayEntry entry;
+
+    void handleDismiss() {
+      if (_activeToast?.entry == entry) {
+        _activeToast?.dismiss();
+        _activeToast = null;
+      } else {
+        try {
+          entry.remove();
+        } catch (_) {}
+      }
+    }
+
+    entry = OverlayEntry(
+      builder: (ctx) => _FloatingToastWidget(
+        key: key,
+        message: message,
+        severity: severity,
+        icon: icon,
+        duration: duration,
+        actionLabel: actionLabel,
+        actionIcon: actionIcon,
+        onAction: onAction,
+        onDismiss: handleDismiss,
+      ),
+    );
+
+    overlayState.insert(entry);
+
+    _activeToast = _FloatingToastHandle(
+      entry: entry,
+      key: key,
+    );
+  }
+
+  /// Explicitly dismiss any currently visible floating toast overlay.
+  static void dismissActiveToast() {
+    _activeToast?.removeImmediate();
+    _activeToast = null;
+  }
+}
+
+class _FloatingToastHandle {
+  final OverlayEntry entry;
+  final GlobalKey<_FloatingToastWidgetState> key;
+
+  _FloatingToastHandle({
+    required this.entry,
+    required this.key,
+  });
+
+  void dismiss() {
+    key.currentState?.animateOut(() {
+      try {
+        entry.remove();
+      } catch (_) {}
+    });
+  }
+
+  void removeImmediate() {
+    try {
+      entry.remove();
+    } catch (_) {}
+  }
+}
+
+class _FloatingToastWidget extends StatefulWidget {
+  final String message;
+  final WHAlertSeverity severity;
+  final IconData icon;
+  final Duration duration;
+  final String? actionLabel;
+  final IconData? actionIcon;
+  final VoidCallback? onAction;
+  final VoidCallback onDismiss;
+
+  const _FloatingToastWidget({
+    super.key,
+    required this.message,
+    required this.severity,
+    required this.icon,
+    required this.duration,
+    this.actionLabel,
+    this.actionIcon,
+    this.onAction,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_FloatingToastWidget> createState() => _FloatingToastWidgetState();
+}
+
+class _FloatingToastWidgetState extends State<_FloatingToastWidget>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Offset> _offsetAnimation;
+  late final Animation<double> _fadeAnimation;
+  Timer? _autoDismissTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
+    _offsetAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.35),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+    _controller.forward();
+
+    _autoDismissTimer = Timer(widget.duration, () {
+      if (mounted) {
+        widget.onDismiss();
+      }
+    });
+  }
+
+  void animateOut(VoidCallback onComplete) {
+    _autoDismissTimer?.cancel();
+    _autoDismissTimer = null;
+    if (!mounted) {
+      onComplete();
+      return;
+    }
+    _controller.reverse().then((_) {
+      onComplete();
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoDismissTimer?.cancel();
+    _autoDismissTimer = null;
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (iconColor, bgColor, textColor, borderColor) = switch (widget.severity) {
       WHAlertSeverity.success => (
           const Color(0xFF10B981),
           const Color(0xFFF0FDF4),
           const Color(0xFF065F46),
-          const Color(0xFF86EFAC).withValues(alpha: 0.5),
+          const Color(0xFF86EFAC).withValues(alpha: 0.6),
         ),
       WHAlertSeverity.danger => (
           const Color(0xFFEF4444),
           const Color(0xFFFEF2F2),
           const Color(0xFF991B1B),
-          const Color(0xFFFCA5A5).withValues(alpha: 0.5),
+          const Color(0xFFFCA5A5).withValues(alpha: 0.6),
         ),
       WHAlertSeverity.warning => (
           const Color(0xFFF59E0B),
           const Color(0xFFFFFBEB),
           const Color(0xFF92400E),
-          const Color(0xFFFDE68A).withValues(alpha: 0.5),
+          const Color(0xFFFDE68A).withValues(alpha: 0.6),
         ),
       WHAlertSeverity.info => (
           const Color(0xFF3B82F6),
           const Color(0xFFEFF6FF),
           const Color(0xFF1E40AF),
-          const Color(0xFF93C5FD).withValues(alpha: 0.5),
+          const Color(0xFF93C5FD).withValues(alpha: 0.6),
         ),
       WHAlertSeverity.primary => (
           AppColors.primaryDark,
           const Color(0xFFFFF9EE),
           AppColors.textPrimary,
-          AppColors.primary.withValues(alpha: 0.3),
+          AppColors.primary.withValues(alpha: 0.4),
         ),
     };
 
-    final messenger = rootScaffoldMessengerKey.currentState ??
-        (context.mounted ? ScaffoldMessenger.maybeOf(context) : null) ??
-        (rootNavigatorKey.currentContext?.mounted == true
-            ? ScaffoldMessenger.maybeOf(rootNavigatorKey.currentContext!)
-            : null);
-    if (messenger == null) return;
-
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        elevation: 6,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        backgroundColor: bgColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: borderColor, width: 1.2),
-        ),
-        duration: duration,
-        content: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: iconColor, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                  height: 1.3,
-                ),
-              ),
-            ),
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(width: 8),
-              TextButton(
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  backgroundColor: iconColor.withValues(alpha: 0.12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: () {
-                  messenger.hideCurrentSnackBar();
-                  onAction();
-                },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (actionIcon != null) ...[
-                      Icon(actionIcon, size: 13, color: iconColor),
-                      const SizedBox(width: 4),
-                    ],
-                    Text(
-                      actionLabel,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: iconColor,
-                      ),
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Material(
+            type: MaterialType.transparency,
+            child: SlideTransition(
+              position: _offsetAnimation,
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Dismissible(
+                  key: const Key('wh_toast_dismissible'),
+                  direction: DismissDirection.up,
+                  onDismissed: (_) => widget.onDismiss(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor, width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 18,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 4),
-              InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => messenger.hideCurrentSnackBar(),
-                child: Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 16,
-                    color: textColor.withValues(alpha: 0.6),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: iconColor.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(widget.icon, color: iconColor, size: 18),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            widget.message,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: textColor,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                        if (widget.actionLabel != null && widget.onAction != null) ...[
+                          const SizedBox(width: 8),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              backgroundColor: iconColor.withValues(alpha: 0.12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            onPressed: () {
+                              widget.onDismiss();
+                              widget.onAction?.call();
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (widget.actionIcon != null) ...[
+                                  Icon(widget.actionIcon, size: 13, color: iconColor),
+                                  const SizedBox(width: 4),
+                                ],
+                                Text(
+                                  widget.actionLabel!,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: iconColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: widget.onDismiss,
+                          child: Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 16,
+                              color: textColor.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ],
-          ],
+            ),
+          ),
         ),
       ),
     );
