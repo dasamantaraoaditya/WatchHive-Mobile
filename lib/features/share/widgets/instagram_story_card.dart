@@ -86,350 +86,406 @@ class InstagramStoryCard extends StatelessWidget {
 
     return AspectRatio(
       aspectRatio: 9 / 16,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
-            ),
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.18),
-              blurRadius: 20,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background Artwork Bleed (blurred warm cinematic backdrop)
-            if (backdropUrl != null) ...[
-              Positioned.fill(
-                child: CachedNetworkImage(
-                  imageUrl: backdropUrl,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cardHeight = constraints.maxHeight.isFinite ? constraints.maxHeight : 568.8;
+
+          // Instagram Story Standard UI/UX Safe Zones:
+          // Top Safe Margin: ~13.8% of canvas height (e.g. ~78 pt on 568.8 pt canvas, ~88 pt on 640 pt canvas)
+          // completely clears Instagram's native top overlay: status bar, story progress segments,
+          // user profile picture, account handle, and the close 'X' button.
+          // Bottom Safe Margin: ~11.8% of canvas height (e.g. ~67 pt on 568.8 pt canvas, ~75 pt on 640 pt canvas)
+          // completely clears Instagram's native bottom "Send message..." reply bar and reaction icons.
+          final topSafeMargin = cardHeight * 0.138;
+          final bottomSafeMargin = cardHeight * 0.118;
+          final hasReview = shareMode == StoryShareMode.logged &&
+              review != null &&
+              review!.trim().isNotEmpty;
+          final posterMaxHeight = hasReview
+              ? (cardHeight * 0.22).clamp(95.0, 150.0)
+              : (cardHeight * 0.28).clamp(115.0, 190.0);
+          final posterMaxWidth = posterMaxHeight * (2.0 / 3.0);
+
+          return Container(
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
                 ),
-              ),
-              Positioned.fill(
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                  child: Container(
-                    decoration: BoxDecoration(
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.18),
+                  blurRadius: 20,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Background Artwork Bleed (blurred warm cinematic backdrop)
+                if (backdropUrl != null) ...[
+                  Positioned.fill(
+                    child: CachedNetworkImage(
+                      imageUrl: backdropUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              const Color(0xFFFFFDF8).withValues(alpha: 0.88),
+                              const Color(0xFFFFF9F0).withValues(alpha: 0.93),
+                              const Color(0xFFFFF4E0).withValues(alpha: 0.97),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  // Ambient warm honey cream gradient mesh fallback
+                  Container(
+                    decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          const Color(0xFFFFFDF8).withValues(alpha: 0.88),
-                          const Color(0xFFFFF9F0).withValues(alpha: 0.93),
-                          const Color(0xFFFFF4E0).withValues(alpha: 0.97),
+                          Color(0xFFFFFDF7),
+                          Color(0xFFFFF9F0),
+                          Color(0xFFFFF3DE),
                         ],
                       ),
                     ),
                   ),
-                ),
-              ),
-            ] else ...[
-              // Ambient warm honey cream gradient mesh fallback
-              Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFFFFFDF7),
-                      Color(0xFFFFF9F0),
-                      Color(0xFFFFF3DE),
-                    ],
+                ],
+
+                // Warm honey ambient glow orbs
+                Positioned(
+                  top: -60,
+                  right: -60,
+                  child: Container(
+                    width: 220,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.primary.withValues(alpha: 0.22),
+                    ),
                   ),
                 ),
-              ),
-            ],
-
-            // Warm honey ambient glow orbs
-            Positioned(
-              top: -60,
-              right: -60,
-              child: Container(
-                width: 220,
-                height: 220,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: 0.22),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -80,
-              left: -80,
-              child: Container(
-                width: 240,
-                height: 240,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primaryLight.withValues(alpha: 0.18),
-                ),
-              ),
-            ),
-
-            // Content Canvas (9:16 layout)
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Top Bar: WatchersHive Logo & Context-Aware Status Badge
-                    Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // WatchersHive Brand
-                            const Flexible(
-                              child: WHBrandLogo(
-                                logoSize: 22,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-
-                            // Context-Specific Status Pill
-                            _buildStatusPill(),
-                          ],
-                        ),
-
-                        // User attribution if relevant to mode
-                        if (_shouldShowAttribution) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (userAvatarUrl != null && userAvatarUrl!.trim().isNotEmpty) ...[
-                                CircleAvatar(
-                                  radius: 9,
-                                  backgroundImage: CachedNetworkImageProvider(
-                                    ApiEndpoints.resolveAvatarUrl(userAvatarUrl),
-                                  ),
-                                  backgroundColor: AppColors.surface,
-                                ),
-                                const SizedBox(width: 6),
-                              ],
-                              Text(
-                                _attributionText,
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
+                Positioned(
+                  bottom: -80,
+                  left: -80,
+                  child: Container(
+                    width: 240,
+                    height: 240,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.primaryLight.withValues(alpha: 0.18),
                     ),
+                  ),
+                ),
 
-                    // Center Hero: Movie Poster + Title + Rating / In-Progress Pill
-                    Flexible(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                // Content Canvas (positioned strictly within Instagram Story Safe Zones)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16, topSafeMargin, 16, bottomSafeMargin),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Top Bar: Elevated Frosted WatchersHive Brand & Context Status
+                      Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Movie Poster Card
                           Container(
-                            constraints: const BoxConstraints(
-                              maxWidth: 165,
-                              maxHeight: 245,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
+                              color: Colors.white.withValues(alpha: 0.95),
+                              borderRadius: BorderRadius.circular(22),
                               border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.65),
-                                width: 1.5,
+                                color: AppColors.primary.withValues(alpha: 0.45),
+                                width: 1.2,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF2D2926).withValues(alpha: 0.22),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 10),
-                                ),
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.25),
-                                  blurRadius: 18,
-                                  spreadRadius: 1,
+                                  color: Colors.black.withValues(alpha: 0.06),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
                                 ),
                               ],
                             ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Stack(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                if (posterUrl != null)
-                                  CachedNetworkImage(
-                                    imageUrl: posterUrl,
-                                    fit: BoxFit.cover,
-                                    placeholder: (_, __) => Container(
-                                      color: AppColors.surfaceHighest,
-                                      child: const Center(
-                                        child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 36),
-                                      ),
-                                    ),
-                                    errorWidget: (_, __, ___) => Container(
-                                      color: AppColors.surfaceHighest,
-                                      child: const Center(
-                                        child: Icon(Icons.broken_image_rounded, color: AppColors.textMuted, size: 36),
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  Container(
-                                    color: AppColors.surfaceHighest,
-                                    child: const Center(
-                                      child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 48),
-                                    ),
-                                  ),
-
-                                // Media Type & Year Badge
-                                Positioned(
-                                  top: 8,
-                                  left: 8,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.75),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.2),
-                                        width: 0.8,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      [
-                                        isTv ? 'SERIES' : 'MOVIE',
-                                        if (releaseYear != null && releaseYear!.isNotEmpty) releaseYear!,
-                                      ].join(' • '),
-                                      style: const TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.5,
-                                        color: Colors.white,
-                                      ),
-                                    ),
+                                // WatchersHive Brand Logo & Name
+                                const Flexible(
+                                  child: WHBrandLogo(
+                                    logoSize: 22,
+                                    fontSize: 15.5,
                                   ),
                                 ),
+                                const SizedBox(width: 8),
+
+                                // Context-Specific Status Pill
+                                _buildStatusPill(),
                               ],
                             ),
                           ),
 
-                          const SizedBox(height: 16),
-
-                          // Clean, Bold Movie Title
-                          Text(
-                            title,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 21,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.textPrimary,
-                              letterSpacing: -0.4,
-                              height: 1.2,
-                            ),
-                          ),
-
-                          const SizedBox(height: 10),
-
-                          // Context-Aware Middle Content
-                          _buildCenterDetails(),
-
-                          // Short Review Quote (compact, only for logged watches)
-                          if (shareMode == StoryShareMode.logged &&
-                              review != null &&
-                              review!.trim().isNotEmpty) ...[
-                            const SizedBox(height: 10),
-                            Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 12),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.95),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: AppColors.primary.withValues(alpha: 0.35),
-                                  width: 1,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 3),
+                          // User attribution if relevant to mode
+                          if (_shouldShowAttribution) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (userAvatarUrl != null && userAvatarUrl!.trim().isNotEmpty) ...[
+                                  CircleAvatar(
+                                    radius: 8.5,
+                                    backgroundImage: CachedNetworkImageProvider(
+                                      ApiEndpoints.resolveAvatarUrl(userAvatarUrl),
+                                    ),
+                                    backgroundColor: AppColors.surface,
                                   ),
+                                  const SizedBox(width: 5),
                                 ],
+                                Flexible(
+                                  child: Text(
+                                    _attributionText,
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+
+                    // Center Hero: Movie Poster + Title + Rating / In-Progress Pill
+                    Expanded(
+                      child: Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.center,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Movie Poster Card
+                              Container(
+                                constraints: BoxConstraints(
+                                  maxWidth: posterMaxWidth,
+                                  maxHeight: posterMaxHeight,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: AppColors.primary.withValues(alpha: 0.65),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF2D2926).withValues(alpha: 0.22),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                    BoxShadow(
+                                      color: AppColors.primary.withValues(alpha: 0.25),
+                                      blurRadius: 18,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Stack(
+                                  children: [
+                                    if (posterUrl != null)
+                                      CachedNetworkImage(
+                                        imageUrl: posterUrl,
+                                        fit: BoxFit.cover,
+                                        placeholder: (_, __) => Container(
+                                          color: AppColors.surfaceHighest,
+                                          child: const Center(
+                                            child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 36),
+                                          ),
+                                        ),
+                                        errorWidget: (_, __, ___) => Container(
+                                          color: AppColors.surfaceHighest,
+                                          child: const Center(
+                                            child: Icon(Icons.broken_image_rounded, color: AppColors.textMuted, size: 36),
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      Container(
+                                        color: AppColors.surfaceHighest,
+                                        child: const Center(
+                                          child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 48),
+                                        ),
+                                      ),
+
+                                    // Media Type & Year Badge
+                                    Positioned(
+                                      top: 8,
+                                      left: 8,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.75),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: Colors.white.withValues(alpha: 0.2),
+                                            width: 0.8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          [
+                                            isTv ? 'SERIES' : 'MOVIE',
+                                            if (releaseYear != null && releaseYear!.isNotEmpty) releaseYear!,
+                                          ].join(' • '),
+                                          style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0.5,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              child: Text(
-                                '"${_cleanReviewSnippet(review!)}"',
+
+                              const SizedBox(height: 12),
+
+                              // Clean, Bold Movie Title
+                              Text(
+                                title,
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontFamily: 'Inter',
-                                  fontSize: 11.5,
-                                  fontStyle: FontStyle.italic,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 21,
+                                  fontWeight: FontWeight.w900,
                                   color: AppColors.textPrimary,
-                                  height: 1.3,
+                                  letterSpacing: -0.4,
+                                  height: 1.2,
                                 ),
                               ),
-                            ),
-                          ],
-                        ],
+
+                              const SizedBox(height: 8),
+
+                              // Context-Aware Middle Content
+                              _buildCenterDetails(),
+
+                              // Short Review Quote (compact, only for logged watches)
+                              if (hasReview) ...[
+                                const SizedBox(height: 8),
+                                Container(
+                                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.95),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: AppColors.primary.withValues(alpha: 0.35),
+                                      width: 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.05),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(
+                                    '"${_cleanReviewSnippet(review!)}"',
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 11,
+                                      fontStyle: FontStyle.italic,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                      height: 1.25,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
                     ),
 
-                    // Bottom Link & QR Card (Clean URL without ugly numeric IDs)
+                    // Bottom Link & QR Card (High-Conversion WatchersHive App Discovery Card)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.45),
-                          width: 1.2,
+                          color: AppColors.primary.withValues(alpha: 0.55),
+                          width: 1.4,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.07),
+                            color: Colors.black.withValues(alpha: 0.08),
                             blurRadius: 14,
                             offset: const Offset(0, 4),
+                          ),
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            blurRadius: 10,
+                            spreadRadius: 1,
                           ),
                         ],
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           // Scannable Hive QR Code
                           Container(
-                            padding: const EdgeInsets.all(4),
+                            padding: const EdgeInsets.all(3.5),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(9),
                               border: Border.all(
-                                color: AppColors.border,
-                                width: 0.8,
+                                color: AppColors.primary.withValues(alpha: 0.45),
+                                width: 1,
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.12),
+                                  blurRadius: 6,
+                                ),
+                              ],
                             ),
                             child: QrImageView(
                               data: _movieUrl,
                               version: QrVersions.auto,
-                              size: 48,
+                              size: 46,
                               backgroundColor: Colors.white,
                               eyeStyle: const QrEyeStyle(
                                 eyeShape: QrEyeShape.square,
@@ -441,18 +497,23 @@ class InstagramStoryCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 10),
 
-                          // Text & Link CTA (clean watchershive.com domain)
-                          Flexible(
+                          // Text & CTA details
+                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Row(
-                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Flexible(
+                                    const Icon(
+                                      Icons.hive_rounded,
+                                      size: 13,
+                                      color: AppColors.primaryDark,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
                                       child: Text(
                                         _bottomCtaHeading,
                                         style: const TextStyle(
@@ -460,39 +521,68 @@ class InstagramStoryCard extends StatelessWidget {
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w900,
                                           color: AppColors.textPrimary,
+                                          letterSpacing: -0.2,
                                         ),
+                                        maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
-                                      Icons.arrow_forward_rounded,
-                                      size: 13,
-                                      color: AppColors.primaryDark,
-                                    ),
                                   ],
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _shortDisplayUrl,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.primaryDark,
-                                    letterSpacing: 0.2,
+                                const SizedBox(height: 3),
+
+                                // High-Contrast Action Pill (Golden Contrast Rule: Charcoal text on Honey Gold)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(6),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.primaryDark.withValues(alpha: 0.25),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
                                   ),
-                                  overflow: TextOverflow.ellipsis,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          _shortDisplayUrl,
+                                          style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w900,
+                                            color: Color(0xFF262626), // Charcoal Black per Golden Contrast Rule
+                                            letterSpacing: 0.2,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 11,
+                                        color: Color(0xFF262626),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 3),
+
                                 const Text(
-                                  'Scan QR to view & track',
+                                  'Scan QR or visit to track with friends · Free on App & Web',
                                   style: TextStyle(
                                     fontFamily: 'Inter',
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w600,
                                     color: AppColors.textMuted,
+                                    letterSpacing: 0.1,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
@@ -503,12 +593,13 @@ class InstagramStoryCard extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
 
   /// Builds the top-right contextual pill depending on shareMode
   Widget _buildStatusPill() {

@@ -34,17 +34,31 @@ class TMDBPosterImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = posterPath != null ? ApiEndpoints.tmdbPoster(posterPath) : null;
+    final cleanPath = (posterPath != null &&
+            posterPath!.trim().isNotEmpty &&
+            posterPath != 'null' &&
+            posterPath != 'undefined')
+        ? posterPath!.trim()
+        : null;
+    final url = cleanPath != null ? ApiEndpoints.tmdbPoster(cleanPath) : '';
+    final hasValidUrl = url.isNotEmpty;
+
+    final memW = width.isFinite && !width.isNaN && width > 0
+        ? (width * 3).toInt().clamp(60, 600)
+        : 600;
+    final memH = height.isFinite && !height.isNaN && height > 0
+        ? (height * 3).toInt().clamp(90, 900)
+        : 900;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
-      child: url != null
+      child: hasValidUrl
           ? CachedNetworkImage(
               imageUrl: url,
               width: width,
               height: height,
-              memCacheWidth: (width * 3).toInt().clamp(60, 600),
-              memCacheHeight: (height * 3).toInt().clamp(90, 900),
+              memCacheWidth: memW,
+              memCacheHeight: memH,
               maxWidthDiskCache: 600,
               maxHeightDiskCache: 900,
               fit: BoxFit.cover,
@@ -58,12 +72,16 @@ class TMDBPosterImage extends StatelessWidget {
   Widget _shimmer() => Shimmer.fromColors(
         baseColor: AppColors.surfaceElevated,
         highlightColor: AppColors.surfaceHighest,
-        child: Container(width: width, height: height, color: AppColors.surfaceElevated),
+        child: Container(
+          width: width.isFinite ? width : null,
+          height: height.isFinite ? height : null,
+          color: AppColors.surfaceElevated,
+        ),
       );
 
   Widget _placeholder() => Container(
-        width: width,
-        height: height,
+        width: width.isFinite ? width : null,
+        height: height.isFinite ? height : null,
         color: AppColors.surfaceElevated,
         child: const Center(
           child: Icon(Icons.movie_creation_outlined, color: AppColors.textMuted, size: 28),
@@ -80,13 +98,13 @@ class WHAvatar extends StatelessWidget {
 
   Widget _buildFallback() {
     return CircleAvatar(
-      radius: radius,
+      radius: radius.isFinite ? radius : 20,
       backgroundColor: AppColors.primary.withValues(alpha: 0.2),
       child: Text(
         (name?.isNotEmpty == true ? name![0] : '?').toUpperCase(),
         style: TextStyle(
           fontFamily: 'Inter',
-          fontSize: radius * 0.8,
+          fontSize: (radius.isFinite ? radius : 20) * 0.8,
           fontWeight: FontWeight.w700,
           color: AppColors.primary,
         ),
@@ -98,7 +116,9 @@ class WHAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolvedUrl = ApiEndpoints.resolveAvatarUrl(imageUrl);
     if (resolvedUrl.isNotEmpty) {
-      final pixelSize = (radius * 4).toInt().clamp(64, 256);
+      final pixelSize = radius.isFinite && !radius.isNaN && radius > 0
+          ? (radius * 4).toInt().clamp(64, 256)
+          : 128;
       return CachedNetworkImage(
         imageUrl: resolvedUrl,
         memCacheWidth: pixelSize,
@@ -106,7 +126,7 @@ class WHAvatar extends StatelessWidget {
         maxWidthDiskCache: 256,
         maxHeightDiskCache: 256,
         imageBuilder: (context, imageProvider) => CircleAvatar(
-          radius: radius,
+          radius: radius.isFinite ? radius : 20,
           backgroundImage: imageProvider,
           backgroundColor: AppColors.surfaceElevated,
         ),
