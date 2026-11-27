@@ -73,6 +73,9 @@ jobs:
       - name: Run Static Code Analysis
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
+      - name: Run Automated Test Suite
+        run: flutter test
+
       - name: Decode & Verify Android Keystore (if provided)
         env:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -176,6 +179,9 @@ jobs:
 
       - name: Run Static Code Analysis
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run Automated Test Suite
+        run: flutter test
 
       - name: Build iOS Staging App
         run: flutter build ios --release --no-codesign
