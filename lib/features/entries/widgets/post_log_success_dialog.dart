@@ -22,6 +22,7 @@ class PostLogSuccessDialog extends StatelessWidget {
   final String? userDisplayName;
   final String? username;
   final String? userAvatarUrl;
+  final List<String>? watchBuddies;
 
   const PostLogSuccessDialog({
     super.key,
@@ -38,6 +39,7 @@ class PostLogSuccessDialog extends StatelessWidget {
     this.userDisplayName,
     this.username,
     this.userAvatarUrl,
+    this.watchBuddies,
   });
 
   static Future<void> show(
@@ -55,6 +57,7 @@ class PostLogSuccessDialog extends StatelessWidget {
     String? userDisplayName,
     String? username,
     String? userAvatarUrl,
+    List<String>? watchBuddies,
   }) {
     final safeContext = context.mounted ? context : rootNavigatorKey.currentContext;
     if (safeContext == null || !safeContext.mounted) {
@@ -78,6 +81,7 @@ class PostLogSuccessDialog extends StatelessWidget {
         userDisplayName: userDisplayName,
         username: username,
         userAvatarUrl: userAvatarUrl,
+        watchBuddies: watchBuddies,
       ),
     );
   }
@@ -105,6 +109,7 @@ class PostLogSuccessDialog extends StatelessWidget {
       userDisplayName: userDisplayName,
       username: username,
       userAvatarUrl: userAvatarUrl,
+      watchBuddies: watchBuddies,
       isCompleted: !isWatching,
       shareMode: isWatching ? StoryShareMode.watching : StoryShareMode.logged,
     );
@@ -331,6 +336,7 @@ class PostLogSuccessDialog extends StatelessWidget {
                         userDisplayName: userDisplayName,
                         username: username,
                         userAvatarUrl: userAvatarUrl,
+                        watchBuddies: watchBuddies,
                         isCompleted: !isWatching,
                         shareMode: isWatching ? StoryShareMode.watching : StoryShareMode.logged,
                       ),

@@ -1173,6 +1173,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
             userDisplayName: currentUser?.displayName ?? currentUser?.username,
             username: currentUser?.username,
             userAvatarUrl: currentUser?.profilePictureUrl,
+            watchBuddies: _selectedWatchBuddies.map((u) => u.displayName ?? u.username).toList(),
           );
         }
       }

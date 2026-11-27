@@ -739,6 +739,7 @@ class _WHFeedCardState extends ConsumerState<WHFeedCard> {
                                 userDisplayName: entry.user?.displayName ?? entry.user?.username,
                                 username: entry.user?.username,
                                 userAvatarUrl: entry.user?.profilePictureUrl,
+                                watchBuddies: entry.watchBuddies.map((b) => b.displayName ?? b.username).toList(),
                                 shareMode: entry.isWatching ? StoryShareMode.watching : StoryShareMode.logged,
                               );
                             },

@@ -58,6 +58,40 @@ void main() {
       expect(find.text('watchershive.com'), findsOneWidget);
     });
 
+    testWidgets('renders logged watch with watchers (watch buddies) attribution and banner', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 360,
+                height: 640,
+                child: InstagramStoryCard(
+                  title: 'Oppenheimer',
+                  rating: 9.5,
+                  review: 'A monumental achievement in modern cinema.',
+                  tmdbId: 872585,
+                  mediaType: 'movie',
+                  releaseYear: '2023',
+                  userDisplayName: 'Rohit',
+                  username: 'rohit_d',
+                  watchBuddies: ['Aditya', 'Sam'],
+                  shareMode: StoryShareMode.logged,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Oppenheimer'), findsOneWidget);
+      expect(find.text('Logged by Rohit with Aditya, Sam'), findsOneWidget);
+      expect(find.text('🍿 JUST WATCHED'), findsOneWidget);
+      expect(find.text('9.5 / 10'), findsOneWidget);
+      expect(find.textContaining('monumental achievement'), findsOneWidget);
+      expect(find.text('watchershive.com'), findsOneWidget);
+    });
+
     testWidgets('renders currently watching status without personal rating', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
