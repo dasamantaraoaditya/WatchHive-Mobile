@@ -336,8 +336,16 @@ class UserRepository {
       final List<dynamic> list;
       if (data is List) {
         list = data;
-      } else if (data is Map<String, dynamic> && data['data'] is List) {
-        list = data['data'] as List;
+      } else if (data is Map<String, dynamic>) {
+        if (data['users'] is List) {
+          list = data['users'] as List;
+        } else if (data['data'] is List) {
+          list = data['data'] as List;
+        } else if (data['friends'] is List) {
+          list = data['friends'] as List;
+        } else {
+          list = [];
+        }
       } else {
         list = [];
       }
