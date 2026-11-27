@@ -25,6 +25,7 @@ class StoryShareModal extends StatefulWidget {
   final String? userDisplayName;
   final String? username;
   final String? userAvatarUrl;
+  final List<String>? watchBuddies;
   final bool isCompleted;
   final StoryShareMode shareMode;
 
@@ -41,6 +42,7 @@ class StoryShareModal extends StatefulWidget {
     this.userDisplayName,
     this.username,
     this.userAvatarUrl,
+    this.watchBuddies,
     this.isCompleted = true,
     StoryShareMode? shareMode,
   }) : shareMode = shareMode ?? (isCompleted ? StoryShareMode.logged : StoryShareMode.watching);
@@ -59,6 +61,7 @@ class StoryShareModal extends StatefulWidget {
     String? userDisplayName,
     String? username,
     String? userAvatarUrl,
+    List<String>? watchBuddies,
     bool isCompleted = true,
     StoryShareMode? shareMode,
   }) {
@@ -78,6 +81,7 @@ class StoryShareModal extends StatefulWidget {
         userDisplayName: userDisplayName,
         username: username,
         userAvatarUrl: userAvatarUrl,
+        watchBuddies: watchBuddies,
         isCompleted: isCompleted,
         shareMode: shareMode,
       ),
@@ -159,6 +163,9 @@ class _StoryShareModalState extends State<StoryShareModal> {
       final file = File(filePath);
       await file.writeAsBytes(pngBytes, flush: true);
 
+      // Auto-copy the deep link to clipboard so the user can easily paste it into Instagram's native Link Sticker
+      await Clipboard.setData(ClipboardData(text: _movieUrl));
+
       if (!mounted) return;
 
       // Invoke system share sheet with image file (supports Instagram Stories, Feed, Chats, etc.)
@@ -167,6 +174,13 @@ class _StoryShareModalState extends State<StoryShareModal> {
         text: _shareText,
         subject: 'WatchersHive: ${widget.title}',
       );
+
+      if (mounted) {
+        WHAlert.showSuccess(
+          context,
+          'Link copied! In Instagram, tap Sticker 🔗 -> LINK to paste your WatchersHive link.',
+        );
+      }
     } catch (e) {
       debugPrint('[StoryShareModal] Share error: $e');
       if (mounted) {
@@ -267,6 +281,7 @@ class _StoryShareModalState extends State<StoryShareModal> {
                       userDisplayName: widget.userDisplayName,
                       username: widget.username,
                       userAvatarUrl: widget.userAvatarUrl,
+                      watchBuddies: widget.watchBuddies,
                       isCompleted: widget.isCompleted,
                       shareMode: widget.shareMode,
                     ),

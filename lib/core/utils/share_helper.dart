@@ -26,6 +26,7 @@ class ShareHelper {
     String? userDisplayName,
     String? username,
     String? userAvatarUrl,
+    List<String>? watchBuddies,
     bool isCompleted = true,
     StoryShareMode? shareMode,
   }) {
@@ -42,6 +43,7 @@ class ShareHelper {
       userDisplayName: userDisplayName,
       username: username,
       userAvatarUrl: userAvatarUrl,
+      watchBuddies: watchBuddies,
       isCompleted: isCompleted,
       shareMode: shareMode,
     );
@@ -63,6 +65,7 @@ class ShareHelper {
     String? userDisplayName,
     String? username,
     String? userAvatarUrl,
+    List<String>? watchBuddies,
     bool isCompleted = true,
     StoryShareMode? shareMode,
   }) async {
@@ -88,6 +91,7 @@ class ShareHelper {
         userDisplayName: userDisplayName,
         username: username,
         userAvatarUrl: userAvatarUrl,
+        watchBuddies: watchBuddies,
         isCompleted: isCompleted,
         shareMode: effectiveMode,
       );

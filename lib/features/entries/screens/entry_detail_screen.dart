@@ -203,6 +203,7 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
                   userDisplayName: _entry!.user?.displayName ?? _entry!.user?.username,
                   username: _entry!.user?.username,
                   userAvatarUrl: _entry!.user?.profilePictureUrl,
+                  watchBuddies: _entry!.watchBuddies.map((b) => b.displayName ?? b.username).toList(),
                   shareMode: _entry!.isWatching ? StoryShareMode.watching : StoryShareMode.logged,
                 );
               },

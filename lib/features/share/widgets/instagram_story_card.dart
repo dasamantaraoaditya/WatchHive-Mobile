@@ -32,6 +32,7 @@ class InstagramStoryCard extends StatelessWidget {
   final String? userDisplayName;
   final String? username;
   final String? userAvatarUrl;
+  final List<String>? watchBuddies;
   final bool isCompleted;
   final StoryShareMode shareMode;
 
@@ -48,6 +49,7 @@ class InstagramStoryCard extends StatelessWidget {
     this.userDisplayName,
     this.username,
     this.userAvatarUrl,
+    this.watchBuddies,
     this.isCompleted = true,
     StoryShareMode? shareMode,
   }) : shareMode = shareMode ?? (isCompleted ? StoryShareMode.logged : StoryShareMode.watching);
@@ -101,10 +103,6 @@ class InstagramStoryCard extends StatelessWidget {
           final hasReview = shareMode == StoryShareMode.logged &&
               review != null &&
               review!.trim().isNotEmpty;
-          final posterMaxHeight = hasReview
-              ? (cardHeight * 0.22).clamp(95.0, 150.0)
-              : (cardHeight * 0.28).clamp(115.0, 190.0);
-          final posterMaxWidth = posterMaxHeight * (2.0 / 3.0);
 
           return Container(
             decoration: BoxDecoration(
@@ -278,163 +276,262 @@ class InstagramStoryCard extends StatelessWidget {
                         ],
                       ),
 
-                    // Center Hero: Movie Poster + Title + Rating / In-Progress Pill
+                    // Center Hero: Big Movie Banner + Good-Length Poster + Title + Ratings & Review in the bottom
                     Expanded(
                       child: Center(
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.center,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Movie Poster Card
-                              Container(
-                                constraints: BoxConstraints(
-                                  maxWidth: posterMaxWidth,
-                                  maxHeight: posterMaxHeight,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(
-                                    color: AppColors.primary.withValues(alpha: 0.65),
-                                    width: 1.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF2D2926).withValues(alpha: 0.22),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 10),
-                                    ),
-                                    BoxShadow(
-                                      color: AppColors.primary.withValues(alpha: 0.25),
-                                      blurRadius: 18,
-                                      spreadRadius: 1,
-                                    ),
-                                  ],
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: Stack(
+                          child: SizedBox(
+                            width: 320,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // 🎬 Cinematic Showcase: Big Movie Banner + Overlapping Good-Length Poster
+                                Stack(
+                                  clipBehavior: Clip.none,
                                   children: [
-                                    if (posterUrl != null)
-                                      CachedNetworkImage(
-                                        imageUrl: posterUrl,
-                                        fit: BoxFit.cover,
-                                        placeholder: (_, __) => Container(
-                                          color: AppColors.surfaceHighest,
-                                          child: const Center(
-                                            child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 36),
+                                    // 1. Bigger Banner of the Movie (Prominent backdrop landscape)
+                                    Container(
+                                      width: double.infinity,
+                                      height: 135,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: AppColors.primary.withValues(alpha: 0.55),
+                                          width: 1.4,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.18),
+                                            blurRadius: 18,
+                                            offset: const Offset(0, 8),
                                           ),
-                                        ),
-                                        errorWidget: (_, __, ___) => Container(
-                                          color: AppColors.surfaceHighest,
-                                          child: const Center(
-                                            child: Icon(Icons.broken_image_rounded, color: AppColors.textMuted, size: 36),
+                                          BoxShadow(
+                                            color: AppColors.primary.withValues(alpha: 0.15),
+                                            blurRadius: 12,
                                           ),
-                                        ),
-                                      )
-                                    else
-                                      Container(
-                                        color: AppColors.surfaceHighest,
-                                        child: const Center(
-                                          child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 48),
-                                        ),
+                                        ],
                                       ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          if (backdropUrl != null)
+                                            CachedNetworkImage(
+                                              imageUrl: backdropUrl,
+                                              fit: BoxFit.cover,
+                                              placeholder: (_, __) => Container(
+                                                color: const Color(0xFF23201D),
+                                                child: const Center(
+                                                  child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 36),
+                                                ),
+                                              ),
+                                              errorWidget: (_, __, ___) => Container(
+                                                color: const Color(0xFF23201D),
+                                                child: const Center(
+                                                  child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 36),
+                                                ),
+                                              ),
+                                            )
+                                          else
+                                            Container(
+                                              decoration: const BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                  colors: [Color(0xFF2D2926), Color(0xFF1B1917)],
+                                                ),
+                                              ),
+                                              child: const Center(
+                                                child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 40),
+                                              ),
+                                            ),
 
-                                    // Media Type & Year Badge
+                                          // Ambient Gradient Scrim to guarantee badge readability & depth
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Colors.black.withValues(alpha: 0.25),
+                                                  Colors.transparent,
+                                                  Colors.black.withValues(alpha: 0.70),
+                                                ],
+                                                stops: const [0.0, 0.4, 1.0],
+                                              ),
+                                            ),
+                                          ),
+
+                                          // Media Type & Year Badge
+                                          Positioned(
+                                            top: 10,
+                                            right: 10,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withValues(alpha: 0.75),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: Colors.white.withValues(alpha: 0.3),
+                                                  width: 0.8,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                [
+                                                  isTv ? 'SERIES' : 'MOVIE',
+                                                  if (releaseYear != null && releaseYear!.isNotEmpty) releaseYear!,
+                                                ].join(' • '),
+                                                style: const TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w800,
+                                                  letterSpacing: 0.5,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // 2. Good-Length Poster (Overlapping the banner at bottom-left)
                                     Positioned(
-                                      top: 8,
-                                      left: 8,
+                                      left: 14,
+                                      bottom: -32,
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                        width: 76,
+                                        height: 114, // Exact 2:3 vertical aspect ratio
                                         decoration: BoxDecoration(
-                                          color: Colors.black.withValues(alpha: 0.75),
-                                          borderRadius: BorderRadius.circular(6),
+                                          borderRadius: BorderRadius.circular(12),
                                           border: Border.all(
-                                            color: Colors.white.withValues(alpha: 0.2),
-                                            width: 0.8,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          [
-                                            isTv ? 'SERIES' : 'MOVIE',
-                                            if (releaseYear != null && releaseYear!.isNotEmpty) releaseYear!,
-                                          ].join(' • '),
-                                          style: const TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: 0.5,
                                             color: Colors.white,
+                                            width: 2.2,
                                           ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.35),
+                                              blurRadius: 14,
+                                              offset: const Offset(0, 6),
+                                            ),
+                                            BoxShadow(
+                                              color: AppColors.primary.withValues(alpha: 0.30),
+                                              blurRadius: 10,
+                                            ),
+                                          ],
                                         ),
+                                        clipBehavior: Clip.antiAlias,
+                                        child: posterUrl != null
+                                            ? CachedNetworkImage(
+                                                imageUrl: posterUrl,
+                                                fit: BoxFit.cover,
+                                                placeholder: (_, __) => Container(
+                                                  color: AppColors.surfaceHighest,
+                                                  child: const Center(
+                                                    child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 28),
+                                                  ),
+                                                ),
+                                                errorWidget: (_, __, ___) => Container(
+                                                  color: AppColors.surfaceHighest,
+                                                  child: const Center(
+                                                    child: Icon(Icons.broken_image_rounded, color: AppColors.textMuted, size: 28),
+                                                  ),
+                                                ),
+                                              )
+                                            : Container(
+                                                color: AppColors.surfaceHighest,
+                                                child: const Center(
+                                                  child: Icon(Icons.movie_rounded, color: AppColors.primary, size: 36),
+                                                ),
+                                              ),
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
 
-                              const SizedBox(height: 12),
+                                // Spacing to account for poster overlap
+                                const SizedBox(height: 38),
 
-                              // Clean, Bold Movie Title
-                              Text(
-                                title,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 21,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.textPrimary,
-                                  letterSpacing: -0.4,
-                                  height: 1.2,
-                                ),
-                              ),
-
-                              const SizedBox(height: 8),
-
-                              // Context-Aware Middle Content
-                              _buildCenterDetails(),
-
-                              // Short Review Quote (compact, only for logged watches)
-                              if (hasReview) ...[
-                                const SizedBox(height: 8),
-                                Container(
-                                  margin: const EdgeInsets.symmetric(horizontal: 12),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.95),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: AppColors.primary.withValues(alpha: 0.35),
-                                      width: 1,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.05),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
+                                // Clean, Bold Movie Title
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
                                   child: Text(
-                                    '"${_cleanReviewSnippet(review!)}"',
+                                    title,
                                     textAlign: TextAlign.center,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       fontFamily: 'Inter',
-                                      fontSize: 11,
-                                      fontStyle: FontStyle.italic,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
                                       color: AppColors.textPrimary,
-                                      height: 1.25,
+                                      letterSpacing: -0.4,
+                                      height: 1.2,
                                     ),
                                   ),
                                 ),
+
+                                const SizedBox(height: 8),
+
+                                // Context-Aware Middle Content (Ratings in the bottom)
+                                _buildCenterDetails(),
+
+                                // Short Review Quote (compact, only for logged watches)
+                                if (hasReview) ...[
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.95),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: AppColors.primary.withValues(alpha: 0.35),
+                                        width: 1,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.05),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Icon(
+                                          Icons.format_quote_rounded,
+                                          size: 15,
+                                          color: AppColors.primaryDark,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Flexible(
+                                          child: Text(
+                                            '"${_cleanReviewSnippet(review!)}"',
+                                            textAlign: TextAlign.left,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 11,
+                                              fontStyle: FontStyle.italic,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textPrimary,
+                                              height: 1.25,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
                       ),
@@ -573,7 +670,7 @@ class InstagramStoryCard extends StatelessWidget {
                                 const SizedBox(height: 3),
 
                                 const Text(
-                                  'Scan QR or visit to track with friends · Free on App & Web',
+                                  'Tap Link sticker or scan QR to view on WatchersHive',
                                   style: TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 8.5,
@@ -667,11 +764,14 @@ class InstagramStoryCard extends StatelessWidget {
 
   String get _attributionText {
     final name = userDisplayName ?? username;
+    final hasBuddies = watchBuddies != null && watchBuddies!.isNotEmpty;
+    final buddiesText = hasBuddies ? ' with ${watchBuddies!.join(', ')}' : '';
+
     switch (shareMode) {
       case StoryShareMode.logged:
-        return 'Logged by $name';
+        return 'Logged by $name$buddiesText';
       case StoryShareMode.watching:
-        return 'Watching now: $name';
+        return 'Watching now: $name$buddiesText';
       case StoryShareMode.general:
         return 'Shared via WatchersHive';
     }
